@@ -1,4 +1,4 @@
-# Radar de Match
+# rednit
 
 Micro-SaaS web que fornece insights inteligentes sobre relacionamentos, identificando red flags, green flags e hipóteses probabilísticas baseadas em evidências.
 
@@ -33,7 +33,7 @@ Micro-SaaS web que fornece insights inteligentes sobre relacionamentos, identifi
 
 ```bash
 git clone <repo-url>
-cd radar-match
+cd rednit
 ```
 
 ### 2. Instale as dependências
@@ -155,7 +155,7 @@ Configure o webhook do Asaas para apontar para:
 ## 📁 Estrutura do Projeto
 
 ```
-radar-match/
+rednit/
 ├── app/
 │   ├── api/
 │   │   ├── analyze/          # Endpoint de análise
