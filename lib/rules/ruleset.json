@@ -1,0 +1,205 @@
+{
+  "version": "1.0",
+  "scores": {
+    "consistencia": {
+      "weights": {
+        "cancelou_encontro": { "SIM": -15, "NAO": 0 },
+        "remarcou_com_data": { "SIM": 10, "NAO": -20, "NAO_SE_APLICA": 0 },
+        "frequencia_contato": { "DIARIA": 15, "ALTERNADA": 10, "SOME": -10 },
+        "tempo_resposta": { "MINUTOS": 10, "HORAS": 5, "DIAS": -15 }
+      },
+      "base": 50
+    },
+    "reciprocidade": {
+      "weights": {
+        "iniciativa": { "VOCE": -20, "MATCH": 10, "MEIO_A_MEIO": 15 },
+        "curiosidade_por_voce": { "ALTA": 20, "MEDIA": 5, "BAIXA": -15 },
+        "fala_futuro": { "NAO": -10, "FALA": 5, "FALA_E_FAZ": 20 }
+      },
+      "base": 50
+    },
+    "disponibilidade": {
+      "weights": {
+        "disponivel_so_madrugada": { "SIM": -25, "NAO": 10 },
+        "frequencia_contato": { "DIARIA": 10, "ALTERNADA": 5, "SOME": -20 },
+        "tempo_resposta": { "MINUTOS": 15, "HORAS": 0, "DIAS": -20 }
+      },
+      "base": 50
+    },
+    "respeito": {
+      "weights": {
+        "respeito_limites": { "RESPEITA": 30, "NEGOCIA": 0, "INSISTE": -25, "DEBOCHA": -40 },
+        "sinais_alerta": {
+          "LOVE_BOMBING": -20,
+          "CIUME_CEDO": -15,
+          "VITIMISMO": -10,
+          "HOSTILIDADE": -30,
+          "CONTRADICOES": -15,
+          "SUMICO_POS_INTIMIDADE": -25,
+          "TRIANGULACAO": -20
+        }
+      },
+      "base": 50
+    },
+    "intencao": {
+      "weights": {
+        "objetivo_usuario": { "CASUAL": -10, "CONHECER": 5, "NAMORO": 15 },
+        "ritmo_usuario": { "RAPIDO": 10, "MEDIO": 5, "LENTO": -5 },
+        "fala_futuro": { "NAO": -15, "FALA": 10, "FALA_E_FAZ": 25 },
+        "encontro_marcado": { "SIM": 20, "NAO": -10 }
+      },
+      "base": 50
+    },
+    "risco_ghosting": {
+      "weights": {
+        "tempo_resposta": { "MINUTOS": -20, "HORAS": -5, "DIAS": 25 },
+        "frequencia_contato": { "DIARIA": -15, "ALTERNADA": -5, "SOME": 30 },
+        "curiosidade_por_voce": { "ALTA": -20, "MEDIA": 0, "BAIXA": 25 },
+        "sinais_alerta": {
+          "SUMICO_POS_INTIMIDADE": 40
+        }
+      },
+      "base": 30
+    },
+    "risco_enrolacao": {
+      "weights": {
+        "remarcou_com_data": { "SIM": -15, "NAO": 30, "NAO_SE_APLICA": 0 },
+        "cancelou_encontro": { "SIM": 10, "NAO": 0 },
+        "fala_futuro": { "NAO": 20, "FALA": -10, "FALA_E_FAZ": -20 },
+        "encontro_marcado": { "SIM": -25, "NAO": 20 }
+      },
+      "base": 30
+    }
+  },
+  "hypotheses": {
+    "EXPLORANDO": {
+      "signals": [
+        { "field": "objetivo_usuario", "value": "CASUAL", "weight": 20 },
+        { "field": "ritmo_usuario", "value": "RAPIDO", "weight": 15 },
+        { "field": "curiosidade_por_voce", "value": "BAIXA", "weight": 25 }
+      ],
+      "threshold": 40
+    },
+    "BUSCA_FIXO": {
+      "signals": [
+        { "field": "objetivo_usuario", "value": "NAMORO", "weight": 30 },
+        { "field": "fala_futuro", "value": "FALA_E_FAZ", "weight": 25 },
+        { "field": "intencao", "score": 70, "weight": 20 }
+      ],
+      "threshold": 50
+    },
+    "CARENCIA_VALIDACAO": {
+      "signals": [
+        { "field": "sinais_alerta", "value": "LOVE_BOMBING", "weight": 30 },
+        { "field": "sinais_alerta", "value": "VITIMISMO", "weight": 20 },
+        { "field": "iniciativa", "value": "VOCE", "weight": 15 }
+      ],
+      "threshold": 40
+    },
+    "RECEM_SAIU_RELACAO": {
+      "signals": [
+        { "field": "sinais_alerta", "value": "SUMICO_POS_INTIMIDADE", "weight": 35 },
+        { "field": "ritmo_usuario", "value": "RAPIDO", "weight": 15 },
+        { "field": "respeito_limites", "value": "INSISTE", "weight": 20 }
+      ],
+      "threshold": 45
+    },
+    "SEM_DISPONIBILIDADE_REAL": {
+      "signals": [
+        { "field": "disponivel_so_madrugada", "value": "SIM", "weight": 30 },
+        { "field": "frequencia_contato", "value": "SOME", "weight": 25 },
+        { "field": "disponibilidade", "score": 30, "weight": 20 }
+      ],
+      "threshold": 50
+    }
+  },
+  "red_flags": [
+    {
+      "id": "PROMESSA_SEM_ACAO",
+      "title": "Promessa sem ação",
+      "severity": "HIGH",
+      "triggers": [
+        { "field": "remarcou_com_data", "value": "NAO", "required": true },
+        { "field": "cancelou_encontro", "value": "SIM" }
+      ],
+      "impact": "Alto risco de enrolação e frustração"
+    },
+    {
+      "id": "DESRESPEITO_LIMITES",
+      "title": "Desrespeito a limites",
+      "severity": "HIGH",
+      "triggers": [
+        { "field": "respeito_limites", "value": "DEBOCHA", "required": true }
+      ],
+      "impact": "Risco de relacionamento tóxico"
+    },
+    {
+      "id": "LOVE_BOMBING",
+      "title": "Love bombing",
+      "severity": "MEDIUM",
+      "triggers": [
+        { "field": "sinais_alerta", "contains": "LOVE_BOMBING", "required": true }
+      ],
+      "impact": "Possível manipulação emocional"
+    },
+    {
+      "id": "CIUME_PREMATURO",
+      "title": "Ciúme prematuro",
+      "severity": "MEDIUM",
+      "triggers": [
+        { "field": "sinais_alerta", "contains": "CIUME_CEDO", "required": true },
+        { "field": "stage", "value": "FIRST_CHAT", "required": false }
+      ],
+      "impact": "Possível comportamento controlador"
+    },
+    {
+      "id": "SUMICO_POS_INTIMIDADE",
+      "title": "Sumiço pós-intimidade",
+      "severity": "HIGH",
+      "triggers": [
+        { "field": "sinais_alerta", "contains": "SUMICO_POS_INTIMIDADE", "required": true }
+      ],
+      "impact": "Alto risco de ghosting"
+    }
+  ],
+  "green_flags": [
+    {
+      "id": "RECIPROCIDADE_ALTA",
+      "title": "Alta reciprocidade",
+      "severity": "HIGH",
+      "triggers": [
+        { "field": "reciprocidade", "score": 75, "operator": ">=", "required": true }
+      ],
+      "impact": "Sinal positivo de interesse genuíno"
+    },
+    {
+      "id": "CONSISTENCIA_ALTA",
+      "title": "Alta consistência",
+      "severity": "HIGH",
+      "triggers": [
+        { "field": "consistencia", "score": 75, "operator": ">=", "required": true },
+        { "field": "remarcou_com_data", "value": "SIM", "required": false }
+      ],
+      "impact": "Demonstra comprometimento"
+    },
+    {
+      "id": "RESPEITO_LIMITES",
+      "title": "Respeita limites",
+      "severity": "HIGH",
+      "triggers": [
+        { "field": "respeito_limites", "value": "RESPEITA", "required": true }
+      ],
+      "impact": "Sinal de maturidade emocional"
+    },
+    {
+      "id": "FALA_E_FAZ",
+      "title": "Fala e faz",
+      "severity": "MEDIUM",
+      "triggers": [
+        { "field": "fala_futuro", "value": "FALA_E_FAZ", "required": true },
+        { "field": "encontro_marcado", "value": "SIM", "required": false }
+      ],
+      "impact": "Demonstra intenção real"
+    }
+  ]
+}
