@@ -1,322 +1,613 @@
 {
-  "version": "2.0",
+  "version": "3.0",
+  "description": "Ruleset baseado em psicologia de relacionamentos - Teoria do Apego, Modelo de Investimento de Rusbult, Pesquisas de Gottman",
+  
   "stage_multipliers": {
-    "FIRST_CHAT": 0.6,
+    "FIRST_CHAT": 0.5,
     "TALKING": 1.0,
-    "POST_DATE": 1.3
+    "POST_DATE": 1.4
   },
+  
+  "scores": {
+    "reciprocidade": { "base": 50, "description": "Equilíbrio de investimento emocional e iniciativa" },
+    "constancia": { "base": 50, "description": "Previsibilidade e confiabilidade do comportamento" },
+    "acao_mundo_real": { "base": 50, "description": "Comprometimento com ações concretas vs apenas palavras" },
+    "respeito": { "base": 70, "description": "Respeito a limites e autonomia - começa alto, desce com red flags" },
+    "coerencia": { "base": 50, "description": "Alinhamento entre palavras e ações" },
+    "disponibilidade": { "base": 50, "description": "Disponibilidade real para relacionamento" },
+    "risco_ghosting": { "base": 25, "description": "Probabilidade de sumiço baseada em padrões evitativos" },
+    "risco_enrolacao": { "base": 25, "description": "Probabilidade de manter sem comprometimento real" },
+    "compat_objetivo": { "base": 50, "description": "Compatibilidade entre objetivos declarados e comportamento" }
+  },
+
   "signals": {
     "iniciativa": {
+      "_psychology": "Teoria da Interdependência - reciprocidade é fundamental. Desequilíbrio persistente indica baixo investimento de uma parte.",
       "VOCE_SEMPRE": {
         "code": "INICIATIVA_VOCE_SEMPRE",
         "label": "Você sempre inicia conversas",
-        "deltas": { "reciprocidade": -20 }
+        "deltas": { 
+          "reciprocidade": -25, 
+          "risco_enrolacao": 20,
+          "risco_ghosting": 10
+        },
+        "interpretation": "Desequilíbrio significativo - você está investindo mais emocionalmente"
       },
       "EQUILIBRADO": {
-        "code": "INICIATIVA_EQUILIBRADO",
+        "code": "INICIATIVA_EQUILIBRADA",
         "label": "Iniciativa equilibrada",
-        "deltas": { "reciprocidade": 15 }
+        "deltas": { 
+          "reciprocidade": 25,
+          "constancia": 10,
+          "risco_ghosting": -10
+        },
+        "interpretation": "Sinal saudável de interesse mútuo e investimento equilibrado"
       },
       "MATCH_SEMPRE": {
         "code": "INICIATIVA_MATCH_SEMPRE",
         "label": "Match sempre inicia",
-        "deltas": { "reciprocidade": 10 }
+        "deltas": { 
+          "reciprocidade": 15,
+          "risco_ghosting": -5
+        },
+        "interpretation": "Bom sinal de interesse, mas observe se é sustentável"
       }
     },
+    
     "frequencia_contato": {
+      "_psychology": "Consistência comportamental prediz comportamento futuro (Pesquisas de Gottman). Intermitência é característica de apego evitativo.",
       "DIARIA": {
         "code": "FREQ_DIARIA",
         "label": "Frequência diária de contato",
-        "deltas": { "constancia": 12 }
+        "deltas": { 
+          "constancia": 20,
+          "disponibilidade": 15,
+          "risco_ghosting": -15
+        },
+        "interpretation": "Alto investimento de tempo - sinal positivo de priorização"
       },
       "ALTERNADA": {
         "code": "FREQ_ALTERNADA",
         "label": "Frequência alternada",
-        "deltas": { "constancia": 6 }
+        "deltas": { 
+          "constancia": 0,
+          "risco_ghosting": 5
+        },
+        "interpretation": "Padrão neutro - pode ser saudável ou sinal de baixa prioridade"
       },
       "RARAMENTE": {
         "code": "FREQ_RARAMENTE",
-        "label": "Frequência rara",
-        "deltas": { "constancia": -12 }
+        "label": "Contato raro/intermitente",
+        "deltas": { 
+          "constancia": -25,
+          "disponibilidade": -15,
+          "risco_ghosting": 25,
+          "risco_enrolacao": 15
+        },
+        "interpretation": "Padrão evitativo clássico - baixa priorização ou interesse superficial"
       }
     },
+    
     "tempo_resposta": {
+      "_psychology": "Tempo de resposta reflete priorização. Demora consistente indica baixo investimento ou evitação.",
       "MINUTOS": {
         "code": "RESP_MINUTOS",
         "label": "Responde em minutos",
-        "deltas": { "constancia": 10 }
+        "deltas": { 
+          "constancia": 15,
+          "reciprocidade": 10,
+          "risco_ghosting": -10
+        },
+        "interpretation": "Alta responsividade - você é prioridade"
       },
       "HORAS": {
         "code": "RESP_HORAS",
         "label": "Responde em horas",
-        "deltas": { "constancia": 4 }
+        "deltas": { 
+          "constancia": 5
+        },
+        "interpretation": "Padrão normal e saudável para adultos ocupados"
       },
       "DIAS": {
         "code": "RESP_DIAS",
-        "label": "Responde em dias",
-        "deltas": { "constancia": -12, "risco_ghosting": 10 }
+        "label": "Demora dias para responder",
+        "deltas": { 
+          "constancia": -20,
+          "reciprocidade": -15,
+          "risco_ghosting": 30,
+          "disponibilidade": -10
+        },
+        "interpretation": "Padrão evitativo forte - você não é prioridade ou há evitação ativa"
       }
     },
+    
     "curiosidade_por_voce": {
+      "_psychology": "Perguntas pessoais indicam investimento emocional genuíno (Modelo de Aron - expansão do self).",
       "ALTA": {
         "code": "CURIOSIDADE_ALTA",
-        "label": "Alta curiosidade por você",
-        "deltas": { "reciprocidade": 12, "coerencia": 8, "intencao": 8 }
+        "label": "Demonstra alta curiosidade por você",
+        "deltas": { 
+          "reciprocidade": 20,
+          "coerencia": 10,
+          "risco_enrolacao": -15
+        },
+        "interpretation": "Investimento emocional genuíno - quer conhecer você de verdade"
       },
       "MEDIA": {
         "code": "CURIOSIDADE_MEDIA",
         "label": "Curiosidade moderada",
-        "deltas": { "reciprocidade": 4, "coerencia": 2, "intencao": 2 }
+        "deltas": { 
+          "reciprocidade": 5
+        },
+        "interpretation": "Interesse presente mas não intenso"
       },
       "BAIXA": {
         "code": "CURIOSIDADE_BAIXA",
-        "label": "Baixa curiosidade",
-        "deltas": { "reciprocidade": -10, "coerencia": -6, "intencao": -6 }
+        "label": "Baixa curiosidade - fala mais de si",
+        "deltas": { 
+          "reciprocidade": -20,
+          "coerencia": -10,
+          "risco_enrolacao": 20
+        },
+        "interpretation": "Possível narcisismo ou interesse apenas superficial/físico"
       }
     },
+    
     "respeito_limites": {
+      "_psychology": "INDICADOR MAIS CRÍTICO. Desrespeito a limites é o principal preditor de relacionamento tóxico (Pesquisas sobre violência no namoro). Peso muito alto.",
       "RESPEITA": {
         "code": "RESPEITO_TOTAL",
         "label": "Respeita totalmente seus limites",
-        "deltas": { "respeito": 20 }
+        "deltas": { 
+          "respeito": 20,
+          "coerencia": 10
+        },
+        "interpretation": "Maturidade emocional e respeito à autonomia - fundamento essencial"
       },
       "NEGOCIA": {
         "code": "RESPEITO_NEGOCIA",
         "label": "Tenta negociar limites",
-        "deltas": { "respeito": 5 }
+        "deltas": { 
+          "respeito": -5
+        },
+        "interpretation": "Sinal de atenção - pode ser saudável ou pressão velada. Observe o padrão."
       },
       "INSISTE": {
         "code": "RESPEITO_INSISTE",
         "label": "Insiste após você dizer não",
-        "deltas": { "respeito": -25 },
-        "red_flag": { "severity": "HIGH", "title": "Desrespeito a limites" }
+        "deltas": { 
+          "respeito": -40,
+          "risco_enrolacao": 15
+        },
+        "red_flag": { 
+          "severity": "HIGH", 
+          "title": "Desrespeito a limites",
+          "impact": "Padrão de pressão e desrespeito à autonomia - risco de relacionamento controlador"
+        },
+        "interpretation": "RED FLAG GRAVE - Desrespeito à autonomia, possível padrão controlador"
       },
       "DEBOCHA": {
         "code": "RESPEITO_DEBOCHA",
-        "label": "Debocha dos seus limites",
-        "deltas": { "respeito": -35 },
-        "red_flag": { "severity": "HIGH", "title": "Desrespeito grave a limites" }
+        "label": "Debocha/ridiculariza seus limites",
+        "deltas": { 
+          "respeito": -60,
+          "coerencia": -20,
+          "risco_ghosting": 20
+        },
+        "red_flag": { 
+          "severity": "CRITICAL", 
+          "title": "Desprezo por limites",
+          "impact": "Desprezo é o maior preditor de término (Gottman). Sinal de possível abuso emocional."
+        },
+        "interpretation": "RED FLAG CRÍTICA - Desprezo é destrutivo. Padrão de abuso emocional."
       }
     },
+    
     "fala_futuro": {
+      "_psychology": "Coerência entre palavras e ações. 'Fala mas não faz' é PIOR que não falar - indica manipulação ou auto-engano.",
       "NAO_FALA": {
         "code": "FUTURO_NAO_FALA",
         "label": "Não fala sobre futuro",
-        "deltas": {}
+        "deltas": { 
+          "coerencia": 0,
+          "acao_mundo_real": -5
+        },
+        "interpretation": "Neutro no início, mas preocupante se persistir em estágios avançados"
       },
       "FALA_NAO_FAZ": {
         "code": "FUTURO_FALA_NAO_FAZ",
-        "label": "Fala mas não faz",
-        "deltas": { "coerencia": -15, "risco_enrolacao": 15 }
+        "label": "Fala sobre futuro mas não concretiza",
+        "deltas": { 
+          "coerencia": -30,
+          "risco_enrolacao": 35,
+          "acao_mundo_real": -15
+        },
+        "red_flag": {
+          "severity": "HIGH",
+          "title": "Promessas vazias",
+          "impact": "Padrão de 'future faking' - mantém esperança sem intenção real de cumprir"
+        },
+        "interpretation": "RED FLAG - 'Future faking' é técnica de manipulação. Pior que silêncio."
       },
       "FALA_E_FAZ": {
         "code": "FUTURO_FALA_E_FAZ",
-        "label": "Fala e faz",
-        "deltas": { "coerencia": 12, "acao_mundo_real": 8 }
+        "label": "Fala sobre futuro e concretiza",
+        "deltas": { 
+          "coerencia": 25,
+          "acao_mundo_real": 20,
+          "risco_enrolacao": -20,
+          "risco_ghosting": -10
+        },
+        "interpretation": "GREEN FLAG FORTE - Coerência entre palavras e ações é fundamento de confiança"
       }
     },
+    
     "encontro_marcado": {
+      "_psychology": "Ações no mundo real são mais significativas que conversa online. Willingness to meet indica intenção real.",
       "SIM": {
         "code": "ENCONTRO_MARCADO_SIM",
-        "label": "Encontro já marcado",
-        "deltas": { "acao_mundo_real": 12 }
+        "label": "Já marcaram/tiveram encontro",
+        "deltas": { 
+          "acao_mundo_real": 20,
+          "risco_ghosting": -10,
+          "disponibilidade": 10
+        },
+        "interpretation": "Disposição para investir tempo e energia no mundo real"
       },
       "NAO": {
         "code": "ENCONTRO_MARCADO_NAO",
-        "label": "Encontro não marcado",
-        "deltas": {}
+        "label": "Ainda não marcaram encontro",
+        "deltas": {},
+        "interpretation": "Neutro no início, mas se estiver em TALKING há muito tempo, sinal de evitação"
       }
     },
+    
     "cancelou_encontro": {
+      "_psychology": "Cancelamento é normal ocasionalmente. O que importa é o PADRÃO e a REMARCAÇÃO.",
       "SIM": {
         "code": "CANCELOU_SIM",
         "label": "Cancelou encontro",
-        "deltas": { "acao_mundo_real": -10 }
+        "deltas": { 
+          "acao_mundo_real": -15,
+          "risco_ghosting": 10
+        },
+        "interpretation": "Um cancelamento é normal. Padrão repetido é red flag."
       },
       "NAO": {
         "code": "CANCELOU_NAO",
         "label": "Nunca cancelou",
-        "deltas": {}
+        "deltas": {
+          "acao_mundo_real": 10,
+          "constancia": 5
+        },
+        "interpretation": "Confiabilidade e comprometimento com o combinado"
       }
     },
+    
     "remarcou_com_data": {
+      "_psychology": "A resposta ao cancelamento revela intenção real. Remarcar com data mostra comprometimento; evitar é red flag.",
       "SIM": {
         "code": "REMARCOU_SIM",
-        "label": "Remarcou com data definida",
-        "deltas": { "acao_mundo_real": 10 }
+        "label": "Remarcou com data específica",
+        "deltas": { 
+          "acao_mundo_real": 15,
+          "coerencia": 10,
+          "risco_ghosting": -10
+        },
+        "interpretation": "Comprometimento real - assumiu responsabilidade e agiu"
       },
       "NAO": {
         "code": "REMARCOU_NAO",
-        "label": "Não remarcou",
-        "deltas": { "acao_mundo_real": -15 },
-        "red_flag": { "severity": "MEDIUM", "title": "Promessa sem ação" }
+        "label": "Cancelou sem remarcar",
+        "deltas": { 
+          "acao_mundo_real": -25,
+          "coerencia": -20,
+          "risco_ghosting": 25,
+          "risco_enrolacao": 20
+        },
+        "red_flag": { 
+          "severity": "HIGH", 
+          "title": "Cancelou sem remarcar",
+          "impact": "Falta de comprometimento real - interesse superficial ou evitação"
+        },
+        "interpretation": "RED FLAG - Evitação de compromisso real, mantém opções abertas"
       },
       "NAO_SE_APLICA": {
         "code": "REMARCOU_NAO_SE_APLICA",
         "label": "Não se aplica",
-        "deltas": {}
+        "deltas": {},
+        "interpretation": "Não houve cancelamento"
       }
     },
+    
     "disponivel_so_madrugada": {
+      "_psychology": "Disponibilidade apenas noturna pode indicar: relacionamento paralelo, busca apenas sexual, ou trabalho noturno (considerar contexto).",
       "SIM": {
         "code": "SO_MADRUGADA_SIM",
-        "label": "Disponível só de madrugada",
-        "deltas": { "disponibilidade": -12 }
+        "label": "Disponível apenas de madrugada",
+        "deltas": { 
+          "disponibilidade": -25,
+          "risco_enrolacao": 20,
+          "compat_objetivo": -15
+        },
+        "red_flag": {
+          "severity": "MEDIUM",
+          "title": "Disponibilidade restrita",
+          "impact": "Pode indicar relacionamento paralelo ou interesse apenas físico"
+        },
+        "interpretation": "RED FLAG MÉDIO - Padrão suspeito, especialmente se objetivo é namoro sério"
       },
       "NAO": {
         "code": "SO_MADRUGADA_NAO",
-        "label": "Disponível em horários normais",
-        "deltas": {}
+        "label": "Disponível em horários variados",
+        "deltas": {
+          "disponibilidade": 10
+        },
+        "interpretation": "Disponibilidade normal e saudável"
       }
     }
   },
-  "scores": {
-    "reciprocidade": { "base": 50 },
-    "constancia": { "base": 50 },
-    "acao_mundo_real": { "base": 50 },
-    "respeito": { "base": 50 },
-    "coerencia": { "base": 50 },
-    "disponibilidade": { "base": 50 },
-    "risco_ghosting": { "base": 30 },
-    "risco_enrolacao": { "base": 30 },
-    "compat_objetivo": { "base": 50 }
-  },
+
   "hypotheses": {
+    "_psychology": "Hipóteses baseadas em padrões comportamentais da Teoria do Apego e literatura sobre dating",
+    
     "EXPLORANDO": {
+      "title": "Explorando opções",
+      "description": "Padrão exploratório - mantém conexão superficial, evita compromisso real",
       "signals": [
-        { "field": "constancia", "score": 50, "operator": "<=", "weight": 20 },
-        { "field": "acao_mundo_real", "score": 50, "operator": "<=", "weight": 20 },
-        { "field": "fala_futuro", "value": "NAO_FALA", "weight": 15 },
-        { "field": "estagio", "value": "TALKING", "weight": 10 },
-        { "field": "estagio", "value": "POST_DATE", "weight": 15 }
+        { "field": "constancia", "score": 45, "operator": "<=", "weight": 25 },
+        { "field": "acao_mundo_real", "score": 45, "operator": "<=", "weight": 25 },
+        { "field": "fala_futuro", "value": "NAO", "weight": 15 },
+        { "field": "frequencia_contato", "value": "ALTERNADA", "weight": 15 },
+        { "field": "frequencia_contato", "value": "SOME", "weight": 25 },
+        { "field": "curiosidade_por_voce", "value": "BAIXA", "weight": 20 }
       ],
-      "threshold": 40
+      "threshold": 45
     },
+    
     "BUSCA_FIXO": {
+      "title": "Busca relacionamento sério",
+      "description": "Padrão consistente de investimento - indica busca por relacionamento genuíno",
       "signals": [
-        { "field": "constancia", "score": 70, "operator": ">=", "weight": 25 },
-        { "field": "acao_mundo_real", "score": 70, "operator": ">=", "weight": 25 },
-        { "field": "respeito", "score": 70, "operator": ">=", "weight": 20 },
-        { "field": "curiosidade_por_voce", "value": "ALTA", "weight": 15 }
+        { "field": "constancia", "score": 65, "operator": ">=", "weight": 25 },
+        { "field": "acao_mundo_real", "score": 65, "operator": ">=", "weight": 25 },
+        { "field": "respeito", "score": 75, "operator": ">=", "weight": 20 },
+        { "field": "reciprocidade", "score": 60, "operator": ">=", "weight": 15 },
+        { "field": "curiosidade_por_voce", "value": "ALTA", "weight": 20 },
+        { "field": "fala_futuro", "value": "FALA_E_FAZ", "weight": 25 }
       ],
-      "threshold": 50
+      "threshold": 55
     },
+    
     "CARENCIA_VALIDACAO": {
+      "title": "Busca validação/atenção",
+      "description": "Padrão de apego ansioso - busca validação constante, pode ser intenso demais",
       "signals": [
-        { "field": "sinais_alerta", "contains": "LOVE_BOMBING", "weight": 30 },
-        { "field": "sinais_alerta", "contains": "VITIMISMO", "weight": 20 },
-        { "field": "iniciativa", "value": "VOCE_SEMPRE", "weight": 15 }
-      ],
-      "threshold": 40,
-      "requires_text": true
-    },
-    "RECEM_SAIU_RELACAO": {
-      "signals": [
-        { "field": "sinais_alerta", "contains": "SUMICO_POS_INTIMIDADE", "weight": 35 },
-        { "field": "ritmo_usuario", "value": "RAPIDO", "weight": 15 }
+        { "field": "sinais_alerta", "contains": "LOVE_BOMBING", "weight": 40 },
+        { "field": "sinais_alerta", "contains": "VITIMISMO", "weight": 30 },
+        { "field": "sinais_alerta", "contains": "CIUME_CEDO", "weight": 25 },
+        { "field": "iniciativa", "value": "MATCH_SEMPRE", "weight": 15 },
+        { "field": "frequencia_contato", "value": "DIARIA", "weight": 10 }
       ],
       "threshold": 45,
       "requires_text": true
     },
-    "SEM_DISPONIBILIDADE_REAL": {
+    
+    "RECEM_SAIU_RELACAO": {
+      "title": "Transição/Rebote",
+      "description": "Possível rebote - emocionalmente indisponível ou usando para superar ex",
       "signals": [
-        { "field": "disponivel_so_madrugada", "value": "SIM", "weight": 30 },
+        { "field": "sinais_alerta", "contains": "SUMICO_POS_INTIMIDADE", "weight": 45 },
+        { "field": "sinais_alerta", "contains": "CONTRADICOES", "weight": 30 },
+        { "field": "coerencia", "score": 40, "operator": "<=", "weight": 20 }
+      ],
+      "threshold": 45,
+      "requires_text": true
+    },
+    
+    "SEM_DISPONIBILIDADE_REAL": {
+      "title": "Indisponível emocionalmente",
+      "description": "Padrão evitativo - evita intimidade real, mantém distância emocional",
+      "signals": [
+        { "field": "disponivel_so_madrugada", "value": "SIM", "weight": 35 },
         { "field": "cancelou_encontro", "value": "SIM", "weight": 20 },
-        { "field": "remarcou_com_data", "value": "NAO", "weight": 20 },
-        { "field": "constancia", "score": 40, "operator": "<=", "weight": 15 },
-        { "field": "acao_mundo_real", "score": 40, "operator": "<=", "weight": 15 }
+        { "field": "remarcou_com_data", "value": "NAO", "weight": 30 },
+        { "field": "constancia", "score": 35, "operator": "<=", "weight": 25 },
+        { "field": "acao_mundo_real", "score": 35, "operator": "<=", "weight": 25 },
+        { "field": "tempo_resposta", "value": "DIAS", "weight": 25 }
+      ],
+      "threshold": 50
+    },
+    
+    "INTERESSE_SUPERFICIAL": {
+      "title": "Interesse superficial/físico",
+      "description": "Interesse focado no superficial - baixo investimento emocional",
+      "signals": [
+        { "field": "curiosidade_por_voce", "value": "BAIXA", "weight": 35 },
+        { "field": "disponivel_so_madrugada", "value": "SIM", "weight": 25 },
+        { "field": "fala_futuro", "value": "NAO", "weight": 20 },
+        { "field": "acao_mundo_real", "score": 40, "operator": "<=", "weight": 20 }
       ],
       "threshold": 50
     }
   },
+
   "red_flags": [
+    {
+      "id": "DESPREZO_LIMITES",
+      "title": "Desprezo por limites",
+      "severity": "CRITICAL",
+      "triggers": [
+        { "field": "respeito_limites", "value": "DEBOCHA", "required": true }
+      ],
+      "impact": "Desprezo é o maior preditor de relacionamento tóxico (Gottman). Saia imediatamente.",
+      "psychology": "Contempt/desprezo é um dos 'Quatro Cavaleiros do Apocalipse' de Gottman"
+    },
     {
       "id": "DESRESPEITO_LIMITES",
       "title": "Desrespeito a limites",
       "severity": "HIGH",
       "triggers": [
-        { "field": "respeito_limites", "value": "INSISTE", "required": true },
-        { "field": "respeito_limites", "value": "DEBOCHA", "required": true }
+        { "field": "respeito_limites", "value": "INSISTE", "required": true }
       ],
-      "impact": "Risco de relacionamento tóxico e falta de respeito"
+      "impact": "Padrão de pressão e desrespeito à autonomia - alto risco de relacionamento controlador",
+      "psychology": "Insistência após 'não' é violação de consentimento e sinal de controle"
     },
     {
-      "id": "PROMESSA_SEM_ACAO",
-      "title": "Promessa sem ação",
-      "severity": "MEDIUM",
+      "id": "FUTURE_FAKING",
+      "title": "Promessas vazias (Future Faking)",
+      "severity": "HIGH",
       "triggers": [
         { "field": "fala_futuro", "value": "FALA_NAO_FAZ", "required": true }
       ],
-      "impact": "Alto risco de enrolação e frustração"
+      "impact": "Técnica de manipulação - mantém esperança sem intenção real. Alto risco de enrolação prolongada.",
+      "psychology": "Future faking é técnica comum de narcisistas e manipuladores"
     },
     {
       "id": "CANCELOU_SEM_REMARCAR",
       "title": "Cancelou sem remarcar",
-      "severity": "MEDIUM",
+      "severity": "HIGH",
       "triggers": [
         { "field": "cancelou_encontro", "value": "SIM", "required": true },
         { "field": "remarcou_com_data", "value": "NAO", "required": true }
       ],
-      "impact": "Falta de comprometimento e interesse real"
+      "impact": "Falta de comprometimento real - você não é prioridade",
+      "psychology": "Evitação de compromisso real indica baixo investimento ou múltiplas opções"
     },
     {
-      "id": "BAIXA_DISPONIBILIDADE",
-      "title": "Baixa disponibilidade real",
-      "severity": "MEDIUM",
-      "triggers": [
-        { "field": "disponivel_so_madrugada", "value": "SIM", "required": true }
-      ],
-      "impact": "Incompatibilidade com relacionamento sério"
-    },
-    {
-      "id": "INTERMITENCIA",
-      "title": "Intermitência na comunicação",
+      "id": "PADRAO_EVITATIVO",
+      "title": "Padrão evitativo/intermitente",
       "severity": "MEDIUM",
       "triggers": [
         { "field": "frequencia_contato", "value": "RARAMENTE", "required": true },
         { "field": "tempo_resposta", "value": "DIAS", "required": false }
       ],
-      "impact": "Falta de consistência e interesse"
+      "impact": "Padrão de apego evitativo - dificuldade com intimidade e compromisso",
+      "psychology": "Estilo de apego evitativo tem dificuldade em manter relacionamentos próximos"
+    },
+    {
+      "id": "DISPONIBILIDADE_SUSPEITA",
+      "title": "Disponibilidade restrita",
+      "severity": "MEDIUM",
+      "triggers": [
+        { "field": "disponivel_so_madrugada", "value": "SIM", "required": true }
+      ],
+      "impact": "Pode indicar relacionamento paralelo ou interesse apenas físico",
+      "psychology": "Compartimentalização de tempo sugere prioridades conflitantes ou segredos"
+    },
+    {
+      "id": "DESEQUILIBRIO_INICIATIVA",
+      "title": "Desequilíbrio de investimento",
+      "severity": "MEDIUM",
+      "triggers": [
+        { "field": "iniciativa", "value": "VOCE_SEMPRE", "required": true },
+        { "field": "curiosidade_por_voce", "value": "BAIXA", "required": false }
+      ],
+      "impact": "Você está investindo significativamente mais - risco de frustração e enrolação",
+      "psychology": "Desequilíbrio de investimento leva a insatisfação (Teoria da Equidade)"
     }
   ],
+
   "green_flags": [
     {
-      "id": "CONSISTENCIA",
-      "title": "Consistência",
-      "severity": "MEDIUM",
-      "triggers": [
-        { "field": "frequencia_contato", "value": "DIARIA", "required": true },
-        { "field": "tempo_resposta", "value": "DIAS", "operator": "!=", "required": false }
-      ],
-      "benefit": "Demonstra comprometimento e interesse genuíno"
-    },
-    {
-      "id": "RECIPROCIDADE",
-      "title": "Reciprocidade",
-      "severity": "MEDIUM",
-      "triggers": [
-        { "field": "iniciativa", "value": "EQUILIBRADO", "required": true }
-      ],
-      "benefit": "Sinal positivo de interesse mútuo"
-    },
-    {
-      "id": "RESPEITO",
-      "title": "Respeito",
+      "id": "RESPEITO_TOTAL",
+      "title": "Respeito genuíno",
       "severity": "HIGH",
       "triggers": [
         { "field": "respeito_limites", "value": "RESPEITA", "required": true }
       ],
-      "benefit": "Sinal de maturidade emocional e respeito"
+      "benefit": "Fundamento essencial de relacionamento saudável - maturidade emocional",
+      "psychology": "Respeito a limites indica capacidade de empatia e regulação emocional"
     },
     {
-      "id": "ACAO_CONCRETA",
-      "title": "Ação concreta",
+      "id": "COERENCIA_ACOES",
+      "title": "Coerência entre palavras e ações",
+      "severity": "HIGH",
+      "triggers": [
+        { "field": "fala_futuro", "value": "FALA_E_FAZ", "required": true }
+      ],
+      "benefit": "Confiabilidade - pode confiar no que diz. Base para confiança.",
+      "psychology": "Coerência comportamental é base da confiança (Modelo de Rempel)"
+    },
+    {
+      "id": "RECIPROCIDADE_EQUILIBRADA",
+      "title": "Reciprocidade equilibrada",
+      "severity": "MEDIUM",
+      "triggers": [
+        { "field": "iniciativa", "value": "EQUILIBRADO", "required": true }
+      ],
+      "benefit": "Investimento mútuo equilibrado - relacionamento sustentável",
+      "psychology": "Equilíbrio de investimento prediz satisfação (Teoria da Interdependência)"
+    },
+    {
+      "id": "CONSISTENCIA_COMUNICACAO",
+      "title": "Consistência na comunicação",
+      "severity": "MEDIUM",
+      "triggers": [
+        { "field": "frequencia_contato", "value": "DIARIA", "required": true },
+        { "field": "tempo_resposta", "value": "MINUTOS", "required": false }
+      ],
+      "benefit": "Previsibilidade e priorização - você é importante para essa pessoa",
+      "psychology": "Consistência é característica de apego seguro"
+    },
+    {
+      "id": "INTERESSE_GENUINO",
+      "title": "Interesse genuíno por você",
+      "severity": "MEDIUM",
+      "triggers": [
+        { "field": "curiosidade_por_voce", "value": "ALTA", "required": true }
+      ],
+      "benefit": "Investimento emocional real - quer conhecer você além do superficial",
+      "psychology": "Curiosidade genuína indica processo de 'expansão do self' (Aron)"
+    },
+    {
+      "id": "COMPROMETIMENTO_REAL",
+      "title": "Comprometimento com ações",
       "severity": "MEDIUM",
       "triggers": [
         { "field": "encontro_marcado", "value": "SIM", "required": true },
-        { "field": "remarcou_com_data", "value": "SIM", "required": false }
+        { "field": "cancelou_encontro", "value": "NAO", "required": false }
       ],
-      "benefit": "Demonstra intenção real e comprometimento"
+      "benefit": "Disposição para investir tempo e energia no mundo real",
+      "psychology": "Ações concretas são mais significativas que palavras (Behavioral Investment)"
     }
-  ]
+  ],
+
+  "compatibility_rules": {
+    "_description": "Regras de compatibilidade entre objetivo do usuário e comportamento do match",
+    "NAMORO": {
+      "positive_signals": ["BUSCA_FIXO", "RESPEITO_TOTAL", "COERENCIA_ACOES"],
+      "negative_signals": ["EXPLORANDO", "INTERESSE_SUPERFICIAL", "SO_MADRUGADA_SIM"],
+      "deal_breakers": ["DESPREZO_LIMITES", "DESRESPEITO_LIMITES"]
+    },
+    "CONHECER": {
+      "positive_signals": ["RECIPROCIDADE_EQUILIBRADA", "INTERESSE_GENUINO"],
+      "negative_signals": ["PADRAO_EVITATIVO"],
+      "deal_breakers": ["DESPREZO_LIMITES"]
+    },
+    "CASUAL": {
+      "positive_signals": ["RESPEITO_TOTAL"],
+      "negative_signals": [],
+      "deal_breakers": ["DESPREZO_LIMITES", "DESRESPEITO_LIMITES"]
+    }
+  },
+
+  "stage_expectations": {
+    "_description": "O que esperar em cada estágio - usado para contextualizar análise",
+    "FIRST_CHAT": {
+      "normal_behaviors": ["Frequência alternada", "Não falar de futuro", "Iniciativa de um lado"],
+      "warning_if": ["Já pressiona por encontro", "Love bombing", "Desrespeito a qualquer limite"],
+      "too_early_to_judge": ["Comprometimento real", "Disponibilidade de longo prazo"]
+    },
+    "TALKING": {
+      "expected_progress": ["Aumento de frequência", "Interesse mútuo", "Proposta de encontro"],
+      "warning_if": ["Sem evolução há semanas", "Promessas sem ação", "Frequência diminuindo"],
+      "red_flags_amplified": ["Cancelou sem remarcar", "Só disponível madrugada"]
+    },
+    "POST_DATE": {
+      "expected_behaviors": ["Definição mais clara", "Comprometimento ou desengajamento", "Ações alinhadas com palavras"],
+      "warning_if": ["Comunicação diminuiu", "Evita falar do que são", "Ghosting parcial"],
+      "critical_moment": "Este é o momento de maior risco de ghosting ou definição"
+    }
+  }
 }
