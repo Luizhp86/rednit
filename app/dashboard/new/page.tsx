@@ -15,10 +15,11 @@ import {
   Heart, Zap, Clock, MessageCircle, Calendar, 
   AlertTriangle, CheckCircle2, XCircle, 
   TrendingUp, TrendingDown, Minus,
-  Sparkles, ArrowRight, ArrowLeft
+  Sparkles, ArrowRight, ArrowLeft, User
 } from 'lucide-react'
 
 type FormData = {
+  genero_match: 'ELE' | 'ELA' | ''
   objetivo_usuario: 'CASUAL' | 'CONHECER' | 'NAMORO' | ''
   ritmo_usuario: 'RAPIDO' | 'MEDIO' | 'LENTO' | ''
   estagio: 'FIRST_CHAT' | 'TALKING' | 'POST_DATE' | ''
@@ -51,6 +52,17 @@ type Question = {
 }
 
 const QUESTIONS: Question[] = [
+  {
+    id: 'genero_match',
+    label: 'Este match é ele ou ela?',
+    type: 'card-select',
+    required: true,
+    autoAdvance: true,
+    options: [
+      { value: 'ELE', label: 'Ele', hint: 'Match masculino', icon: User, color: 'blue' },
+      { value: 'ELA', label: 'Ela', hint: 'Match feminino', icon: User, color: 'pink' },
+    ],
+  },
   {
     id: 'objetivo_usuario',
     label: 'Qual seu objetivo com este match?',
@@ -258,6 +270,7 @@ export default function NewAnalysisPage() {
   ]
 
   const [formData, setFormData] = useState<FormData>({
+    genero_match: '',
     objetivo_usuario: '',
     ritmo_usuario: '',
     estagio: '',
@@ -340,7 +353,7 @@ export default function NewAnalysisPage() {
 
     try {
       // Validar campos obrigatórios antes de enviar
-      const requiredFields = ['objetivo_usuario', 'ritmo_usuario', 'estagio', 'iniciativa', 'frequencia_contato']
+      const requiredFields = ['genero_match', 'objetivo_usuario', 'ritmo_usuario', 'estagio', 'iniciativa', 'frequencia_contato']
       const missingFields = requiredFields.filter(field => !formData[field as keyof FormData] || formData[field as keyof FormData] === '')
       
       if (missingFields.length > 0) {
@@ -351,6 +364,7 @@ export default function NewAnalysisPage() {
       
       // Garantir que os valores são strings, não arrays
       const dataToSend: any = {
+        genero_match: String(formData.genero_match),
         objetivo_usuario: String(formData.objetivo_usuario),
         ritmo_usuario: String(formData.ritmo_usuario),
         estagio: String(formData.estagio),

@@ -50,11 +50,13 @@ function buildAnalysisPrompt(input: AnalysisInput, ruleBasedResult: AnalysisResu
   const alerts = input.sinais_alerta.map((a) => alertLabels[a] || a).join(', ') || 'Nenhum'
 
   const matchName = input.nome_match || 'o match'
+  const generoLabel = input.genero_match === 'ELE' ? 'ele' : 'ela'
   
   return `Você é um especialista em relacionamentos que analisa padrões comportamentais em relacionamentos modernos.
 
 CONTEXTO DA ANÁLISE:
 ${input.nome_match ? `- Nome do match: "${input.nome_match}"` : ''}
+- Gênero do match: ${generoLabel}
 - Estágio: ${stageLabels[input.estagio]}
 - Objetivo do usuário: ${input.objetivo_usuario}
 - Ritmo desejado: ${input.ritmo_usuario}

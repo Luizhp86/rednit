@@ -98,11 +98,11 @@ export async function POST(request: NextRequest) {
     const cleanedBody: any = { ...body }
     
     // Se algum campo enum vier como array, pegar o primeiro valor
-    const enumFields = ['objetivo_usuario', 'ritmo_usuario', 'estagio', 'iniciativa', 'frequencia_contato', 
+    const enumFields = ['genero_match', 'objetivo_usuario', 'ritmo_usuario', 'estagio', 'iniciativa', 'frequencia_contato', 
                         'tempo_resposta', 'encontro_marcado', 'remarcou_com_data', 'curiosidade_por_voce', 
                         'respeito_limites', 'disponivel_so_madrugada', 'fala_futuro']
     
-    const requiredFields = ['objetivo_usuario', 'ritmo_usuario', 'estagio', 'iniciativa', 'frequencia_contato']
+    const requiredFields = ['genero_match', 'objetivo_usuario', 'ritmo_usuario', 'estagio', 'iniciativa', 'frequencia_contato']
     const optionalEnumFields = ['tempo_resposta', 'encontro_marcado', 'remarcou_com_data', 'curiosidade_por_voce', 
                                  'respeito_limites', 'disponivel_so_madrugada', 'fala_futuro']
     

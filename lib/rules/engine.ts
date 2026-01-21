@@ -2,6 +2,7 @@
 import ruleset from './ruleset.json'
 
 export type AnalysisInput = {
+  genero_match: 'ELE' | 'ELA'
   objetivo_usuario: 'CASUAL' | 'CONHECER' | 'NAMORO'
   ritmo_usuario: 'RAPIDO' | 'MEDIO' | 'LENTO'
   inegociaveis: string[]
