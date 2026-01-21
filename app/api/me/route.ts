@@ -13,7 +13,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
     }
 
-    const dbUser = await prisma.user.findUnique({
+    let dbUser = await prisma.user.findUnique({
       where: { email: user.email! },
       include: {
         entitlements: true,
@@ -27,7 +27,22 @@ export async function GET() {
     })
 
     if (!dbUser) {
-      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
+      dbUser = await prisma.user.create({
+        data: {
+          id: user.id,
+          email: user.email!,
+          name: user.user_metadata?.full_name || user.email!,
+        },
+        include: {
+          entitlements: true,
+          _count: {
+            select: {
+              analyses: true,
+              payments: true,
+            },
+          },
+        },
+      })
     }
 
     return NextResponse.json({

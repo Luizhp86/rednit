@@ -55,10 +55,17 @@ export async function GET(request: Request) {
           })
           console.log('[AUTH CALLBACK] Usuário sincronizado com sucesso')
         } catch (prismaError: any) {
-          console.error('[AUTH CALLBACK] Erro ao fazer upsert no Prisma:', prismaError.message)
-          console.error('[AUTH CALLBACK] Stack:', prismaError.stack)
-          console.error('[AUTH CALLBACK] Código do erro:', prismaError.code)
-          throw prismaError
+          const prismaMessage = prismaError?.message || ''
+          console.error('[AUTH CALLBACK] Erro ao fazer upsert no Prisma:', prismaMessage)
+          console.error('[AUTH CALLBACK] Stack:', prismaError?.stack)
+          console.error('[AUTH CALLBACK] Código do erro:', prismaError?.code)
+          // Em desenvolvimento, permite continuar sem banco quando a conexão falha
+          const isDbUnreachable = prismaMessage.includes("Can't reach database server")
+          if (process.env.NODE_ENV === 'development' && isDbUnreachable) {
+            console.warn('[AUTH CALLBACK] Banco indisponível; continuando sem sincronizar usuário')
+          } else {
+            throw prismaError
+          }
         }
       } else {
         console.warn('[AUTH CALLBACK] Usuário não encontrado após autenticação')

@@ -26,6 +26,7 @@ export default function AccountPage() {
   const [user, setUser] = useState<UserData | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
+  const [downgrading, setDowngrading] = useState(false)
 
   useEffect(() => {
     async function loadUser() {
@@ -96,6 +97,33 @@ export default function AccountPage() {
       alert('Erro ao excluir análises')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleDowngradePlan = async () => {
+    if (!confirm('Tem certeza que deseja voltar ao plano FREE?')) {
+      return
+    }
+
+    setDowngrading(true)
+    try {
+      const res = await fetch('/api/downgrade-plan', { method: 'POST' })
+      if (res.ok) {
+        const userRes = await fetch('/api/me')
+        if (userRes.ok) {
+          const userData = await userRes.json()
+          setUser(userData)
+        }
+        alert('Seu plano foi alterado para FREE.')
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Erro ao atualizar plano')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Erro ao atualizar plano')
+    } finally {
+      setDowngrading(false)
     }
   }
 
@@ -190,6 +218,22 @@ export default function AccountPage() {
                 className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition"
               >
                 Assinar PRO por R$ 29,90/mês
+              </button>
+            </div>
+          )}
+
+          {user.plan === 'PRO' && (
+            <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+              <h3 className="text-lg font-semibold mb-2 text-gray-900">Plano PRO ativo</h3>
+              <p className="text-gray-700 mb-4">
+                Se quiser, voce pode voltar ao plano FREE a qualquer momento.
+              </p>
+              <button
+                onClick={handleDowngradePlan}
+                disabled={downgrading}
+                className="bg-white text-gray-800 px-6 py-3 rounded-lg font-semibold border border-gray-300 hover:bg-gray-100 transition disabled:opacity-50"
+              >
+                {downgrading ? 'Atualizando...' : 'Voltar ao plano FREE'}
               </button>
             </div>
           )}

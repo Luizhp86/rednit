@@ -27,6 +27,22 @@ export default function AnalysisPage() {
   const [unlocking, setUnlocking] = useState(false)
   const [showUnlockModal, setShowUnlockModal] = useState(false)
 
+  const hypothesisLabels: Record<string, string> = {
+    EXPLORANDO: 'Explorando possibilidades',
+    BUSCA_FIXO: 'Busca relacionamento sério',
+    CARENCIA_VALIDACAO: 'Carência por validação',
+    RECEM_SAIU_RELACAO: 'Recém saiu de um relacionamento',
+    SEM_DISPONIBILIDADE_REAL: 'Sem disponibilidade real',
+  }
+
+  const getHypothesisTitle = (hypothesis: any) => {
+    if (!hypothesis) return ''
+    if (hypothesis.title) return hypothesis.title
+    if (hypothesis.key && hypothesisLabels[hypothesis.key]) return hypothesisLabels[hypothesis.key]
+    if (hypothesis.key) return hypothesis.key.replace(/_/g, ' ')
+    return ''
+  }
+
   useEffect(() => {
     async function loadAnalysis() {
       const res = await fetch(`/api/analyses/${id}`)
@@ -145,8 +161,35 @@ export default function AnalysisPage() {
             : 'Resultado da Análise'}
         </h1>
 
+        {!has_access && (
+          <div className="mb-8">
+            <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 rounded-3xl p-8 shadow-2xl text-white">
+              <div className="flex items-center gap-3 mb-3">
+                <Lock className="w-7 h-7" />
+                <h2 className="text-2xl font-bold">Desbloqueie sua análise completa</h2>
+              </div>
+              <p className="text-white/90 text-base mb-6">
+                Veja as hipóteses alternativas, o mapa completo de risco e o plano de ação por estágio.
+                É aqui que estão as decisões mais inteligentes.
+              </p>
+              <Button
+                onClick={handleUnlock}
+                disabled={unlocking}
+                className="w-full bg-white text-purple-700 hover:text-purple-800 font-extrabold py-5 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all"
+              >
+                <Zap className="w-6 h-6 mr-2" />
+                {unlocking ? 'Processando...' : 'Quero desbloquear agora • R$ 9,90'}
+              </Button>
+              <p className="text-xs text-white/80 mt-3 text-center">
+                Pix e cartão • Acesso imediato • Compra única
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Free Teaser - Simplificado e Instigante */}
-        <div className="space-y-6 mb-6">
+        {!has_access && (
+          <div className="space-y-6 mb-6">
           {/* Headline Impactante */}
           {free_teaser.headline && (
             <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 text-white p-8 rounded-3xl shadow-xl text-center">
@@ -165,15 +208,9 @@ export default function AnalysisPage() {
                       <Sparkles className="w-6 h-6 text-blue-600" />
                       <h3 className="text-lg font-bold text-gray-900">Hipótese Principal</h3>
                     </div>
-                    {free_teaser.hypothesis_1.title ? (
-                      <h4 className="text-xl font-bold text-gray-900 mb-2">
-                        {free_teaser.hypothesis_1.title}
-                      </h4>
-                    ) : (
-                      <h4 className="text-xl font-bold text-gray-900 mb-2">
-                        {free_teaser.hypothesis_1.key.replace(/_/g, ' ')}
-                      </h4>
-                    )}
+                    <h4 className="text-xl font-bold text-gray-900 mb-2">
+                      {getHypothesisTitle(free_teaser.hypothesis_1)}
+                    </h4>
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-200/50 text-sm font-semibold text-blue-800 mb-3">
                       <span className="w-2 h-2 rounded-full bg-blue-600"></span>
                       {free_teaser.hypothesis_1.confidence === 'HIGH' ? 'Alta confiança' : 
@@ -182,18 +219,10 @@ export default function AnalysisPage() {
                   </div>
                 </div>
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-4 mt-4 border border-purple-200">
-                  <p className="text-xs text-gray-700 font-semibold mb-3">
+                  <p className="text-xs text-gray-700 font-semibold">
                     <Lock className="w-4 h-4 inline mr-1" />
-                    Veja as 2 hipóteses alternativas e análise completa
+                    Hipóteses alternativas e análise completa no premium
                   </p>
-                  <Button
-                    onClick={handleUnlock}
-                    disabled={unlocking}
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-2 text-sm rounded-xl shadow-md hover:shadow-lg transition-all"
-                  >
-                    <Zap className="w-4 h-4 mr-1" />
-                    {unlocking ? 'Processando...' : 'Desbloquear - R$ 9,90'}
-                  </Button>
                 </div>
               </Card>
             )}
@@ -226,18 +255,10 @@ export default function AnalysisPage() {
                   />
                 </div>
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-4 border border-purple-200">
-                  <p className="text-xs text-gray-700 font-semibold mb-3">
+                  <p className="text-xs text-gray-700 font-semibold">
                     <Lock className="w-4 h-4 inline mr-1" />
-                    Veja o mapa completo de risco no relatório premium
+                    Mapa completo de risco disponível no premium
                   </p>
-                  <Button
-                    onClick={handleUnlock}
-                    disabled={unlocking}
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-2 text-sm rounded-xl shadow-md hover:shadow-lg transition-all"
-                  >
-                    <TrendingUp className="w-4 h-4 mr-1" />
-                    {unlocking ? 'Processando...' : 'Desbloquear - R$ 9,90'}
-                  </Button>
                 </div>
               </Card>
             )}
@@ -266,18 +287,10 @@ export default function AnalysisPage() {
                 </div>
               </div>
               <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-4 mt-4 border border-purple-200">
-                <p className="text-xs text-gray-700 font-semibold mb-3">
+                <p className="text-xs text-gray-700 font-semibold">
                   <Lock className="w-4 h-4 inline mr-1" />
-                  Desbloqueie para ver todos os flags detectados e análise detalhada
+                  Todos os flags e análise detalhada no premium
                 </p>
-                <Button
-                  onClick={handleUnlock}
-                  disabled={unlocking}
-                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-2 text-sm rounded-xl shadow-md hover:shadow-lg transition-all"
-                >
-                  <Shield className="w-4 h-4 mr-1" />
-                  {unlocking ? 'Processando...' : 'Desbloquear - R$ 9,90'}
-                </Button>
               </div>
             </Card>
           )}
@@ -298,22 +311,15 @@ export default function AnalysisPage() {
                 ))}
               </div>
               <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-4 border border-purple-200">
-                <p className="text-xs text-gray-700 font-semibold mb-3">
+                <p className="text-xs text-gray-700 font-semibold">
                   <Lock className="w-4 h-4 inline mr-1" />
-                  Veja o checklist completo de validação no relatório premium
+                  Checklist completo e plano por estágio no premium
                 </p>
-                <Button
-                  onClick={handleUnlock}
-                  disabled={unlocking}
-                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-2 text-sm rounded-xl shadow-md hover:shadow-lg transition-all"
-                >
-                  <Zap className="w-4 h-4 mr-1" />
-                  {unlocking ? 'Processando...' : 'Desbloquear - R$ 9,90'}
-                </Button>
               </div>
             </Card>
           )}
-        </div>
+          </div>
+        )}
 
 
         {/* Premium Content */}
@@ -561,6 +567,32 @@ export default function AnalysisPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {!has_access && (
+          <div className="mt-10">
+            <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 rounded-3xl p-8 shadow-2xl text-white">
+              <div className="flex items-center gap-3 mb-3">
+                <Lock className="w-7 h-7" />
+                <h2 className="text-2xl font-bold">Desbloqueie sua análise completa</h2>
+              </div>
+              <p className="text-white/90 text-base mb-6">
+                Veja as hipóteses alternativas, o mapa completo de risco e o plano de ação por estágio.
+                É aqui que estão as decisões mais inteligentes.
+              </p>
+              <Button
+                onClick={handleUnlock}
+                disabled={unlocking}
+                className="w-full bg-white text-purple-700 hover:text-purple-800 font-extrabold py-5 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all"
+              >
+                <Zap className="w-6 h-6 mr-2" />
+                {unlocking ? 'Processando...' : 'Quero desbloquear agora • R$ 9,90'}
+              </Button>
+              <p className="text-xs text-white/80 mt-3 text-center">
+                Pix e cartão • Acesso imediato • Compra única
+              </p>
+            </div>
           </div>
         )}
 

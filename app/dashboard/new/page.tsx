@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -35,8 +35,7 @@ type FormData = {
   fala_futuro: 'NAO' | 'FALA' | 'FALA_E_FAZ' | ''
   sinais_alerta: string[]
   inegociaveis: string[]
-nome_match?: string
-  avatar_match?: string
+  nome_match?: string
 }
 
 type Question = {
@@ -212,7 +211,7 @@ const QUESTIONS: Question[] = [
     id: 'nome_match',
     label: 'Como você chama este match?',
     type: 'avatar-select',
-    placeholder: 'Ex: João, Maria, o crush do Tinder...',
+    placeholder: 'EX: JOAO, MARIA, O CRUSH DO TINDER...',
   },
 ]
 
@@ -270,8 +269,7 @@ export default function NewAnalysisPage() {
     fala_futuro: '',
     sinais_alerta: ALL_ALERT_SIGNS, // Todos os sinais são analisados por padrão
     inegociaveis: [],
-nome_match: '',
-    avatar_match: '',
+    nome_match: '',
   })
 
   // Filtrar perguntas visíveis baseado em condições
@@ -300,7 +298,8 @@ nome_match: '',
     if (currentQuestion.type === 'number') {
       return typeof value === 'number' && value >= 0
     }
-    return value !== '' && value !== undefined && value !== null && value !== 0
+    if (Array.isArray(value)) return value.length > 0
+    return value !== '' && value !== undefined && value !== null
   }
 
   const handleNext = () => {
@@ -406,42 +405,39 @@ nome_match: '',
       }
       
       // Adicionar campos opcionais apenas se preenchidos
-      if (formData.cancelou_encontro && formData.cancelou_encontro !== '') {
+      if (formData.cancelou_encontro) {
         dataToSend.cancelou_encontro = formData.cancelou_encontro
       }
       
       // Log para debug
       console.log('[FORM] Dados sendo enviados:', JSON.stringify(dataToSend, null, 2))
 
-      if (formData.tempo_resposta && formData.tempo_resposta !== '') {
+      if (formData.tempo_resposta) {
         dataToSend.tempo_resposta = formData.tempo_resposta
       }
-      if (formData.encontro_marcado && formData.encontro_marcado !== '') {
+      if (formData.encontro_marcado) {
         dataToSend.encontro_marcado = formData.encontro_marcado
       }
       // Se cancelou_encontro for NAO, definir remarcou_com_data como NAO_SE_APLICA
       if (formData.cancelou_encontro === 'NAO') {
         dataToSend.remarcou_com_data = 'NAO_SE_APLICA'
-      } else if (formData.remarcou_com_data && formData.remarcou_com_data !== '') {
+      } else if (formData.remarcou_com_data) {
         dataToSend.remarcou_com_data = formData.remarcou_com_data
       }
-      if (formData.curiosidade_por_voce && formData.curiosidade_por_voce !== '') {
+      if (formData.curiosidade_por_voce) {
         dataToSend.curiosidade_por_voce = formData.curiosidade_por_voce
       }
-      if (formData.respeito_limites && formData.respeito_limites !== '') {
+      if (formData.respeito_limites) {
         dataToSend.respeito_limites = formData.respeito_limites
       }
-      if (formData.disponivel_so_madrugada && formData.disponivel_so_madrugada !== '') {
+      if (formData.disponivel_so_madrugada) {
         dataToSend.disponivel_so_madrugada = formData.disponivel_so_madrugada
       }
-      if (formData.fala_futuro && formData.fala_futuro !== '') {
+      if (formData.fala_futuro) {
         dataToSend.fala_futuro = formData.fala_futuro
       }
-if (formData.nome_match && formData.nome_match.trim()) {
+      if (formData.nome_match && formData.nome_match.trim()) {
         dataToSend.nome_match = formData.nome_match.trim()
-      }
-      if (formData.avatar_match && formData.avatar_match.trim()) {
-        dataToSend.avatar_match = formData.avatar_match.trim()
       }
 
       const response = await fetch('/api/analyze', {
@@ -535,7 +531,7 @@ if (formData.nome_match && formData.nome_match.trim()) {
           <Input
             type="number"
             min="0"
-            value={value as number}
+            value={typeof value === 'number' ? value : 0}
             onChange={(e) => updateField(currentQuestion.id, parseInt(e.target.value) || 0)}
             placeholder={currentQuestion.placeholder}
             className="h-14 text-base rounded-2xl text-center text-2xl font-bold"
@@ -554,61 +550,13 @@ if (formData.nome_match && formData.nome_match.trim()) {
         )
 
       case 'avatar-select':
-        const genero = formData.genero_match
-        const avatares = genero === 'ELE' 
-          ? ['👨', '🧔', '👨‍💼', '👨‍🎓', '👨‍💻', '👨‍🎨', '👨‍🚀', '👨‍⚕️']
-          : ['👩', '👩‍💼', '👩‍🎓', '👩‍💻', '👩‍🎨', '👩‍🚀', '👩‍⚕️', '👱‍♀️']
-        
         return (
-          <div className="space-y-6">
-            <Input
-              value={(formData.nome_match as string) || ''}
-              onChange={(e) => updateField('nome_match', e.target.value)}
-              placeholder={currentQuestion.placeholder}
-              className="h-14 text-base rounded-2xl text-center text-xl font-semibold mb-4"
-            />
-            <div>
-              <Label className="text-lg font-semibold mb-4 block text-center">Escolha um avatar</Label>
-              <div className="grid grid-cols-4 md:grid-cols-8 gap-4">
-                {avatares.map((avatar, idx) => {
-                  const isSelected = formData.avatar_match === avatar
-                  return (
-                    <motion.div
-                      key={idx}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: idx * 0.05 }}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      <Card
-                        className={`
-                          p-4 cursor-pointer transition-all duration-200 border-2 rounded-2xl
-                          flex items-center justify-center text-4xl
-                          ${isSelected 
-                            ? 'border-purple-500 bg-purple-100 ring-4 ring-purple-200' 
-                            : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
-                          }
-                        `}
-                        onClick={() => updateField('avatar_match', avatar)}
-                      >
-                        {avatar}
-                        {isSelected && (
-                          <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className="absolute -top-2 -right-2"
-                          >
-                            <CheckCircle2 className="h-6 w-6 text-purple-600 bg-white rounded-full" />
-                          </motion.div>
-                        )}
-                      </Card>
-                    </motion.div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
+          <Input
+            value={(formData.nome_match as string) || ''}
+            onChange={(e) => updateField('nome_match', e.target.value.toUpperCase())}
+            placeholder={currentQuestion.placeholder}
+            className="h-20 text-base rounded-2xl text-center text-3xl font-semibold uppercase tracking-widest"
+          />
         )
 
       default:
@@ -644,8 +592,9 @@ if (formData.nome_match && formData.nome_match.trim()) {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="p-8 md:p-12 rounded-3xl shadow-xl border-0 bg-white/90 backdrop-blur-sm">
-              <div className="space-y-6">
+            <Card className="rounded-3xl shadow-xl border-0 bg-white/90 backdrop-blur-sm overflow-hidden">
+              <div className="h-3 bg-gradient-to-r from-purple-600 via-fuchsia-500 to-purple-600" />
+              <div className="p-8 md:p-12 space-y-6">
                 {/* Question Label */}
                 <div>
                   <Label className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 block">

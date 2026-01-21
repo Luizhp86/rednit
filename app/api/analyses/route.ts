@@ -30,10 +30,35 @@ export async function GET() {
         isPaid: true,
         createdAt: true,
         resultJson: true,
+        inputJson: true,
       },
     })
 
-    return NextResponse.json(analyses)
+    const response = analyses.map((analysis) => {
+      const resultJson = analysis.resultJson as any
+      const inputJson = analysis.inputJson as any
+      const nomeMatch =
+        resultJson?.meta?.nome_match ||
+        resultJson?.nome_match ||
+        inputJson?.nome_match ||
+        null
+      const generoMatch =
+        inputJson?.genero_match ||
+        resultJson?.meta?.genero_match ||
+        resultJson?.genero_match ||
+        null
+
+      return {
+        id: analysis.id,
+        stage: analysis.stage,
+        isPaid: analysis.isPaid,
+        createdAt: analysis.createdAt,
+        nome_match: nomeMatch,
+        genero_match: generoMatch,
+      }
+    })
+
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Error in /api/analyses:', error)
     return NextResponse.json({ error: 'Erro ao buscar análises' }, { status: 500 })
