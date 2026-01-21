@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/logo'
-import { BarChart3, TrendingUp, Brain, Shield, ArrowRight, Sparkles } from 'lucide-react'
+import { BarChart3, TrendingUp, Brain, Shield, ArrowRight, Sparkles, Compass } from 'lucide-react'
 
 type Analysis = {
   id: string
@@ -102,12 +102,34 @@ export default function DashboardPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Minhas Análises</h1>
-          <Link
-            href="/dashboard/new"
-            className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition"
-          >
-            Nova Análise
-          </Link>
+          <div className="flex gap-3">
+            {analyses.length >= 1 && (
+              analyses.length >= 2 ? (
+                <Link
+                  href="/dashboard/route-correction"
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 transition flex items-center gap-2 shadow-md hover:shadow-lg"
+                >
+                  <Compass className="w-5 h-5" />
+                  Correção de Rota
+                </Link>
+              ) : (
+                <button
+                  disabled
+                  className="bg-gray-300 text-gray-500 px-6 py-3 rounded-lg font-semibold cursor-not-allowed flex items-center gap-2 opacity-60"
+                  title="Você precisa de pelo menos 2 análises para ver a correção de rota"
+                >
+                  <Compass className="w-5 h-5" />
+                  Correção de Rota
+                </button>
+              )
+            )}
+            <Link
+              href="/dashboard/new"
+              className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition"
+            >
+              Nova Análise
+            </Link>
+          </div>
         </div>
 
         {analyses.length === 0 ? (

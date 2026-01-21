@@ -38,25 +38,47 @@ export async function GET(
     }
 
     // Return free teaser or full result based on isPaid and user plan
-    // In development, always grant access for testing
-    const hasAccess = process.env.NODE_ENV === 'development' || analysis.isPaid || dbUser.plan === 'PRO'
+    // Apenas usuários PRO ou análises pagas têm acesso ao conteúdo premium
+    const hasAccess = analysis.isPaid || dbUser.plan === 'PRO'
+    
+    console.log('[ANALYSES] Verificando acesso:', {
+      userId: dbUser.id,
+      plan: dbUser.plan,
+      isPaid: analysis.isPaid,
+      hasAccess
+    })
 
     const resultJson = analysis.resultJson as any
-    return NextResponse.json({
+    const inputJson = analysis.inputJson as any
+    
+    // Garantir que usuários free NUNCA recebam dados premium
+    const response: any = {
       id: analysis.id,
       stage: analysis.stage,
       isPaid: analysis.isPaid,
       createdAt: analysis.createdAt,
       free_teaser: {
         ...resultJson.free_teaser,
-        nome_match: resultJson.nome_match,
+        nome_match: resultJson.meta?.nome_match || resultJson.nome_match,
+        avatar_match: inputJson?.avatar_match,
       },
-      premium: hasAccess ? {
-        ...resultJson.premium,
-        nome_match: resultJson.nome_match,
-      } : null,
       has_access: hasAccess,
-    })
+      avatar_match: inputJson?.avatar_match,
+    }
+    
+    // Apenas adicionar premium se tiver acesso
+    if (hasAccess) {
+      response.premium = {
+        ...resultJson.premium_report,
+        scores: resultJson.scores, // Incluir scores completos no premium
+        nome_match: resultJson.meta?.nome_match || resultJson.nome_match,
+        avatar_match: inputJson?.avatar_match,
+      }
+    } else {
+      response.premium = null
+    }
+    
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Error in /api/analyses/[id]:', error)
     return NextResponse.json({ error: 'Erro ao buscar análise' }, { status: 500 })

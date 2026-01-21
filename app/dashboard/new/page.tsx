@@ -35,15 +35,14 @@ type FormData = {
   fala_futuro: 'NAO' | 'FALA' | 'FALA_E_FAZ' | ''
   sinais_alerta: string[]
   inegociaveis: string[]
-  texto_bio_match?: string
-  trecho_chat?: string
-  nome_match?: string
+nome_match?: string
+  avatar_match?: string
 }
 
 type Question = {
   id: keyof FormData
   label: string
-  type: 'card-select' | 'number' | 'textarea'
+  type: 'card-select' | 'number' | 'textarea' | 'avatar-select'
   required?: boolean
   options?: { value: string; label: string; hint?: string; icon?: any; color?: string }[]
   placeholder?: string
@@ -209,26 +208,11 @@ const QUESTIONS: Question[] = [
       { value: 'SIM', label: 'Sim', hint: 'Só aparece de madrugada', icon: AlertTriangle, color: 'orange' },
     ],
   },
-  {
-    id: 'texto_bio_match',
-    label: 'Bio do match (opcional)',
-    type: 'textarea',
-    placeholder: 'Cole ou descreva a bio do match...',
-    rows: 3,
-  },
-  {
-    id: 'trecho_chat',
-    label: 'Trecho de conversa (opcional)',
-    type: 'textarea',
-    placeholder: 'Cole um trecho relevante da conversa...',
-    rows: 4,
-  },
-  {
+{
     id: 'nome_match',
     label: 'Como você chama este match?',
-    type: 'textarea',
-    placeholder: 'Ex: João, Maria, o crush do Tinder, meu match...',
-    rows: 2,
+    type: 'avatar-select',
+    placeholder: 'Ex: João, Maria, o crush do Tinder...',
   },
 ]
 
@@ -286,15 +270,29 @@ export default function NewAnalysisPage() {
     fala_futuro: '',
     sinais_alerta: ALL_ALERT_SIGNS, // Todos os sinais são analisados por padrão
     inegociaveis: [],
-    texto_bio_match: '',
-    trecho_chat: '',
-    nome_match: '',
+nome_match: '',
+    avatar_match: '',
   })
 
-  const currentQuestion = QUESTIONS[currentQuestionIndex]
-  const progress = ((currentQuestionIndex + 1) / QUESTIONS.length) * 100
-  const isLastQuestion = currentQuestionIndex === QUESTIONS.length - 1
-  const isFirstQuestion = currentQuestionIndex === 0
+  // Filtrar perguntas visíveis baseado em condições
+  const getVisibleQuestions = () => {
+    return QUESTIONS.filter((question) => {
+      // Se for a pergunta "remarcou_com_data", só mostrar se cancelou_encontro for SIM
+      if (question.id === 'remarcou_com_data') {
+        return formData.cancelou_encontro === 'SIM'
+      }
+      return true
+    })
+  }
+
+  const visibleQuestions = getVisibleQuestions()
+  
+  // Garantir que o índice atual está dentro dos limites das perguntas visíveis
+  const safeIndex = Math.min(currentQuestionIndex, visibleQuestions.length - 1)
+  const currentQuestion = visibleQuestions[safeIndex] || visibleQuestions[0]
+  const progress = ((safeIndex + 1) / visibleQuestions.length) * 100
+  const isLastQuestion = safeIndex === visibleQuestions.length - 1
+  const isFirstQuestion = safeIndex === 0
 
   const canProceed = () => {
     if (!currentQuestion.required) return true
@@ -307,22 +305,31 @@ export default function NewAnalysisPage() {
 
   const handleNext = () => {
     if (canProceed() && !isLastQuestion) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      const nextIndex = safeIndex + 1
+      if (nextIndex < visibleQuestions.length) {
+        setCurrentQuestionIndex(nextIndex)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
     }
   }
 
   const handleBack = () => {
     if (!isFirstQuestion) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      const prevIndex = safeIndex - 1
+      if (prevIndex >= 0) {
+        setCurrentQuestionIndex(prevIndex)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
     }
   }
 
   const handleSkip = () => {
     if (!isLastQuestion) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      const nextIndex = safeIndex + 1
+      if (nextIndex < visibleQuestions.length) {
+        setCurrentQuestionIndex(nextIndex)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
     }
   }
 
@@ -330,18 +337,42 @@ export default function NewAnalysisPage() {
     // Atualizar o estado primeiro
     setFormData((prev) => {
       const newData = { ...prev, [field]: value }
+      
+      // Se cancelou_encontro mudou para NAO, limpar remarcou_com_data
+      if (field === 'cancelou_encontro' && value === 'NAO') {
+        newData.remarcou_com_data = ''
+      }
+      
       return newData
     })
     
     // Auto-advance se configurado (após atualizar o estado)
     if (currentQuestion.autoAdvance && !isLastQuestion && value) {
       setTimeout(() => {
-        setCurrentQuestionIndex((idx) => {
-          if (idx < QUESTIONS.length - 1) {
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-            return idx + 1
+        // Recalcular perguntas visíveis após atualizar o estado
+        const updatedFormData = { ...formData, [field]: value }
+        if (field === 'cancelou_encontro' && value === 'NAO') {
+          updatedFormData.remarcou_com_data = ''
+        }
+        
+        const updatedVisibleQuestions = QUESTIONS.filter((question) => {
+          if (question.id === 'remarcou_com_data') {
+            return updatedFormData.cancelou_encontro === 'SIM'
           }
-          return idx
+          return true
+        })
+        
+        setCurrentQuestionIndex((idx) => {
+          // Encontrar a posição da pergunta atual na nova lista de perguntas visíveis
+          const currentQuestionId = visibleQuestions[idx]?.id
+          const newIndex = updatedVisibleQuestions.findIndex(q => q.id === currentQuestionId)
+          const adjustedIdx = newIndex >= 0 ? newIndex : idx
+          
+          if (adjustedIdx < updatedVisibleQuestions.length - 1) {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+            return adjustedIdx + 1
+          }
+          return adjustedIdx
         })
       }, 500) // Delay maior para garantir que o estado foi atualizado
     }
@@ -388,7 +419,10 @@ export default function NewAnalysisPage() {
       if (formData.encontro_marcado && formData.encontro_marcado !== '') {
         dataToSend.encontro_marcado = formData.encontro_marcado
       }
-      if (formData.remarcou_com_data && formData.remarcou_com_data !== '') {
+      // Se cancelou_encontro for NAO, definir remarcou_com_data como NAO_SE_APLICA
+      if (formData.cancelou_encontro === 'NAO') {
+        dataToSend.remarcou_com_data = 'NAO_SE_APLICA'
+      } else if (formData.remarcou_com_data && formData.remarcou_com_data !== '') {
         dataToSend.remarcou_com_data = formData.remarcou_com_data
       }
       if (formData.curiosidade_por_voce && formData.curiosidade_por_voce !== '') {
@@ -403,14 +437,11 @@ export default function NewAnalysisPage() {
       if (formData.fala_futuro && formData.fala_futuro !== '') {
         dataToSend.fala_futuro = formData.fala_futuro
       }
-      if (formData.texto_bio_match && formData.texto_bio_match.trim()) {
-        dataToSend.texto_bio_match = formData.texto_bio_match.trim()
-      }
-      if (formData.trecho_chat && formData.trecho_chat.trim()) {
-        dataToSend.trecho_chat = formData.trecho_chat.trim()
-      }
-      if (formData.nome_match && formData.nome_match.trim()) {
+if (formData.nome_match && formData.nome_match.trim()) {
         dataToSend.nome_match = formData.nome_match.trim()
+      }
+      if (formData.avatar_match && formData.avatar_match.trim()) {
+        dataToSend.avatar_match = formData.avatar_match.trim()
       }
 
       const response = await fetch('/api/analyze', {
@@ -522,6 +553,63 @@ export default function NewAnalysisPage() {
           />
         )
 
+      case 'avatar-select':
+        const genero = formData.genero_match
+        const avatares = genero === 'ELE' 
+          ? ['👨', '🧔', '👨‍💼', '👨‍🎓', '👨‍💻', '👨‍🎨', '👨‍🚀', '👨‍⚕️']
+          : ['👩', '👩‍💼', '👩‍🎓', '👩‍💻', '👩‍🎨', '👩‍🚀', '👩‍⚕️', '👱‍♀️']
+        
+        return (
+          <div className="space-y-6">
+            <Input
+              value={(formData.nome_match as string) || ''}
+              onChange={(e) => updateField('nome_match', e.target.value)}
+              placeholder={currentQuestion.placeholder}
+              className="h-14 text-base rounded-2xl text-center text-xl font-semibold mb-4"
+            />
+            <div>
+              <Label className="text-lg font-semibold mb-4 block text-center">Escolha um avatar</Label>
+              <div className="grid grid-cols-4 md:grid-cols-8 gap-4">
+                {avatares.map((avatar, idx) => {
+                  const isSelected = formData.avatar_match === avatar
+                  return (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: idx * 0.05 }}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <Card
+                        className={`
+                          p-4 cursor-pointer transition-all duration-200 border-2 rounded-2xl
+                          flex items-center justify-center text-4xl
+                          ${isSelected 
+                            ? 'border-purple-500 bg-purple-100 ring-4 ring-purple-200' 
+                            : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+                          }
+                        `}
+                        onClick={() => updateField('avatar_match', avatar)}
+                      >
+                        {avatar}
+                        {isSelected && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            className="absolute -top-2 -right-2"
+                          >
+                            <CheckCircle2 className="h-6 w-6 text-purple-600 bg-white rounded-full" />
+                          </motion.div>
+                        )}
+                      </Card>
+                    </motion.div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )
 
       default:
         return null
@@ -542,9 +630,6 @@ export default function NewAnalysisPage() {
         {/* Progress */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-3">
-            <span className="text-sm font-medium text-gray-700">
-              Pergunta {currentQuestionIndex + 1} de {QUESTIONS.length}
-            </span>
             <span className="text-sm text-gray-500">{Math.round(progress)}%</span>
           </div>
           <Progress value={progress} className="h-3 rounded-full" />
@@ -659,3 +744,4 @@ export default function NewAnalysisPage() {
     </div>
   )
 }
+

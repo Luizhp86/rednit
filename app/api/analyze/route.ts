@@ -3,7 +3,6 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { analyze, type AnalysisInput } from '@/lib/rules/engine'
 import { analysisInputSchema } from '@/lib/validations/analysis'
-import { analyzeWithGemini } from '@/lib/ai/gemini'
 import { startOfDay } from 'date-fns'
 
 // Simple in-memory rate limiting (for MVP)
@@ -61,11 +60,11 @@ export async function POST(request: NextRequest) {
       await prisma.user.update({
         where: { id: dbUser.id },
         data: {
-          creditsFreeDaily: 1,
+          creditsFreeDaily: 10, // 10 análises gratuitas por dia
           lastDailyReset: today,
         },
       })
-      dbUser.creditsFreeDaily = 1
+      dbUser.creditsFreeDaily = 10
     }
 
     // Check credits
@@ -150,20 +149,8 @@ export async function POST(request: NextRequest) {
     
     const validatedInput = analysisInputSchema.parse(bodyWithDefaults)
 
-    // Run rule-based analysis first (always)
-    const ruleBasedResult = analyze(validatedInput as AnalysisInput)
-
-    // Enhance with Gemini AI for all users (both FREE and PRO)
-    let result = ruleBasedResult
-    console.log(`[ANALYZE] Melhorando análise com Gemini para usuário ${dbUser.plan}...`)
-    try {
-      result = await analyzeWithGemini(validatedInput as AnalysisInput, ruleBasedResult)
-      console.log('[ANALYZE] Análise melhorada com Gemini com sucesso')
-    } catch (error: any) {
-      console.error('[ANALYZE] Erro ao usar Gemini, usando análise baseada em regras:', error.message)
-      // Fallback to rule-based
-      result = ruleBasedResult
-    }
+    // Run rule-based analysis (sem IA para análises individuais)
+    const result = analyze(validatedInput as AnalysisInput)
 
     // Save analysis
     const analysis = await prisma.analysis.create({
@@ -192,7 +179,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       id: analysis.id,
       free_teaser: result.free_teaser,
-      premium_available: !result.premium, // Will be true, but locked behind paywall
+      premium_available: true, // Premium report exists but locked behind paywall
     })
   } catch (error: any) {
     console.error('Error in /api/analyze:', error)

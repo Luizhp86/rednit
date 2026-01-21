@@ -75,13 +75,15 @@ ${input.texto_bio_match ? `- Bio do match: "${input.texto_bio_match}"` : ''}
 ${input.trecho_chat ? `- Trecho de conversa: "${input.trecho_chat}"` : ''}
 
 SCORES BASE (calculados por regras):
-- Consistência: ${ruleBasedResult.scores.consistencia}/100
 - Reciprocidade: ${ruleBasedResult.scores.reciprocidade}/100
-- Disponibilidade: ${ruleBasedResult.scores.disponibilidade}/100
+- Constância: ${ruleBasedResult.scores.constancia}/100
+- Ação no mundo real: ${ruleBasedResult.scores.acao_mundo_real}/100
 - Respeito: ${ruleBasedResult.scores.respeito}/100
-- Intenção: ${ruleBasedResult.scores.intencao}/100
+- Coerência: ${ruleBasedResult.scores.coerencia}/100
+- Disponibilidade: ${ruleBasedResult.scores.disponibilidade}/100
 - Risco de ghosting: ${ruleBasedResult.scores.risco_ghosting}/100
 - Risco de enrolação: ${ruleBasedResult.scores.risco_enrolacao}/100
+- Compatibilidade com objetivo: ${ruleBasedResult.scores.compat_objetivo}/100
 
 TAREFA:
 Crie uma análise completa e envolvente que:
@@ -99,82 +101,38 @@ IMPORTANTE:
 - Use os scores base como referência, mas enriqueça com insights contextuais
 
 FORMATO DE RESPOSTA (JSON):
+Você deve retornar APENAS melhorias de texto (title, description) para os elementos existentes. NÃO altere a estrutura.
+
 {
-  "free_teaser": {
-    "hypothesis": {
-      "key": "string (ex: EXPLORANDO, BUSCA_FIXO, etc)",
-      "confidence": "LOW|MEDIUM|HIGH",
-      "title": "Título envolvente e específico",
-      "description": "Descrição detalhada e empática (2-3 parágrafos)",
-      "signals": [
-        {
-          "code": "string",
-          "label": "string",
-          "why": "Explicação clara e específica"
-        }
-      ],
-      "observe_to_confirm": [
-        "O que observar para confirmar esta hipótese"
-      ],
-      "upgrade_hook": "Frase curta que cria curiosidade sobre o relatório completo (ex: 'No relatório completo, você verá 3 padrões adicionais que confirmam esta hipótese')"
-    },
+  "hypotheses_enhancements": [
+    {
+      "key": "EXPLORANDO",
+      "title": "Título envolvente e específico (2-5 palavras)",
+      "description": "Descrição detalhada e empática (2-3 parágrafos)"
+    }
+  ],
+  "flags_enhancements": [
+    {
+      "title": "Título impactante (2-5 palavras)",
+      "description": "Descrição detalhada e acionável (1-2 parágrafos)"
+    }
+  ],
+  "premium_enhancements": {
+    "executive_summary_bullets": [
+      "Bullet point 1",
+      "Bullet point 2"
+    ],
+    "hypotheses": [
+      {
+        "key": "EXPLORANDO",
+        "title": "Título envolvente",
+        "description": "Descrição detalhada"
+      }
+    ],
     "flags": [
       {
-        "severity": "LOW|MEDIUM|HIGH",
-        "title": "Título impactante",
-        "description": "Descrição detalhada e acionável",
-        "evidence_signals": [
-          {
-            "code": "string",
-            "label": "string",
-            "why": "Por que este sinal é relevante"
-          }
-        ],
-        "impact": "Impacto específico no relacionamento",
-        "upgrade_hook": "Mencione que há mais flags similares no relatório completo"
-      }
-    ],
-    "scores": {
-      "risco_ghosting": ${ruleBasedResult.scores.risco_ghosting},
-      "intencao": ${ruleBasedResult.scores.intencao}
-    },
-    "insight_preview": "Uma frase ou parágrafo curto que resume o insight principal e cria curiosidade"
-  },
-  "premium": {
-    "all_scores": ${JSON.stringify(ruleBasedResult.scores)},
-    "all_hypotheses": [
-      {
-        "key": "string (ex: EXPLORANDO, BUSCA_FIXO, etc)",
-        "confidence": "LOW|MEDIUM|HIGH",
-        "title": "Título envolvente e específico",
-        "description": "Descrição detalhada e empática (2-3 parágrafos)",
-        "signals": [{"code": "string", "label": "string", "why": "string"}],
-        "observe_to_confirm": ["string"]
-      }
-    ],
-    "all_red_flags": [
-      {
-        "severity": "LOW|MEDIUM|HIGH",
-        "title": "Título impactante",
-        "description": "Descrição detalhada e acionável",
-        "evidence_signals": [{"code": "string", "label": "string", "why": "string"}],
-        "impact": "Impacto específico no relacionamento"
-      }
-    ],
-    "all_green_flags": [
-      {
-        "severity": "LOW|MEDIUM|HIGH",
-        "title": "Título positivo",
-        "description": "Descrição detalhada",
-        "evidence_signals": [{"code": "string", "label": "string", "why": "string"}],
-        "impact": "Impacto positivo no relacionamento"
-      }
-    ],
-    "next_actions": [
-      {
-        "stage": "FIRST_CHAT|TALKING|POST_DATE",
-        "action": "Ação específica e acionável",
-        "reason": "Razão baseada em evidências"
+        "title": "Título",
+        "description": "Descrição"
       }
     ]
   }
@@ -195,62 +153,12 @@ function parseGeminiResponse(text: string, fallback: AnalysisResult): Partial<An
 
     const parsed = JSON.parse(jsonText)
 
-    // Convert to AnalysisResult format
-    const result: Partial<AnalysisResult> = {
-      free_teaser: {
-        hypothesis: parsed.free_teaser?.hypothesis
-          ? {
-              key: parsed.free_teaser.hypothesis.key || 'UNKNOWN',
-              confidence: (parsed.free_teaser.hypothesis.confidence || 'MEDIUM') as 'LOW' | 'MEDIUM' | 'HIGH',
-              signals: parsed.free_teaser.hypothesis.signals || [],
-              observe_to_confirm: parsed.free_teaser.hypothesis.observe_to_confirm || [],
-              title: parsed.free_teaser.hypothesis.title,
-              description: parsed.free_teaser.hypothesis.description,
-              upgrade_hook: parsed.free_teaser.hypothesis.upgrade_hook,
-            }
-          : null,
-        flags: parsed.free_teaser?.flags?.map((f: any) => ({
-          severity: (f.severity || 'MEDIUM') as 'LOW' | 'MEDIUM' | 'HIGH',
-          title: f.title || '',
-          evidence_signals: f.evidence_signals || [],
-          impact: f.impact || '',
-          description: f.description,
-          upgrade_hook: f.upgrade_hook,
-        })) || [],
-        scores: parsed.free_teaser?.scores || fallback.free_teaser.scores,
-        insight_preview: parsed.free_teaser?.insight_preview,
-      },
-      premium: parsed.premium
-        ? {
-            all_scores: parsed.premium.all_scores || fallback.premium.all_scores,
-            all_hypotheses: parsed.premium.all_hypotheses?.map((h: any) => ({
-              key: h.key || 'UNKNOWN',
-              confidence: (h.confidence || 'MEDIUM') as 'LOW' | 'MEDIUM' | 'HIGH',
-              signals: h.signals || [],
-              observe_to_confirm: h.observe_to_confirm || [],
-              title: h.title,
-              description: h.description,
-            })) || fallback.premium.all_hypotheses,
-            all_red_flags: parsed.premium.all_red_flags?.map((f: any) => ({
-              severity: (f.severity || 'MEDIUM') as 'LOW' | 'MEDIUM' | 'HIGH',
-              title: f.title || '',
-              evidence_signals: f.evidence_signals || [],
-              impact: f.impact || '',
-              description: f.description,
-            })) || fallback.premium.all_red_flags,
-            all_green_flags: parsed.premium.all_green_flags?.map((f: any) => ({
-              severity: (f.severity || 'MEDIUM') as 'LOW' | 'MEDIUM' | 'HIGH',
-              title: f.title || '',
-              evidence_signals: f.evidence_signals || [],
-              impact: f.impact || '',
-              description: f.description,
-            })) || fallback.premium.all_green_flags,
-            next_actions: parsed.premium.next_actions || fallback.premium.next_actions,
-          }
-        : fallback.premium,
+    // Apenas melhorias de texto, não alterar estrutura
+    return {
+      hypotheses_enhancements: parsed.hypotheses_enhancements || [],
+      flags_enhancements: parsed.flags_enhancements || [],
+      premium_enhancements: parsed.premium_enhancements || {}
     }
-
-    return result
   } catch (error: any) {
     console.error('[GEMINI] Erro ao fazer parse da resposta:', error.message)
     console.error('[GEMINI] Texto recebido:', text.substring(0, 500))
@@ -260,28 +168,256 @@ function parseGeminiResponse(text: string, fallback: AnalysisResult): Partial<An
 
 function mergeAnalysisResults(
   ruleBased: AnalysisResult,
-  aiAnalysis: Partial<AnalysisResult>
+  aiAnalysis: any
 ): AnalysisResult {
-  // Merge: use AI for both free_teaser and premium (both generated by AI)
-  const mergedFreeTeaser = {
-    ...ruleBased.free_teaser,
-    ...(aiAnalysis.free_teaser || {}),
-    // Merge hypothesis if AI provided one
-    hypothesis: aiAnalysis.free_teaser?.hypothesis || ruleBased.free_teaser.hypothesis,
-    // Merge flags, preferring AI ones but keeping rule-based if AI didn't provide
-    flags: aiAnalysis.free_teaser?.flags?.length
-      ? aiAnalysis.free_teaser.flags
-      : ruleBased.free_teaser.flags,
-    // Ensure scores are always present
-    scores: aiAnalysis.free_teaser?.scores || ruleBased.free_teaser.scores,
+  // Aplicar melhorias de texto apenas
+  const enhancedHypotheses = [...ruleBased.hypotheses_top3]
+  if (aiAnalysis.hypotheses_enhancements) {
+    for (const enhancement of aiAnalysis.hypotheses_enhancements) {
+      const hypothesis = enhancedHypotheses.find(h => h.key === enhancement.key)
+      if (hypothesis) {
+        if (enhancement.title) hypothesis.title = enhancement.title
+        if (enhancement.description) hypothesis.description = enhancement.description
+      }
+    }
   }
 
-  // Use AI-generated premium if available, otherwise fallback to rule-based
-  const mergedPremium = aiAnalysis.premium || ruleBased.premium
+  const enhancedRedFlags = [...ruleBased.red_flags]
+  const enhancedGreenFlags = [...ruleBased.green_flags]
+  if (aiAnalysis.flags_enhancements) {
+    for (let i = 0; i < Math.min(aiAnalysis.flags_enhancements.length, enhancedRedFlags.length + enhancedGreenFlags.length); i++) {
+      const enhancement = aiAnalysis.flags_enhancements[i]
+      if (i < enhancedRedFlags.length) {
+        if (enhancement.title) enhancedRedFlags[i].title = enhancement.title
+        if (enhancement.description) enhancedRedFlags[i].description = enhancement.description
+      } else {
+        const greenIndex = i - enhancedRedFlags.length
+        if (greenIndex < enhancedGreenFlags.length) {
+          if (enhancement.title) enhancedGreenFlags[greenIndex].title = enhancement.title
+          if (enhancement.description) enhancedGreenFlags[greenIndex].description = enhancement.description
+        }
+      }
+    }
+  }
+
+  // Aplicar melhorias no premium report
+  const enhancedPremium = { ...ruleBased.premium_report }
+  if (aiAnalysis.premium_enhancements) {
+    if (aiAnalysis.premium_enhancements.executive_summary_bullets) {
+      enhancedPremium.executive_summary = aiAnalysis.premium_enhancements.executive_summary_bullets
+    }
+    if (aiAnalysis.premium_enhancements.hypotheses) {
+      for (const enhancement of aiAnalysis.premium_enhancements.hypotheses) {
+        const hypothesis = enhancedHypotheses.find(h => h.key === enhancement.key)
+        if (hypothesis) {
+          if (enhancement.title) hypothesis.title = enhancement.title
+          if (enhancement.description) hypothesis.description = enhancement.description
+        }
+      }
+    }
+  }
+
+  // Atualizar free teaser com hipótese melhorada
+  const enhancedFreeTeaser = {
+    ...ruleBased.free_teaser,
+    hypothesis_1: enhancedHypotheses[0] || null,
+    red_flag: enhancedRedFlags[0],
+    green_flag: enhancedGreenFlags[0]
+  }
 
   return {
     ...ruleBased,
-    free_teaser: mergedFreeTeaser,
-    premium: mergedPremium,
+    hypotheses_top3: enhancedHypotheses,
+    red_flags: enhancedRedFlags,
+    green_flags: enhancedGreenFlags,
+    free_teaser: enhancedFreeTeaser,
+    premium_report: enhancedPremium
+  }
+}
+
+// ============================================
+// CORREÇÃO DE ROTA - Análise de Padrões
+// ============================================
+
+export type RouteCorrectionInput = {
+  analyses: Array<{
+    inputJson: any
+    resultJson: any
+    scores: any
+    createdAt: string
+  }>
+  userObjective: string
+}
+
+export type RouteCorrectionResult = {
+  alignment_status: 'ALINHADO' | 'PARCIALMENTE_ALINHADO' | 'DESALINHADO'
+  pattern_summary: {
+    main_pattern: string
+    description: string
+    evidence_count: number
+    total_analyses: number
+  }
+  behavior_analysis: {
+    strengths: string[]
+    weaknesses: string[]
+    blind_spots: string[]
+  }
+  recommendations: {
+    corrective_actions: Array<{
+      action: string
+      priority: 'HIGH' | 'MEDIUM' | 'LOW'
+      reason: string
+    }>
+    keep_doing: string[]
+    weekly_focus: {
+      focus: string
+      metric: string
+      goal: string
+    }
+  }
+  encouragement?: {
+    message: string
+    highlights: string[]
+  }
+}
+
+export async function analyzeRouteCorrection(
+  input: RouteCorrectionInput
+): Promise<RouteCorrectionResult> {
+  try {
+    // Usar modelo compatível com API gratuita
+    // gemini-2.0-flash é o modelo disponível na API gratuita v1beta
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const prompt = buildRouteCorrectionPrompt(input)
+    
+    console.log('[GEMINI] Analisando padrões de comportamento para correção de rota...')
+    const result = await model.generateContent(prompt)
+    const response = await result.response
+    const text = response.text()
+    
+    return parseRouteCorrectionResponse(text)
+  } catch (error: any) {
+    console.error('[GEMINI] Erro ao analisar correção de rota:', error.message)
+    throw error
+  }
+}
+
+function buildRouteCorrectionPrompt(input: RouteCorrectionInput): string {
+  const objectiveLabels: Record<string, string> = {
+    CASUAL: 'relacionamento casual',
+    CONHECER: 'conhecer pessoas novas',
+    NAMORO_SERIO: 'namoro sério/relacionamento duradouro'
+  }
+  
+  const objectiveLabel = objectiveLabels[input.userObjective] || input.userObjective
+  
+  // Resumir análises
+  const analysesSummary = input.analyses.map((analysis, idx) => {
+    const inputData = analysis.inputJson
+    const scores = analysis.scores || analysis.resultJson?.scores || {}
+    
+    return `
+Análise ${idx + 1} (${new Date(analysis.createdAt).toLocaleDateString('pt-BR')}):
+- Objetivo do match: ${inputData.objetivo_usuario || 'Não informado'}
+- Estágio: ${inputData.estagio || 'Não informado'}
+- Iniciativa: ${inputData.iniciativa || 'Não informado'}
+- Frequência: ${inputData.frequencia_contato || 'Não informado'}
+- Tempo de resposta: ${inputData.tempo_resposta || 'Não informado'}
+- Encontro marcado: ${inputData.encontro_marcado || 'Não'}
+- Cancelou encontro: ${inputData.cancelou_encontro || 'Não'}
+- Scores:
+  * Reciprocidade: ${scores.reciprocidade || 50}/100
+  * Constância: ${scores.constancia || 50}/100
+  * Ação no mundo real: ${scores.acao_mundo_real || 50}/100
+  * Risco de ghosting: ${scores.risco_ghosting || 30}/100
+  * Risco de enrolação: ${scores.risco_enrolacao || 30}/100
+  * Compatibilidade: ${scores.compat_objetivo || 50}/100`
+  }).join('\n')
+  
+  return `Você é um coach especializado em relacionamentos modernos e uso de apps de relacionamento como Tinder.
+
+CONTEXTO:
+O usuário tem como objetivo: ${objectiveLabel}
+Total de análises realizadas: ${input.analyses.length}
+
+HISTÓRICO DE ANÁLISES:
+${analysesSummary}
+
+SUA TAREFA:
+Analise os padrões de comportamento do usuário e identifique:
+1. Se o comportamento está ALINHADO, PARCIALMENTE ALINHADO ou DESALINHADO com o objetivo dele
+2. Padrões recorrentes (positivos e negativos)
+3. Pontos cegos (comportamentos que ele não percebe)
+4. Ações corretivas específicas e acionáveis
+5. O que ele deve continuar fazendo (se estiver alinhado)
+
+REGRAS IMPORTANTES:
+- Seja específico e baseado em evidências dos dados
+- Foque em comportamentos, não em traços psicológicos
+- Dê sugestões práticas e acionáveis
+- Se estiver alinhado, incentive e destaque os pontos fortes
+- Se estiver desalinhado, seja empático mas direto
+- O objetivo é ajudar o usuário a encontrar pessoas com os mesmos objetivos
+- Evite julgamentos, foque em coaching prático
+
+FORMATO DE RESPOSTA (JSON):
+{
+  "alignment_status": "ALINHADO" | "PARCIALMENTE_ALINHADO" | "DESALINHADO",
+  "pattern_summary": {
+    "main_pattern": "Descrição do padrão principal identificado (1 frase)",
+    "description": "Explicação detalhada do padrão (2-3 frases)",
+    "evidence_count": número de análises que mostram esse padrão,
+    "total_analyses": ${input.analyses.length}
+  },
+  "behavior_analysis": {
+    "strengths": ["Força 1", "Força 2", "Força 3"],
+    "weaknesses": ["Fraqueza 1", "Fraqueza 2"],
+    "blind_spots": ["Ponto cego 1", "Ponto cego 2"]
+  },
+  "recommendations": {
+    "corrective_actions": [
+      {
+        "action": "Ação específica e acionável",
+        "priority": "HIGH" | "MEDIUM" | "LOW",
+        "reason": "Por que essa ação é importante"
+      }
+    ],
+    "keep_doing": ["Comportamento positivo 1", "Comportamento positivo 2"],
+    "weekly_focus": {
+      "focus": "Foco principal da semana (1 frase)",
+      "metric": "Métrica para acompanhar (ex: 'taxa de reciprocidade')",
+      "goal": "Meta específica (ex: 'buscar matches que respondem em até 2h')"
+    }
+  },
+  "encouragement": {
+    "message": "Mensagem de incentivo se estiver alinhado, ou motivação se estiver desalinhado",
+    "highlights": ["Destaque 1", "Destaque 2"]
+  }
+}
+
+Responda APENAS com o JSON válido, sem markdown ou texto adicional.`
+}
+
+function parseRouteCorrectionResponse(text: string): RouteCorrectionResult {
+  try {
+    let jsonText = text.trim()
+    if (jsonText.startsWith('```json')) {
+      jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '')
+    } else if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/```\n?/g, '')
+    }
+    
+    const parsed = JSON.parse(jsonText)
+    
+    // Validar estrutura básica
+    if (!parsed.alignment_status || !parsed.pattern_summary || !parsed.recommendations) {
+      throw new Error('Resposta do Gemini não contém estrutura esperada')
+    }
+    
+    return parsed as RouteCorrectionResult
+  } catch (error: any) {
+    console.error('[GEMINI] Erro ao fazer parse da correção de rota:', error.message)
+    console.error('[GEMINI] Texto recebido:', text.substring(0, 500))
+    throw error
   }
 }

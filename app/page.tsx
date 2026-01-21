@@ -11,7 +11,7 @@ export default function LandingPage() {
         <div className="flex items-center gap-3">
           <Logo size="lg" />
           <span className="text-sm md:text-base text-gray-600 italic">
-            o seu radar de matchs
+            o seu coach do tinder
           </span>
         </div>
       </nav>

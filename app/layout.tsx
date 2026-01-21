@@ -13,8 +13,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "rednit - Insights Inteligentes sobre Relacionamentos",
-  description: "Análises objetivas com red flags, green flags e hipóteses probabilísticas baseadas em evidências.",
+  title: "Rednit - Coach de tinder",
+  description: "Rednit - Coach de tinder",
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export default function RootLayout({
