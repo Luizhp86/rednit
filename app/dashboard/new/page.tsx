@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -241,6 +241,9 @@ export default function NewAnalysisPage() {
   const router = useRouter()
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
   // Todos os sinais de alerta serão analisados automaticamente
   const ALL_ALERT_SIGNS = [
     'LOVE_BOMBING',
@@ -332,7 +335,16 @@ export default function NewAnalysisPage() {
     }
   }
 
-  const updateField = (field: keyof FormData, value: any) => {
+  const updateField = useCallback((field: keyof FormData, value: any) => {
+    // Bloquear se já está em transição
+    if (isTransitioning) return
+    
+    // Cancelar timeout pendente
+    if (transitionTimeoutRef.current) {
+      clearTimeout(transitionTimeoutRef.current)
+      transitionTimeoutRef.current = null
+    }
+    
     // Atualizar o estado primeiro
     setFormData((prev) => {
       const newData = { ...prev, [field]: value }
@@ -346,16 +358,20 @@ export default function NewAnalysisPage() {
     })
     
     // Auto-advance se configurado (após atualizar o estado)
-    if (currentQuestion.autoAdvance && !isLastQuestion && value) {
-      setTimeout(() => {
+    const question = visibleQuestions[safeIndex]
+    if (question?.autoAdvance && safeIndex < visibleQuestions.length - 1 && value) {
+      // Bloquear novas interações durante a transição
+      setIsTransitioning(true)
+      
+      transitionTimeoutRef.current = setTimeout(() => {
         // Recalcular perguntas visíveis após atualizar o estado
         const updatedFormData = { ...formData, [field]: value }
         if (field === 'cancelou_encontro' && value === 'NAO') {
           updatedFormData.remarcou_com_data = ''
         }
         
-        const updatedVisibleQuestions = QUESTIONS.filter((question) => {
-          if (question.id === 'remarcou_com_data') {
+        const updatedVisibleQuestions = QUESTIONS.filter((q) => {
+          if (q.id === 'remarcou_com_data') {
             return updatedFormData.cancelou_encontro === 'SIM'
           }
           return true
@@ -373,9 +389,14 @@ export default function NewAnalysisPage() {
           }
           return adjustedIdx
         })
-      }, 500) // Delay maior para garantir que o estado foi atualizado
+        
+        // Desbloquear após a transição
+        setTimeout(() => {
+          setIsTransitioning(false)
+        }, 350) // Tempo da animação
+      }, 400)
     }
-  }
+  }, [isTransitioning, formData, visibleQuestions, safeIndex])
 
 
   const handleSubmit = async () => {
@@ -492,14 +513,15 @@ export default function NewAnalysisPage() {
                 >
                   <Card
                     className={`
-                      p-6 cursor-pointer transition-all duration-200 border-2 rounded-3xl
+                      p-6 transition-all duration-200 border-2 rounded-3xl
                       ${isLastOddItem ? 'md:w-full md:max-w-sm' : 'w-full'}
                       ${isSelected 
                         ? selectedColorClasses[color] 
                         : colorClasses[color]
                       }
+                      ${isTransitioning ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}
                     `}
-                    onClick={() => updateField(currentQuestion.id, option.value)}
+                    onClick={() => !isTransitioning && updateField(currentQuestion.id, option.value)}
                   >
                     <div className="flex flex-col items-center text-center space-y-3">
                       <Icon className={`h-8 w-8 ${isSelected ? 'scale-110' : ''} transition-transform`} />

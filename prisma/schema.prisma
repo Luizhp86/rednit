@@ -40,18 +40,20 @@ model User {
 }
 
 model Analysis {
-  id         String         @id @default(uuid())
-  userId     String
-  stage      AnalysisStage
-  inputJson  Json
-  resultJson Json
-  isPaid     Boolean        @default(false)
-  createdAt  DateTime       @default(now())
+  id                     String         @id @default(uuid())
+  userId                 String
+  stage                  AnalysisStage
+  inputJson              Json
+  resultJson             Json
+  isPaid                 Boolean        @default(false)
+  usedInRouteCorrection  Boolean        @default(false)
+  createdAt              DateTime       @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([createdAt])
+  @@index([usedInRouteCorrection])
   @@map("analyses")
 }
 
@@ -86,4 +88,53 @@ model Entitlement {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("entitlements")
+}
+
+// Configurações do sistema (admin)
+model SystemConfig {
+  id        String   @id @default("default")
+  
+  // Configurações de análise de comportamento
+  minAnalysesFirstTime     Int @default(3)  // Mínimo para primeira análise
+  minNewAnalysesForUnlock  Int @default(4)  // Mínimo de novas para desbloquear
+  
+  // Configurações de créditos
+  freeCreditsDaily         Int @default(10) // Créditos gratuitos por dia
+  
+  // Controle de gastos Gemini
+  geminiDailyLimit         Int @default(100)    // Limite diário de chamadas
+  geminiMonthlyBudgetCents Int @default(50000)  // Orçamento mensal em centavos (R$ 500)
+  geminiCallsToday         Int @default(0)      // Contador de chamadas hoje
+  geminiLastResetDate      DateTime?            // Última vez que resetou contador diário
+  
+  // Configurações de preços
+  proPriceMonthly          Int @default(2990)   // Preço mensal PRO em centavos
+  proPriceYearly           Int @default(29900)  // Preço anual PRO em centavos
+  
+  // Feature flags
+  maintenanceMode          Boolean @default(false)
+  allowNewRegistrations    Boolean @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_config")
+}
+
+// Log de uso do Gemini para controle de gastos
+model GeminiUsageLog {
+  id            String   @id @default(uuid())
+  userId        String?
+  endpoint      String   // "analyze", "route-correction", etc
+  tokensInput   Int      @default(0)
+  tokensOutput  Int      @default(0)
+  estimatedCost Int      @default(0) // Em centavos de dólar
+  success       Boolean  @default(true)
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([endpoint])
+  @@map("gemini_usage_logs")
 }

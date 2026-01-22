@@ -1,20 +1,11 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [showAdminLogin, setShowAdminLogin] = useState(false)
-  const [adminUser, setAdminUser] = useState('')
-  const [adminPassword, setAdminPassword] = useState('')
   const supabase = createClient()
-
-  const ADMIN_DEFAULT_USER = 'admin'
-  const ADMIN_DEFAULT_EMAIL = 'admin@rednit.com'
-  const ADMIN_DEFAULT_PASSWORD = '123456'
 
   const handleGoogleLogin = async () => {
     try {
@@ -30,45 +21,6 @@ export default function LoginPage() {
         console.error('Error:', error)
         alert('Erro ao fazer login: ' + error.message)
       }
-    } catch (error: any) {
-      console.error('Error:', error)
-      alert('Erro ao fazer login')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleAdminLogin = async () => {
-    try {
-      setLoading(true)
-      const rawUser = adminUser.trim() || ADMIN_DEFAULT_USER
-      const email = rawUser.includes('@') ? rawUser : `${rawUser}@rednit.com`
-      const password = adminPassword || ADMIN_DEFAULT_PASSWORD
-
-      const seedRes = await fetch('/api/admin-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name: rawUser }),
-      })
-
-      if (!seedRes.ok) {
-        const error = await seedRes.json()
-        alert(error.error || 'Erro ao preparar login admin')
-        return
-      }
-
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (signInError) {
-        alert('Erro ao fazer login: ' + signInError.message)
-        return
-      }
-
-      await fetch('/api/me')
-      router.push('/dashboard')
     } catch (error: any) {
       console.error('Error:', error)
       alert('Erro ao fazer login')
@@ -123,43 +75,6 @@ export default function LoginPage() {
         <p className="text-xs text-center text-gray-500 mt-6">
           Ao continuar, você concorda com nossos Termos de Uso e Política de Privacidade
         </p>
-        <button
-          type="button"
-          onClick={() => setShowAdminLogin((prev) => !prev)}
-          className="mt-3 block mx-auto text-[10px] text-gray-400 hover:text-gray-500 opacity-40 hover:opacity-70 transition"
-          aria-label="Acesso interno"
-        >
-          acesso interno
-        </button>
-
-        {showAdminLogin && (
-          <div className="mt-4 border-t pt-4">
-            <div className="space-y-3">
-              <input
-                type="text"
-                value={adminUser}
-                onChange={(e) => setAdminUser(e.target.value)}
-                placeholder="usuario"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
-              />
-              <input
-                type="password"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                placeholder="senha"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
-              />
-              <button
-                type="button"
-                onClick={handleAdminLogin}
-                disabled={loading}
-                className="w-full bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-800 transition disabled:opacity-50"
-              >
-                {loading ? 'Entrando...' : 'Entrar'}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

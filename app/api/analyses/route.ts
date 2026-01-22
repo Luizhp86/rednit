@@ -48,6 +48,27 @@ export async function GET() {
         resultJson?.genero_match ||
         null
 
+      // Extrair dados resumidos do free_teaser para exibir no card
+      const freeTeaser = resultJson?.free_teaser
+      const scores = resultJson?.scores
+      
+      // Headline curto (remover emoji e limitar tamanho)
+      let headline = freeTeaser?.headline || null
+      if (headline) {
+        // Remover emojis e manter texto curto
+        headline = headline.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim()
+        if (headline.length > 50) {
+          headline = headline.substring(0, 47) + '...'
+        }
+      }
+      
+      // Pegar o risco principal
+      const riskScore = freeTeaser?.ONE_risk_score || null
+      
+      // Determinar se tem red flag ou green flag
+      const hasRedFlag = !!freeTeaser?.red_flag
+      const hasGreenFlag = !!freeTeaser?.green_flag && !hasRedFlag
+
       return {
         id: analysis.id,
         stage: analysis.stage,
@@ -55,6 +76,16 @@ export async function GET() {
         createdAt: analysis.createdAt,
         nome_match: nomeMatch,
         genero_match: generoMatch,
+        // Novos campos para card
+        headline,
+        riskScore: riskScore ? {
+          type: riskScore.type,
+          value: riskScore.value,
+          label: riskScore.label,
+        } : null,
+        hasRedFlag,
+        hasGreenFlag,
+        compatScore: scores?.compat_objetivo || null,
       }
     })
 

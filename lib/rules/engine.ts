@@ -437,6 +437,7 @@ function calculateScores(input: AnalysisInput, signals: SignalFired[]): Scores {
   }
 
   // Clamp todos os scores
+  // Risco de Ghosting e Enrolação: mínimo 10, máximo 90 (nunca 0% ou 100%)
   const clamped: Scores = {
     reciprocidade: clamp(baseScores.reciprocidade, 0, 100),
     constancia: clamp(baseScores.constancia, 0, 100),
@@ -444,8 +445,8 @@ function calculateScores(input: AnalysisInput, signals: SignalFired[]): Scores {
     respeito: clamp(baseScores.respeito, 0, 100),
     coerencia: clamp(baseScores.coerencia, 0, 100),
     disponibilidade: clamp(baseScores.disponibilidade, 0, 100),
-    risco_ghosting: clamp(baseScores.risco_ghosting, 0, 100),
-    risco_enrolacao: clamp(baseScores.risco_enrolacao, 0, 100),
+    risco_ghosting: clamp(baseScores.risco_ghosting, 10, 90),
+    risco_enrolacao: clamp(baseScores.risco_enrolacao, 10, 90),
     compat_objetivo: clamp(baseScores.compat_objetivo, 0, 100)
   }
 

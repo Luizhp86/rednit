@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Logo } from '@/components/logo'
@@ -9,14 +9,37 @@ import { Button } from '@/components/ui/button'
 import { 
   Compass, 
   TrendingUp, 
+  TrendingDown,
+  Minus,
   AlertTriangle, 
   CheckCircle2, 
   Target, 
   ArrowLeft,
   Sparkles,
   Eye,
-  Zap
+  Zap,
+  Award,
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react'
+
+type EvolutionTrend = 'IMPROVING' | 'STABLE' | 'DECLINING'
+
+type EvolutionAnalysis = {
+  overall_trend: EvolutionTrend
+  trend_description: string
+  score_changes?: {
+    dimension: string
+    label: string
+    before: number
+    after: number
+    change: number
+    trend: 'UP' | 'STABLE' | 'DOWN'
+  }[]
+  key_improvements: string[]
+  areas_of_concern: string[]
+  milestone_achieved?: string
+}
 
 type RouteCorrectionResult = {
   alignment_status: 'ALINHADO' | 'PARCIALMENTE_ALINHADO' | 'DESALINHADO'
@@ -26,6 +49,7 @@ type RouteCorrectionResult = {
     evidence_count: number
     total_analyses: number
   }
+  evolution?: EvolutionAnalysis
   behavior_analysis: {
     strengths: string[]
     weaknesses: string[]
@@ -56,14 +80,19 @@ export default function RouteCorrectionPage() {
   const [correction, setCorrection] = useState<RouteCorrectionResult | null>(null)
   const [totalAnalyses, setTotalAnalyses] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const hasFetchedRef = useRef(false)
 
   useEffect(() => {
+    // Evitar múltiplas requisições (StrictMode do React faz o efeito rodar 2x)
+    if (hasFetchedRef.current) return
+    hasFetchedRef.current = true
+    
     async function loadCorrection() {
       try {
         const res = await fetch('/api/route-correction')
         if (!res.ok) {
           const data = await res.json()
-          setError(data.error || 'Erro ao carregar correção de rota')
+          setError(data.error || 'Erro ao carregar análise de comportamento')
           setLoading(false)
           return
         }
@@ -71,7 +100,7 @@ export default function RouteCorrectionPage() {
         setCorrection(data.correction)
         setTotalAnalyses(data.total_analyses)
       } catch (err: any) {
-        setError('Erro ao carregar correção de rota')
+        setError('Erro ao carregar análise de comportamento')
         console.error(err)
       } finally {
         setLoading(false)
@@ -143,6 +172,45 @@ export default function RouteCorrectionPage() {
     DESALINHADO: 'Desalinhado',
   }
 
+  const evolutionConfig = {
+    IMPROVING: {
+      color: 'from-green-500 to-emerald-500',
+      bgColor: 'from-green-50 to-emerald-50',
+      borderColor: 'border-green-300',
+      icon: TrendingUp,
+      label: 'Evoluindo',
+      emoji: '🚀'
+    },
+    STABLE: {
+      color: 'from-blue-500 to-cyan-500',
+      bgColor: 'from-blue-50 to-cyan-50',
+      borderColor: 'border-blue-300',
+      icon: Minus,
+      label: 'Estável',
+      emoji: '⚖️'
+    },
+    DECLINING: {
+      color: 'from-orange-500 to-red-500',
+      bgColor: 'from-orange-50 to-red-50',
+      borderColor: 'border-orange-300',
+      icon: TrendingDown,
+      label: 'Atenção',
+      emoji: '⚠️'
+    }
+  }
+
+  const getTrendIcon = (trend: 'UP' | 'STABLE' | 'DOWN') => {
+    if (trend === 'UP') return <ArrowUpRight className="w-4 h-4 text-green-600" />
+    if (trend === 'DOWN') return <ArrowDownRight className="w-4 h-4 text-red-600" />
+    return <Minus className="w-4 h-4 text-gray-500" />
+  }
+
+  const getTrendColor = (trend: 'UP' | 'STABLE' | 'DOWN') => {
+    if (trend === 'UP') return 'text-green-600'
+    if (trend === 'DOWN') return 'text-red-600'
+    return 'text-gray-600'
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
@@ -168,7 +236,7 @@ export default function RouteCorrectionPage() {
               <Compass className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Correção de Rota</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Análise do Meu Comportamento</h1>
               <p className="text-gray-600">Baseado em {totalAnalyses} análises</p>
             </div>
           </div>
@@ -204,7 +272,7 @@ export default function RouteCorrectionPage() {
           {/* Padrão Principal */}
           <div className="bg-purple-50 rounded-2xl p-6 border border-purple-200">
             <h3 className="text-xl font-bold text-gray-900 mb-3 flex items-center gap-2">
-              <TrendingUp className="w-6 h-6 text-purple-600" />
+              <Compass className="w-6 h-6 text-purple-600" />
               Padrão Identificado
             </h3>
             <p className="text-lg font-semibold text-gray-900 mb-2">
@@ -214,10 +282,118 @@ export default function RouteCorrectionPage() {
               {correction.pattern_summary.description}
             </p>
             <p className="text-sm text-gray-600">
-              Evidência em {correction.pattern_summary.evidence_count} de {correction.pattern_summary.total_analyses} análises
+              Baseado em {correction.pattern_summary.total_analyses} análises
             </p>
           </div>
         </Card>
+
+        {/* NOVO: Card de Evolução */}
+        {correction.evolution && (
+          <Card className={`p-8 rounded-3xl border-2 ${evolutionConfig[correction.evolution.overall_trend].borderColor} shadow-xl mb-6 bg-gradient-to-br ${evolutionConfig[correction.evolution.overall_trend].bgColor}`}>
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className={`p-3 rounded-full bg-gradient-to-r ${evolutionConfig[correction.evolution.overall_trend].color}`}>
+                  {(() => {
+                    const IconComponent = evolutionConfig[correction.evolution.overall_trend].icon
+                    return <IconComponent className="w-8 h-8 text-white" />
+                  })()}
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    Sua Evolução
+                    <span className="text-2xl">{evolutionConfig[correction.evolution.overall_trend].emoji}</span>
+                  </h2>
+                  <p className="text-gray-600">Comparando suas análises recentes com as anteriores</p>
+                </div>
+              </div>
+              <div className={`px-4 py-2 rounded-full bg-gradient-to-r ${evolutionConfig[correction.evolution.overall_trend].color} text-white font-bold`}>
+                {evolutionConfig[correction.evolution.overall_trend].label}
+              </div>
+            </div>
+
+            <p className="text-lg text-gray-700 mb-6">
+              {correction.evolution.trend_description}
+            </p>
+
+            {/* Milestone conquistado */}
+            {correction.evolution.milestone_achieved && (
+              <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 mb-6 flex items-center gap-3">
+                <Award className="w-8 h-8 text-yellow-600 flex-shrink-0" />
+                <div>
+                  <p className="font-bold text-yellow-800">Conquista Desbloqueada!</p>
+                  <p className="text-yellow-700">{correction.evolution.milestone_achieved}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Score Changes Grid */}
+            {correction.evolution.score_changes && correction.evolution.score_changes.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Mudanças nos Indicadores</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {correction.evolution.score_changes.map((change, idx) => (
+                    <div 
+                      key={idx} 
+                      className={`p-3 rounded-xl bg-white/80 border ${
+                        change.trend === 'UP' ? 'border-green-200' : 
+                        change.trend === 'DOWN' ? 'border-red-200' : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-gray-500">{change.label}</span>
+                        {getTrendIcon(change.trend)}
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xl font-bold text-gray-900">{change.after}</span>
+                        <span className={`text-sm font-semibold ${getTrendColor(change.trend)}`}>
+                          {change.change > 0 ? '+' : ''}{change.change}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-400">era {change.before}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Melhorias e Preocupações lado a lado */}
+            <div className="grid md:grid-cols-2 gap-4">
+              {correction.evolution.key_improvements.length > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                  <h4 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5" />
+                    Melhorias Recentes
+                  </h4>
+                  <ul className="space-y-2">
+                    {correction.evolution.key_improvements.map((item, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-green-700 text-sm">
+                        <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {correction.evolution.areas_of_concern.length > 0 && (
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+                  <h4 className="font-semibold text-orange-800 mb-3 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5" />
+                    Pontos de Atenção
+                  </h4>
+                  <ul className="space-y-2">
+                    {correction.evolution.areas_of_concern.map((item, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-orange-700 text-sm">
+                        <Eye className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
 
         {/* Análise de Comportamento */}
         <div className="grid md:grid-cols-3 gap-6 mb-6">

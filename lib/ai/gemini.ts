@@ -1,21 +1,37 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import type { AnalysisInput, AnalysisResult } from '../rules/engine'
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'AIzaSyAjVH2XBm0MAsKosCi8fTMtsd2fC_O9xvM')
+const apiKey = process.env.GEMINI_API_KEY
+if (!apiKey) {
+  console.error('[GEMINI] ERRO: GEMINI_API_KEY não configurada no .env')
+}
+const genAI = new GoogleGenerativeAI(apiKey || '')
 
 export async function analyzeWithGemini(
   input: AnalysisInput,
   ruleBasedResult: AnalysisResult
 ): Promise<AnalysisResult> {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-1.5-flash',
+      generationConfig: {
+        maxOutputTokens: 4096, // Limitar resposta para evitar excesso
+        temperature: 0.7,
+      },
+    })
 
     const prompt = buildAnalysisPrompt(input, ruleBasedResult)
-
+    
+    // Log para debug de tamanho do prompt
+    const promptTokenEstimate = Math.ceil(prompt.length / 4)
+    console.log(`[GEMINI] Prompt de análise: ~${promptTokenEstimate} tokens estimados (${prompt.length} chars)`)
     console.log('[GEMINI] Gerando análise completa (FREE + PREMIUM) com IA...')
+    
     const result = await model.generateContent(prompt)
     const response = await result.response
     const text = response.text()
+
+    console.log(`[GEMINI] Resposta recebida: ${text.length} chars`)
 
     // Parse JSON response from Gemini
     const aiAnalysis = parseGeminiResponse(text, ruleBasedResult)
@@ -25,6 +41,12 @@ export async function analyzeWithGemini(
   } catch (error: any) {
     console.error('[GEMINI] Erro ao analisar com Gemini:', error.message)
     console.error('[GEMINI] Stack:', error.stack)
+    
+    // Log mais detalhado para erros de quota/limite
+    if (error.message?.includes('quota') || error.message?.includes('limit') || error.message?.includes('token')) {
+      console.error('[GEMINI] Possível erro de limite de tokens ou quota da API')
+    }
+    
     // Fallback para análise baseada em regras
     return ruleBasedResult
   }
@@ -236,17 +258,80 @@ function mergeAnalysisResults(
 }
 
 // ============================================
-// CORREÇÃO DE ROTA - Análise de Padrões
+// CORREÇÃO DE ROTA - Análise de Padrões e Evolução
 // ============================================
 
+export type AnalysisDataPoint = {
+  inputJson: {
+    objetivo_usuario?: string
+    estagio?: string
+    iniciativa?: string
+    frequencia_contato?: string
+    tempo_resposta?: string
+    encontro_marcado?: string
+    cancelou_encontro?: string
+    remarcou_com_data?: string
+    curiosidade_por_voce?: string
+    respeito_limites?: string
+    disponivel_so_madrugada?: string
+    fala_futuro?: string
+    sinais_alerta?: string[]
+  }
+  scores: {
+    reciprocidade?: number
+    constancia?: number
+    acao_mundo_real?: number
+    risco_ghosting?: number
+    risco_enrolacao?: number
+    compat_objetivo?: number
+    respeito?: number
+  }
+  createdAt: string
+  weight?: number // Peso calculado baseado na recência
+}
+
 export type RouteCorrectionInput = {
-  analyses: Array<{
-    inputJson: any
-    resultJson: any
-    scores: any
-    createdAt: string
-  }>
+  analyses: AnalysisDataPoint[]
   userObjective: string
+  // Dados agregados para economizar tokens quando há muitas análises
+  aggregatedData?: {
+    totalAnalyses: number
+    recentPeriod: {
+      count: number
+      avgScores: Record<string, number>
+      commonPatterns: string[]
+    }
+    olderPeriod: {
+      count: number
+      avgScores: Record<string, number>
+      commonPatterns: string[]
+    }
+    trends: {
+      reciprocidade: 'UP' | 'STABLE' | 'DOWN'
+      constancia: 'UP' | 'STABLE' | 'DOWN'
+      risco_ghosting: 'UP' | 'STABLE' | 'DOWN'
+      risco_enrolacao: 'UP' | 'STABLE' | 'DOWN'
+      compat_objetivo: 'UP' | 'STABLE' | 'DOWN'
+    }
+  }
+}
+
+export type EvolutionTrend = 'IMPROVING' | 'STABLE' | 'DECLINING'
+
+export type EvolutionAnalysis = {
+  overall_trend: EvolutionTrend
+  trend_description: string
+  score_changes: {
+    dimension: string
+    label: string
+    before: number
+    after: number
+    change: number
+    trend: 'UP' | 'STABLE' | 'DOWN'
+  }[]
+  key_improvements: string[]
+  areas_of_concern: string[]
+  milestone_achieved?: string
 }
 
 export type RouteCorrectionResult = {
@@ -257,6 +342,8 @@ export type RouteCorrectionResult = {
     evidence_count: number
     total_analyses: number
   }
+  // NOVO: Análise de evolução
+  evolution?: EvolutionAnalysis
   behavior_analysis: {
     strengths: string[]
     weaknesses: string[]
@@ -281,124 +368,305 @@ export type RouteCorrectionResult = {
   }
 }
 
+// Calcula peso exponencial baseado na recência da análise
+// Análises mais recentes têm peso maior
+function calculateTemporalWeight(createdAt: string, newestDate: Date, oldestDate: Date): number {
+  const date = new Date(createdAt)
+  const totalRange = newestDate.getTime() - oldestDate.getTime()
+  
+  if (totalRange === 0) return 1 // Se todas são do mesmo dia
+  
+  const position = (date.getTime() - oldestDate.getTime()) / totalRange // 0 a 1
+  // Peso exponencial: análises recentes têm 3x mais peso que antigas
+  return 0.5 + (position * 2.5) // Resultado: 0.5 (mais antiga) a 3.0 (mais recente)
+}
+
+// Calcula tendência baseado em valores antes/depois
+function calculateTrend(before: number, after: number, threshold: number = 8): 'UP' | 'STABLE' | 'DOWN' {
+  const diff = after - before
+  if (diff > threshold) return 'UP'
+  if (diff < -threshold) return 'DOWN'
+  return 'STABLE'
+}
+
+// Prepara dados otimizados para o Gemini, agregando quando necessário
+export function prepareAnalysisDataForAI(
+  allAnalyses: AnalysisDataPoint[],
+  maxDetailedAnalyses: number = 8
+): RouteCorrectionInput {
+  if (allAnalyses.length === 0) {
+    throw new Error('Nenhuma análise disponível')
+  }
+
+  // Ordenar por data (mais recente primeiro)
+  const sorted = [...allAnalyses].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  )
+
+  const newestDate = new Date(sorted[0].createdAt)
+  const oldestDate = new Date(sorted[sorted.length - 1].createdAt)
+
+  // Adicionar pesos às análises
+  const withWeights = sorted.map(a => ({
+    ...a,
+    weight: calculateTemporalWeight(a.createdAt, newestDate, oldestDate)
+  }))
+
+  const userObjective = (sorted[0].inputJson.objetivo_usuario || 'CONHECER')
+
+  // Se temos poucas análises, enviar todas com detalhes
+  if (allAnalyses.length <= maxDetailedAnalyses) {
+    return {
+      analyses: withWeights,
+      userObjective
+    }
+  }
+
+  // Se temos muitas análises, agregar dados para economizar tokens
+  console.log(`[GEMINI] Muitas análises (${allAnalyses.length}), agregando dados para otimizar tokens`)
+  
+  // Dividir em período recente (últimas 40%) e período antigo (primeiras 60%)
+  const recentCutoff = Math.ceil(sorted.length * 0.4)
+  const recentAnalyses = withWeights.slice(0, recentCutoff)
+  const olderAnalyses = withWeights.slice(recentCutoff)
+
+  // Calcular médias ponderadas
+  const calculateWeightedAvg = (analyses: AnalysisDataPoint[], key: string): number => {
+    let sum = 0
+    let weightSum = 0
+    for (const a of analyses) {
+      const value = (a.scores as any)[key]
+      const weight = a.weight || 1
+      if (value !== undefined && value !== null) {
+        sum += value * weight
+        weightSum += weight
+      }
+    }
+    return weightSum > 0 ? Math.round(sum / weightSum) : 50
+  }
+
+  // Extrair padrões comuns
+  const extractCommonPatterns = (analyses: AnalysisDataPoint[]): string[] => {
+    const patterns: Record<string, number> = {}
+    for (const a of analyses) {
+      const inp = a.inputJson
+      if (inp.iniciativa) patterns[`inic=${inp.iniciativa}`] = (patterns[`inic=${inp.iniciativa}`] || 0) + 1
+      if (inp.frequencia_contato) patterns[`freq=${inp.frequencia_contato}`] = (patterns[`freq=${inp.frequencia_contato}`] || 0) + 1
+      if (inp.encontro_marcado === 'NAO') patterns['sem_encontro'] = (patterns['sem_encontro'] || 0) + 1
+      if (inp.sinais_alerta) {
+        for (const alerta of inp.sinais_alerta) {
+          patterns[`alerta=${alerta}`] = (patterns[`alerta=${alerta}`] || 0) + 1
+        }
+      }
+    }
+    // Retornar top 5 padrões
+    return Object.entries(patterns)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([pattern]) => pattern)
+  }
+
+  const scoreKeys = ['reciprocidade', 'constancia', 'acao_mundo_real', 'risco_ghosting', 'risco_enrolacao', 'compat_objetivo']
+  
+  const recentAvgScores: Record<string, number> = {}
+  const olderAvgScores: Record<string, number> = {}
+  const trends: Record<string, 'UP' | 'STABLE' | 'DOWN'> = {}
+
+  for (const key of scoreKeys) {
+    recentAvgScores[key] = calculateWeightedAvg(recentAnalyses, key)
+    olderAvgScores[key] = calculateWeightedAvg(olderAnalyses, key)
+    
+    // Para riscos, invertemos a lógica (menor é melhor)
+    if (key.includes('risco')) {
+      trends[key] = calculateTrend(olderAvgScores[key], recentAvgScores[key], 8)
+      // Inverter: se risco subiu, é DOWN (ruim); se desceu, é UP (bom)
+      if (trends[key] === 'UP') trends[key] = 'DOWN'
+      else if (trends[key] === 'DOWN') trends[key] = 'UP'
+    } else {
+      trends[key] = calculateTrend(olderAvgScores[key], recentAvgScores[key], 8)
+    }
+  }
+
+  // Enviar apenas as análises mais recentes detalhadas + dados agregados
+  return {
+    analyses: recentAnalyses.slice(0, Math.min(5, recentAnalyses.length)), // Máximo 5 detalhadas
+    userObjective,
+    aggregatedData: {
+      totalAnalyses: allAnalyses.length,
+      recentPeriod: {
+        count: recentAnalyses.length,
+        avgScores: recentAvgScores,
+        commonPatterns: extractCommonPatterns(recentAnalyses)
+      },
+      olderPeriod: {
+        count: olderAnalyses.length,
+        avgScores: olderAvgScores,
+        commonPatterns: extractCommonPatterns(olderAnalyses)
+      },
+      trends: trends as any
+    }
+  }
+}
+
 export async function analyzeRouteCorrection(
   input: RouteCorrectionInput
 ): Promise<RouteCorrectionResult> {
   try {
     // Usar modelo compatível com API gratuita
     // gemini-2.0-flash é o modelo disponível na API gratuita v1beta
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-2.0-flash',
+      generationConfig: {
+        maxOutputTokens: 4096, // Limitar resposta para evitar excesso
+        temperature: 0.7,
+      },
+    })
+    
     const prompt = buildRouteCorrectionPrompt(input)
     
-    console.log('[GEMINI] Analisando padrões de comportamento para correção de rota...')
+    // Log para debug de tamanho do prompt
+    const promptTokenEstimate = Math.ceil(prompt.length / 4) // ~4 chars per token (estimativa)
+    console.log(`[GEMINI] Prompt de análise de comportamento: ~${promptTokenEstimate} tokens estimados (${prompt.length} chars)`)
+    console.log(`[GEMINI] Analisando ${input.aggregatedData?.totalAnalyses || input.analyses.length} análises para análise de comportamento...`)
+    if (input.aggregatedData) {
+      console.log(`[GEMINI] Modo agregado: ${input.analyses.length} detalhadas + dados resumidos de ${input.aggregatedData.totalAnalyses} total`)
+    }
+    
     const result = await model.generateContent(prompt)
     const response = await result.response
     const text = response.text()
     
-    return parseRouteCorrectionResponse(text)
+    console.log(`[GEMINI] Resposta recebida: ${text.length} chars`)
+    
+    return parseRouteCorrectionResponse(text, input)
   } catch (error: any) {
-    console.error('[GEMINI] Erro ao analisar correção de rota:', error.message)
+    console.error('[GEMINI] ========== ERRO DETALHADO ==========')
+    console.error('[GEMINI] Mensagem:', error.message)
+    console.error('[GEMINI] Nome:', error.name)
+    console.error('[GEMINI] Status:', error.status)
+    console.error('[GEMINI] StatusText:', error.statusText)
+    
+    // Log detalhado do errorDetails (array)
+    if (error.errorDetails) {
+      console.error('[GEMINI] errorDetails (JSON):', JSON.stringify(error.errorDetails, null, 2))
+      error.errorDetails.forEach((detail: any, idx: number) => {
+        console.error(`[GEMINI] errorDetails[${idx}]:`, detail)
+        if (detail['@type']) console.error(`  - @type: ${detail['@type']}`)
+        if (detail.reason) console.error(`  - reason: ${detail.reason}`)
+        if (detail.domain) console.error(`  - domain: ${detail.domain}`)
+        if (detail.metadata) console.error(`  - metadata:`, detail.metadata)
+      })
+    }
+    
+    // Log do objeto de erro completo
+    console.error('[GEMINI] Erro completo (keys):', Object.keys(error))
+    console.error('[GEMINI] Erro JSON:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
+    console.error('[GEMINI] =====================================')
+    
     throw error
   }
 }
 
 function buildRouteCorrectionPrompt(input: RouteCorrectionInput): string {
   const objectiveLabels: Record<string, string> = {
-    CASUAL: 'relacionamento casual',
-    CONHECER: 'conhecer pessoas novas',
-    NAMORO_SERIO: 'namoro sério/relacionamento duradouro'
+    CASUAL: 'casual',
+    CONHECER: 'conhecer pessoas',
+    NAMORO: 'namoro sério',
+    NAMORO_SERIO: 'namoro sério'
   }
   
   const objectiveLabel = objectiveLabels[input.userObjective] || input.userObjective
+  const totalAnalyses = input.aggregatedData?.totalAnalyses || input.analyses.length
   
-  // Resumir análises
+  // Resumir análises de forma COMPACTA (reduzir tokens)
   const analysesSummary = input.analyses.map((analysis, idx) => {
-    const inputData = analysis.inputJson
-    const scores = analysis.scores || analysis.resultJson?.scores || {}
+    const inp = analysis.inputJson as any
+    const sc = analysis.scores || {}
+    const date = new Date(analysis.createdAt).toLocaleDateString('pt-BR')
+    const peso = analysis.weight ? `(peso=${analysis.weight.toFixed(1)})` : ''
     
-    return `
-Análise ${idx + 1} (${new Date(analysis.createdAt).toLocaleDateString('pt-BR')}):
-- Objetivo do match: ${inputData.objetivo_usuario || 'Não informado'}
-- Estágio: ${inputData.estagio || 'Não informado'}
-- Iniciativa: ${inputData.iniciativa || 'Não informado'}
-- Frequência: ${inputData.frequencia_contato || 'Não informado'}
-- Tempo de resposta: ${inputData.tempo_resposta || 'Não informado'}
-- Encontro marcado: ${inputData.encontro_marcado || 'Não'}
-- Cancelou encontro: ${inputData.cancelou_encontro || 'Não'}
-- Scores:
-  * Reciprocidade: ${scores.reciprocidade || 50}/100
-  * Constância: ${scores.constancia || 50}/100
-  * Ação no mundo real: ${scores.acao_mundo_real || 50}/100
-  * Risco de ghosting: ${scores.risco_ghosting || 30}/100
-  * Risco de enrolação: ${scores.risco_enrolacao || 30}/100
-  * Compatibilidade: ${scores.compat_objetivo || 50}/100`
+    // Formato compacto: uma linha por análise
+    const alertas = inp.sinais_alerta?.length > 0 ? inp.sinais_alerta.join(',') : '-'
+    
+    return `#${idx + 1} ${date}${peso}: est=${inp.estagio || '-'}, inic=${inp.iniciativa || '-'}, freq=${inp.frequencia_contato || '-'}, resp=${inp.tempo_resposta || '-'}, enc=${inp.encontro_marcado || 'N'}, canc=${inp.cancelou_encontro || 'N'}, alertas=[${alertas}] | rec=${sc.reciprocidade || 50}, const=${sc.constancia || 50}, real=${sc.acao_mundo_real || 50}, ghost=${sc.risco_ghosting || 30}, enrol=${sc.risco_enrolacao || 30}, compat=${sc.compat_objetivo || 50}`
   }).join('\n')
   
-  return `Você é um coach especializado em relacionamentos modernos e uso de apps de relacionamento como Tinder.
+  // Adicionar dados agregados se disponíveis (para muitas análises)
+  let aggregatedSection = ''
+  if (input.aggregatedData) {
+    const agg = input.aggregatedData
+    const trendEmoji = (t: string) => t === 'UP' ? '↑' : t === 'DOWN' ? '↓' : '→'
+    
+    aggregatedSection = `
+DADOS AGREGADOS (${agg.totalAnalyses} análises total):
+Período Recente (${agg.recentPeriod.count} análises):
+  Médias: rec=${agg.recentPeriod.avgScores.reciprocidade}, const=${agg.recentPeriod.avgScores.constancia}, real=${agg.recentPeriod.avgScores.acao_mundo_real}, ghost=${agg.recentPeriod.avgScores.risco_ghosting}, enrol=${agg.recentPeriod.avgScores.risco_enrolacao}, compat=${agg.recentPeriod.avgScores.compat_objetivo}
+  Padrões: ${agg.recentPeriod.commonPatterns.join(', ')}
 
-CONTEXTO:
-O usuário tem como objetivo: ${objectiveLabel}
-Total de análises realizadas: ${input.analyses.length}
+Período Anterior (${agg.olderPeriod.count} análises):
+  Médias: rec=${agg.olderPeriod.avgScores.reciprocidade}, const=${agg.olderPeriod.avgScores.constancia}, real=${agg.olderPeriod.avgScores.acao_mundo_real}, ghost=${agg.olderPeriod.avgScores.risco_ghosting}, enrol=${agg.olderPeriod.avgScores.risco_enrolacao}, compat=${agg.olderPeriod.avgScores.compat_objetivo}
+  Padrões: ${agg.olderPeriod.commonPatterns.join(', ')}
 
-HISTÓRICO DE ANÁLISES:
+TENDÊNCIAS:
+  Reciprocidade: ${trendEmoji(agg.trends.reciprocidade)} | Constância: ${trendEmoji(agg.trends.constancia)} | Ação Real: ${trendEmoji(agg.trends.compat_objetivo)}
+  Risco Ghost: ${trendEmoji(agg.trends.risco_ghosting)} | Risco Enrol: ${trendEmoji(agg.trends.risco_enrolacao)} | Compatibilidade: ${trendEmoji(agg.trends.compat_objetivo)}
+`
+  }
+  
+  return `Coach de relacionamentos analisando EVOLUÇÃO de padrões em apps de namoro.
+
+OBJETIVO DO USUÁRIO: ${objectiveLabel}
+TOTAL DE ANÁLISES: ${totalAnalyses}
+
+ANÁLISES DETALHADAS (${input.analyses.length} mais recentes, peso=importância temporal):
 ${analysesSummary}
+${aggregatedSection}
+LEGENDA: est=estágio, inic=iniciativa, freq=frequência, resp=tempo_resposta, enc=encontro_marcado, canc=cancelou, rec=reciprocidade, const=constância, real=ação_mundo_real, ghost=risco_ghosting, enrol=risco_enrolação, compat=compatibilidade
 
-SUA TAREFA:
-Analise os padrões de comportamento do usuário e identifique:
-1. Se o comportamento está ALINHADO, PARCIALMENTE ALINHADO ou DESALINHADO com o objetivo dele
-2. Padrões recorrentes (positivos e negativos)
-3. Pontos cegos (comportamentos que ele não percebe)
-4. Ações corretivas específicas e acionáveis
-5. O que ele deve continuar fazendo (se estiver alinhado)
+FOCO PRINCIPAL: Avaliar se o usuário está EVOLUINDO ou REGREDINDO na atração de pessoas com as mesmas intenções que ele busca.
 
-REGRAS IMPORTANTES:
-- Seja específico e baseado em evidências dos dados
-- Foque em comportamentos, não em traços psicológicos
-- Dê sugestões práticas e acionáveis
-- Se estiver alinhado, incentive e destaque os pontos fortes
-- Se estiver desalinhado, seja empático mas direto
-- O objetivo é ajudar o usuário a encontrar pessoas com os mesmos objetivos
-- Evite julgamentos, foque em coaching prático
-
-FORMATO DE RESPOSTA (JSON):
+TAREFA: Analise padrões e EVOLUÇÃO, retorne JSON:
 {
-  "alignment_status": "ALINHADO" | "PARCIALMENTE_ALINHADO" | "DESALINHADO",
+  "alignment_status": "ALINHADO|PARCIALMENTE_ALINHADO|DESALINHADO",
   "pattern_summary": {
-    "main_pattern": "Descrição do padrão principal identificado (1 frase)",
-    "description": "Explicação detalhada do padrão (2-3 frases)",
-    "evidence_count": número de análises que mostram esse padrão,
-    "total_analyses": ${input.analyses.length}
+    "main_pattern": "frase curta do padrão principal",
+    "description": "2 frases explicando",
+    "evidence_count": número,
+    "total_analyses": ${totalAnalyses}
+  },
+  "evolution": {
+    "overall_trend": "IMPROVING|STABLE|DECLINING",
+    "trend_description": "1-2 frases sobre a evolução geral",
+    "key_improvements": ["melhoria 1", "melhoria 2"],
+    "areas_of_concern": ["preocupação 1", "preocupação 2"],
+    "milestone_achieved": "conquista recente ou null"
   },
   "behavior_analysis": {
-    "strengths": ["Força 1", "Força 2", "Força 3"],
-    "weaknesses": ["Fraqueza 1", "Fraqueza 2"],
-    "blind_spots": ["Ponto cego 1", "Ponto cego 2"]
+    "strengths": ["força 1", "força 2"],
+    "weaknesses": ["fraqueza 1", "fraqueza 2"],
+    "blind_spots": ["ponto cego 1"]
   },
   "recommendations": {
-    "corrective_actions": [
-      {
-        "action": "Ação específica e acionável",
-        "priority": "HIGH" | "MEDIUM" | "LOW",
-        "reason": "Por que essa ação é importante"
-      }
-    ],
-    "keep_doing": ["Comportamento positivo 1", "Comportamento positivo 2"],
-    "weekly_focus": {
-      "focus": "Foco principal da semana (1 frase)",
-      "metric": "Métrica para acompanhar (ex: 'taxa de reciprocidade')",
-      "goal": "Meta específica (ex: 'buscar matches que respondem em até 2h')"
-    }
+    "corrective_actions": [{"action": "...", "priority": "HIGH|MEDIUM|LOW", "reason": "..."}],
+    "keep_doing": ["continuar fazendo 1"],
+    "weekly_focus": {"focus": "...", "metric": "...", "goal": "..."}
   },
   "encouragement": {
-    "message": "Mensagem de incentivo se estiver alinhado, ou motivação se estiver desalinhado",
-    "highlights": ["Destaque 1", "Destaque 2"]
+    "message": "mensagem motivacional personalizada",
+    "highlights": ["destaque positivo 1"]
   }
 }
 
-Responda APENAS com o JSON válido, sem markdown ou texto adicional.`
+IMPORTANTE:
+- Se está MELHORANDO: Celebre, destaque progressos, mantenha motivação
+- Se está PIORANDO: Seja honesto mas encorajador, foque em ações corretivas
+- Se está ESTÁVEL: Identifique o que pode acelerar a evolução
+- Análises com PESO MAIOR (mais recentes) devem ter mais influência na avaliação
+
+Responda APENAS JSON válido:`
 }
 
-function parseRouteCorrectionResponse(text: string): RouteCorrectionResult {
+function parseRouteCorrectionResponse(text: string, input: RouteCorrectionInput): RouteCorrectionResult {
   try {
     let jsonText = text.trim()
     if (jsonText.startsWith('```json')) {
@@ -414,10 +682,83 @@ function parseRouteCorrectionResponse(text: string): RouteCorrectionResult {
       throw new Error('Resposta do Gemini não contém estrutura esperada')
     }
     
+    // Se a IA não retornou evolução mas temos dados agregados, calcular localmente
+    if (!parsed.evolution && input.aggregatedData) {
+      parsed.evolution = calculateLocalEvolution(input.aggregatedData)
+    }
+    
     return parsed as RouteCorrectionResult
   } catch (error: any) {
-    console.error('[GEMINI] Erro ao fazer parse da correção de rota:', error.message)
+    console.error('[GEMINI] Erro ao fazer parse da análise de comportamento:', error.message)
     console.error('[GEMINI] Texto recebido:', text.substring(0, 500))
     throw error
+  }
+}
+
+// Calcula evolução localmente caso a IA não retorne
+function calculateLocalEvolution(aggregatedData: NonNullable<RouteCorrectionInput['aggregatedData']>): EvolutionAnalysis {
+  const { recentPeriod, olderPeriod, trends } = aggregatedData
+  
+  const dimensionLabels: Record<string, string> = {
+    reciprocidade: 'Reciprocidade',
+    constancia: 'Constância',
+    acao_mundo_real: 'Ação no Mundo Real',
+    risco_ghosting: 'Risco de Ghosting',
+    risco_enrolacao: 'Risco de Enrolação',
+    compat_objetivo: 'Compatibilidade'
+  }
+  
+  // Calcular mudanças de score
+  const scoreChanges: EvolutionAnalysis['score_changes'] = []
+  const improvements: string[] = []
+  const concerns: string[] = []
+  
+  for (const [key, label] of Object.entries(dimensionLabels)) {
+    const before = olderPeriod.avgScores[key] || 50
+    const after = recentPeriod.avgScores[key] || 50
+    const change = after - before
+    const trend = trends[key as keyof typeof trends] || 'STABLE'
+    
+    scoreChanges.push({
+      dimension: key,
+      label,
+      before: Math.round(before),
+      after: Math.round(after),
+      change: Math.round(change),
+      trend
+    })
+    
+    // Para riscos, lógica invertida
+    if (key.includes('risco')) {
+      if (change < -10) improvements.push(`Redução do ${label.toLowerCase()}`)
+      else if (change > 10) concerns.push(`Aumento do ${label.toLowerCase()}`)
+    } else {
+      if (change > 10) improvements.push(`Melhora na ${label.toLowerCase()}`)
+      else if (change < -10) concerns.push(`Queda na ${label.toLowerCase()}`)
+    }
+  }
+  
+  // Determinar tendência geral
+  const positiveChanges = Object.values(trends).filter(t => t === 'UP').length
+  const negativeChanges = Object.values(trends).filter(t => t === 'DOWN').length
+  
+  let overallTrend: EvolutionTrend = 'STABLE'
+  let trendDescription = 'Seu padrão de comportamento está estável.'
+  
+  if (positiveChanges > negativeChanges + 1) {
+    overallTrend = 'IMPROVING'
+    trendDescription = 'Você está evoluindo! Seus padrões de seleção estão melhorando.'
+  } else if (negativeChanges > positiveChanges + 1) {
+    overallTrend = 'DECLINING'
+    trendDescription = 'Atenção: seus padrões recentes mostram alguns retrocessos.'
+  }
+  
+  return {
+    overall_trend: overallTrend,
+    trend_description: trendDescription,
+    score_changes: scoreChanges,
+    key_improvements: improvements.slice(0, 3),
+    areas_of_concern: concerns.slice(0, 3),
+    milestone_achieved: improvements.length >= 3 ? 'Múltiplas áreas em melhoria!' : undefined
   }
 }
