@@ -423,7 +423,7 @@ export default function DashboardPage() {
                         </span>
                       )}
                       {getGeneroImage(analysis.genero_match) && (
-                        <div className="w-16 h-16 rounded-lg overflow-hidden border-2 border-purple-100 bg-purple-50 shadow-sm">
+                        <div className="w-16 h-16 rounded-lg overflow-hidden border-2 border-purple-100 bg-purple-50 shadow-sm flex items-center justify-center">
                           <Image
                             src={getGeneroImage(analysis.genero_match) as string}
                             alt={
@@ -433,7 +433,7 @@ export default function DashboardPage() {
                             }
                             width={64}
                             height={64}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-contain p-1"
                           />
                         </div>
                       )}

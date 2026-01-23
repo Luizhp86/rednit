@@ -42,9 +42,20 @@ export async function POST(request: NextRequest) {
 
       // Update user entitlements
       if (payment.type === 'SUBSCRIPTION') {
-        // Set PRO plan until next month
+        // Set PRO plan based on subscription period
         const proUntil = new Date()
-        proUntil.setMonth(proUntil.getMonth() + 1)
+        const period = payment.subscriptionPeriod || 'MONTHLY'
+        
+        if (period === 'MONTHLY') {
+          proUntil.setMonth(proUntil.getMonth() + 1)
+        } else if (period === 'QUARTERLY') {
+          proUntil.setMonth(proUntil.getMonth() + 3)
+        } else if (period === 'YEARLY') {
+          proUntil.setFullYear(proUntil.getFullYear() + 1)
+        } else {
+          // Fallback para mensal
+          proUntil.setMonth(proUntil.getMonth() + 1)
+        }
 
         await prisma.user.update({
           where: { id: payment.userId },
@@ -66,8 +77,19 @@ export async function POST(request: NextRequest) {
           },
         })
       } else if (payment.type === 'ONE_TIME') {
-        // Unlock specific analysis
-        // Payment description should contain analysis ID (format: "Desbloquear análise {id}")
+        // Adicionar créditos ao usuário
+        const creditsToAdd = payment.creditsGranted || 1
+        
+        await prisma.user.update({
+          where: { id: payment.userId },
+          data: {
+            creditsPaid: {
+              increment: creditsToAdd,
+            },
+          },
+        })
+
+        // Se o pagamento foi para desbloquear uma análise específica (compatibilidade)
         const description = paymentData.description || ''
         const analysisIdMatch = description.match(/análise\s+([a-f0-9-]+)/i)
         
@@ -83,15 +105,6 @@ export async function POST(request: NextRequest) {
             },
           })
         }
-
-        await prisma.user.update({
-          where: { id: payment.userId },
-          data: {
-            creditsPaid: {
-              increment: 1,
-            },
-          },
-        })
       }
     } else if (event.event === 'PAYMENT_OVERDUE' || event.event === 'PAYMENT_REFUNDED') {
       const paymentData = event.payment

@@ -22,7 +22,9 @@ import {
   AlertTriangle,
   CheckCircle2,
   TrendingUp,
-  Zap
+  Zap,
+  FileText,
+  Activity
 } from 'lucide-react'
 
 type SystemConfig = {
@@ -32,7 +34,11 @@ type SystemConfig = {
   geminiDailyLimit: number
   geminiMonthlyBudgetCents: number
   proPriceMonthly: number
+  proPriceQuarterly: number
   proPriceYearly: number
+  creditPriceSingle: number
+  creditPricePack3: number
+  creditPricePack5: number
   maintenanceMode: boolean
   allowNewRegistrations: boolean
 }
@@ -61,7 +67,7 @@ export default function AdminPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'config' | 'users'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'config' | 'users' | 'logs'>('dashboard')
   
   // Dashboard data
   const [stats, setStats] = useState<Stats | null>(null)
@@ -71,6 +77,16 @@ export default function AdminPage() {
   const [config, setConfig] = useState<SystemConfig | null>(null)
   const [configDraft, setConfigDraft] = useState<SystemConfig | null>(null)
   const [savingConfig, setSavingConfig] = useState(false)
+  
+  // Price input states (for free text input)
+  const [priceInputs, setPriceInputs] = useState({
+    proPriceMonthly: '',
+    proPriceQuarterly: '',
+    proPriceYearly: '',
+    creditPriceSingle: '',
+    creditPricePack3: '',
+    creditPricePack5: '',
+  })
   
   // Users
   const [users, setUsers] = useState<User[]>([])
@@ -84,6 +100,23 @@ export default function AdminPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [editUserPlan, setEditUserPlan] = useState<'FREE' | 'PRO'>('FREE')
   const [editUserCredits, setEditUserCredits] = useState(0)
+  
+  // Logs tab
+  const [logsType, setLogsType] = useState<'admin' | 'activity'>('admin')
+  const [adminLogs, setAdminLogs] = useState<any[]>([])
+  const [activityLogs, setActivityLogs] = useState<any[]>([])
+  const [logsPage, setLogsPage] = useState(1)
+  const [logsTotal, setLogsTotal] = useState(0)
+  const [logsTotalPages, setLogsTotalPages] = useState(1)
+  const [loadingLogs, setLoadingLogs] = useState(false)
+  const [logsStats, setLogsStats] = useState<any>(null)
+  
+  // Filtros de logs de atividade
+  const [activityEventFilter, setActivityEventFilter] = useState('')
+  const [activityUserFilter, setActivityUserFilter] = useState('')
+  const [activityPageFilter, setActivityPageFilter] = useState('')
+  const [activityStartDate, setActivityStartDate] = useState('')
+  const [activityEndDate, setActivityEndDate] = useState('')
   
   // Error state
   const [error, setError] = useState<string | null>(null)
@@ -114,10 +147,33 @@ export default function AdminPage() {
       const res = await fetch('/api/admin')
       if (res.ok) {
         const data = await res.json()
+        // #region agent log
+        const logDataLoad = {location:"admin/page.tsx:loadDashboard:received",message:"Config recebido no loadDashboard",data:{proPriceMonthly:data.config?.proPriceMonthly,creditPriceSingle:data.config?.creditPriceSingle},timestamp:Date.now(),sessionId:"debug-session",hypothesisId:"E"};
+        fetch("http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(logDataLoad)}).catch(function(){});
+        // #endregion
         setStats(data.stats)
         setTopUsers(data.topUsers || [])
         setConfig(data.config)
-        setConfigDraft(data.config)
+        // Initialize price inputs with fallback defaults
+        const cfg = data.config
+        setPriceInputs({
+          proPriceMonthly: String((cfg.proPriceMonthly ?? 2990) / 100),
+          proPriceQuarterly: String((cfg.proPriceQuarterly ?? 7990) / 100),
+          proPriceYearly: String((cfg.proPriceYearly ?? 29900) / 100),
+          creditPriceSingle: String((cfg.creditPriceSingle ?? 799) / 100),
+          creditPricePack3: String((cfg.creditPricePack3 ?? 2490) / 100),
+          creditPricePack5: String((cfg.creditPricePack5 ?? 3990) / 100),
+        })
+        // Also ensure configDraft has all required fields with defaults
+        setConfigDraft({
+          ...data.config,
+          proPriceMonthly: cfg.proPriceMonthly ?? 2990,
+          proPriceQuarterly: cfg.proPriceQuarterly ?? 7990,
+          proPriceYearly: cfg.proPriceYearly ?? 29900,
+          creditPriceSingle: cfg.creditPriceSingle ?? 799,
+          creditPricePack3: cfg.creditPricePack3 ?? 2490,
+          creditPricePack5: cfg.creditPricePack5 ?? 3990,
+        })
       } else {
         const errorData = await res.json()
         setError(errorData.error || 'Erro ao carregar dados')
@@ -152,21 +208,154 @@ export default function AdminPage() {
     }
   }
 
+  const loadLogs = async (page = 1, filters?: {
+    eventType?: string
+    userId?: string
+    page?: string
+    startDate?: string
+    endDate?: string
+  }) => {
+    setLoadingLogs(true)
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '50',
+      })
+      
+      if (logsType === 'admin') {
+        const res = await fetch(`/api/admin/logs?${params}`)
+        if (res.ok) {
+          const data = await res.json()
+          setAdminLogs(data.logs)
+          setLogsPage(data.pagination.page)
+          setLogsTotal(data.pagination.total)
+          setLogsTotalPages(data.pagination.totalPages)
+          setLogsStats(data.stats)
+        }
+      } else {
+        // Adicionar filtros de atividade
+        if (filters?.eventType || activityEventFilter) {
+          params.set('eventType', filters?.eventType || activityEventFilter)
+        }
+        if (filters?.userId || activityUserFilter) {
+          params.set('userId', filters?.userId || activityUserFilter)
+        }
+        if (filters?.startDate || activityStartDate) {
+          params.set('startDate', filters?.startDate || activityStartDate)
+        }
+        if (filters?.endDate || activityEndDate) {
+          params.set('endDate', filters?.endDate || activityEndDate)
+        }
+        
+        const res = await fetch(`/api/admin/activity?${params}`)
+        if (res.ok) {
+          const data = await res.json()
+          setActivityLogs(data.logs)
+          setLogsPage(data.pagination.page)
+          setLogsTotal(data.pagination.total)
+          setLogsTotalPages(data.pagination.totalPages)
+          setLogsStats(data.stats)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading logs:', error)
+    } finally {
+      setLoadingLogs(false)
+    }
+  }
+  
+  const clearActivityFilters = () => {
+    setActivityEventFilter('')
+    setActivityUserFilter('')
+    setActivityPageFilter('')
+    setActivityStartDate('')
+    setActivityEndDate('')
+    setLogsPage(1)
+    loadLogs(1, { eventType: '', userId: '', startDate: '', endDate: '' })
+  }
+  
+  const applyActivityFilters = () => {
+    setLogsPage(1)
+    loadLogs(1)
+  }
+
   const saveConfig = async () => {
     if (!configDraft) return
     setSavingConfig(true)
+    
+    // Sincronizar valores dos inputs de preço antes de salvar
+    const parsePrice = (value: string): number => {
+      const num = parseFloat(value.replace(',', '.'))
+      return !isNaN(num) && num >= 0 ? Math.round(num * 100) : 0
+    }
+    
+    // #region agent log
+    const logData1 = {location:"admin/page.tsx:saveConfig:priceInputs",message:"priceInputs antes de parsePrice",data:{priceInputs:priceInputs,configDraftPrices:{proPriceMonthly:configDraft.proPriceMonthly,creditPriceSingle:configDraft.creditPriceSingle}},timestamp:Date.now(),sessionId:"debug-session",hypothesisId:"A-B"};
+    fetch("http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(logData1)}).catch(function(){});
+    // #endregion
+    
+    const updatedConfig = {
+      ...configDraft,
+      proPriceMonthly: parsePrice(priceInputs.proPriceMonthly) || configDraft.proPriceMonthly,
+      proPriceQuarterly: parsePrice(priceInputs.proPriceQuarterly) || configDraft.proPriceQuarterly,
+      proPriceYearly: parsePrice(priceInputs.proPriceYearly) || configDraft.proPriceYearly,
+      creditPriceSingle: parsePrice(priceInputs.creditPriceSingle) || configDraft.creditPriceSingle,
+      creditPricePack3: parsePrice(priceInputs.creditPricePack3) || configDraft.creditPricePack3,
+      creditPricePack5: parsePrice(priceInputs.creditPricePack5) || configDraft.creditPricePack5,
+    }
+    
+    // #region agent log
+    const parsedMonthly = parsePrice(priceInputs.proPriceMonthly);
+    const logData2 = {location:"admin/page.tsx:saveConfig:updatedConfig",message:"updatedConfig a ser enviado",data:{updatedPrices:{proPriceMonthly:updatedConfig.proPriceMonthly,creditPriceSingle:updatedConfig.creditPriceSingle},parsedMonthly:parsedMonthly},timestamp:Date.now(),sessionId:"debug-session",hypothesisId:"A"};
+    fetch("http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(logData2)}).catch(function(){});
+    // #endregion
+    
     try {
       const res = await fetch('/api/admin', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(configDraft)
+        body: JSON.stringify(updatedConfig)
       })
+      // #region agent log
+      const resClone = res.clone();
+      const resBody = await resClone.text();
+      const logData3 = {location:"admin/page.tsx:saveConfig:response",message:"Resposta do PATCH",data:{status:res.status,ok:res.ok,bodyPreview:resBody.substring(0,500)},timestamp:Date.now(),sessionId:"debug-session",hypothesisId:"C-D"};
+      fetch("http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(logData3)}).catch(function(){});
+      // #endregion
+      
       if (res.ok) {
         const data = await res.json()
-        setConfig(data.config)
-        setConfigDraft(data.config)
+        const cfg = data.config
+        // #region agent log
+        const logData4 = {location:"admin/page.tsx:saveConfig:cfgReceived",message:"Config recebido do backend",data:{proPriceMonthly:cfg?.proPriceMonthly,creditPriceSingle:cfg?.creditPriceSingle},timestamp:Date.now(),sessionId:"debug-session",hypothesisId:"D"};
+        fetch("http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(logData4)}).catch(function(){});
+        // #endregion
+        setConfig(cfg)
+        // Update configDraft with fallback defaults
+        setConfigDraft({
+          ...cfg,
+          proPriceMonthly: cfg.proPriceMonthly ?? 2990,
+          proPriceQuarterly: cfg.proPriceQuarterly ?? 7990,
+          proPriceYearly: cfg.proPriceYearly ?? 29900,
+          creditPriceSingle: cfg.creditPriceSingle ?? 799,
+          creditPricePack3: cfg.creditPricePack3 ?? 2490,
+          creditPricePack5: cfg.creditPricePack5 ?? 3990,
+        })
+        // Update price inputs after save
+        setPriceInputs({
+          proPriceMonthly: String((cfg.proPriceMonthly ?? 2990) / 100),
+          proPriceQuarterly: String((cfg.proPriceQuarterly ?? 7990) / 100),
+          proPriceYearly: String((cfg.proPriceYearly ?? 29900) / 100),
+          creditPriceSingle: String((cfg.creditPriceSingle ?? 799) / 100),
+          creditPricePack3: String((cfg.creditPricePack3 ?? 2490) / 100),
+          creditPricePack5: String((cfg.creditPricePack5 ?? 3990) / 100),
+        })
         alert('Configurações salvas!')
       } else {
+        // #region agent log
+        const logData5 = {location:"admin/page.tsx:saveConfig:error",message:"Erro ao salvar - resposta não OK",data:{status:res.status},timestamp:Date.now(),sessionId:"debug-session",hypothesisId:"D"};
+        fetch("http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(logData5)}).catch(function(){});
+        // #endregion
         alert('Erro ao salvar configurações')
       }
     } catch (error) {
@@ -271,6 +460,17 @@ export default function AdminPage() {
           >
             <Users className="w-5 h-5" />
             Usuários
+          </button>
+          <button
+            onClick={() => { setActiveTab('logs'); loadLogs(1); }}
+            className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
+              activeTab === 'logs' 
+                ? 'bg-purple-600 text-white' 
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            }`}
+          >
+            <FileText className="w-5 h-5" />
+            Logs
           </button>
           
           {/* Botão Refresh */}
@@ -515,18 +715,61 @@ export default function AdminPage() {
             <Card className="bg-gray-800 border-gray-700 p-6">
               <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-green-500" />
-                Preços PRO
+                Preços de Assinatura PRO
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-gray-400 text-sm mb-2">
                     Preço mensal (R$)
                   </label>
                   <Input
-                    type="number"
-                    step="0.01"
-                    value={(configDraft.proPriceMonthly / 100).toFixed(2)}
-                    onChange={(e) => setConfigDraft({...configDraft, proPriceMonthly: Math.round(parseFloat(e.target.value || '0') * 100)})}
+                    type="text"
+                    placeholder="29.90"
+                    value={priceInputs.proPriceMonthly}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      // Allow digits, comma and dot
+                      if (/^[0-9]*[,.]?[0-9]*$/.test(value)) {
+                        setPriceInputs({...priceInputs, proPriceMonthly: value})
+                      }
+                    }}
+                    onBlur={() => {
+                      const value = priceInputs.proPriceMonthly.replace(',', '.')
+                      const num = parseFloat(value)
+                      if (!isNaN(num) && num >= 0) {
+                        setConfigDraft({...configDraft, proPriceMonthly: Math.round(num * 100)})
+                        setPriceInputs({...priceInputs, proPriceMonthly: num.toFixed(2)})
+                      } else {
+                        setPriceInputs({...priceInputs, proPriceMonthly: String(configDraft.proPriceMonthly / 100)})
+                      }
+                    }}
+                    className="bg-gray-700 border-gray-600 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Preço trimestral (R$)
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="79.90"
+                    value={priceInputs.proPriceQuarterly}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      if (/^[0-9]*[,.]?[0-9]*$/.test(value)) {
+                        setPriceInputs({...priceInputs, proPriceQuarterly: value})
+                      }
+                    }}
+                    onBlur={() => {
+                      const value = priceInputs.proPriceQuarterly.replace(',', '.')
+                      const num = parseFloat(value)
+                      if (!isNaN(num) && num >= 0) {
+                        setConfigDraft({...configDraft, proPriceQuarterly: Math.round(num * 100)})
+                        setPriceInputs({...priceInputs, proPriceQuarterly: num.toFixed(2)})
+                      } else {
+                        setPriceInputs({...priceInputs, proPriceQuarterly: String(configDraft.proPriceQuarterly / 100)})
+                      }
+                    }}
                     className="bg-gray-700 border-gray-600 text-white"
                   />
                 </div>
@@ -535,10 +778,115 @@ export default function AdminPage() {
                     Preço anual (R$)
                   </label>
                   <Input
-                    type="number"
-                    step="0.01"
-                    value={(configDraft.proPriceYearly / 100).toFixed(2)}
-                    onChange={(e) => setConfigDraft({...configDraft, proPriceYearly: Math.round(parseFloat(e.target.value || '0') * 100)})}
+                    type="text"
+                    placeholder="299.00"
+                    value={priceInputs.proPriceYearly}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      if (/^[0-9]*[,.]?[0-9]*$/.test(value)) {
+                        setPriceInputs({...priceInputs, proPriceYearly: value})
+                      }
+                    }}
+                    onBlur={() => {
+                      const value = priceInputs.proPriceYearly.replace(',', '.')
+                      const num = parseFloat(value)
+                      if (!isNaN(num) && num >= 0) {
+                        setConfigDraft({...configDraft, proPriceYearly: Math.round(num * 100)})
+                        setPriceInputs({...priceInputs, proPriceYearly: num.toFixed(2)})
+                      } else {
+                        setPriceInputs({...priceInputs, proPriceYearly: String(configDraft.proPriceYearly / 100)})
+                      }
+                    }}
+                    className="bg-gray-700 border-gray-600 text-white"
+                  />
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-gray-800 border-gray-700 p-6">
+              <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                <Zap className="w-5 h-5 text-yellow-500" />
+                Preços de Pacotes de Créditos
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    1 Crédito (R$)
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="7.99"
+                    value={priceInputs.creditPriceSingle}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      if (/^[0-9]*[,.]?[0-9]*$/.test(value)) {
+                        setPriceInputs({...priceInputs, creditPriceSingle: value})
+                      }
+                    }}
+                    onBlur={() => {
+                      const value = priceInputs.creditPriceSingle.replace(',', '.')
+                      const num = parseFloat(value)
+                      if (!isNaN(num) && num >= 0) {
+                        setConfigDraft({...configDraft, creditPriceSingle: Math.round(num * 100)})
+                        setPriceInputs({...priceInputs, creditPriceSingle: num.toFixed(2)})
+                      } else {
+                        setPriceInputs({...priceInputs, creditPriceSingle: String(configDraft.creditPriceSingle / 100)})
+                      }
+                    }}
+                    className="bg-gray-700 border-gray-600 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Pacote 3 Créditos (R$)
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="24.90"
+                    value={priceInputs.creditPricePack3}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      if (/^[0-9]*[,.]?[0-9]*$/.test(value)) {
+                        setPriceInputs({...priceInputs, creditPricePack3: value})
+                      }
+                    }}
+                    onBlur={() => {
+                      const value = priceInputs.creditPricePack3.replace(',', '.')
+                      const num = parseFloat(value)
+                      if (!isNaN(num) && num >= 0) {
+                        setConfigDraft({...configDraft, creditPricePack3: Math.round(num * 100)})
+                        setPriceInputs({...priceInputs, creditPricePack3: num.toFixed(2)})
+                      } else {
+                        setPriceInputs({...priceInputs, creditPricePack3: String(configDraft.creditPricePack3 / 100)})
+                      }
+                    }}
+                    className="bg-gray-700 border-gray-600 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Pacote 5 Créditos (R$)
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="39.90"
+                    value={priceInputs.creditPricePack5}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      if (/^[0-9]*[,.]?[0-9]*$/.test(value)) {
+                        setPriceInputs({...priceInputs, creditPricePack5: value})
+                      }
+                    }}
+                    onBlur={() => {
+                      const value = priceInputs.creditPricePack5.replace(',', '.')
+                      const num = parseFloat(value)
+                      if (!isNaN(num) && num >= 0) {
+                        setConfigDraft({...configDraft, creditPricePack5: Math.round(num * 100)})
+                        setPriceInputs({...priceInputs, creditPricePack5: num.toFixed(2)})
+                      } else {
+                        setPriceInputs({...priceInputs, creditPricePack5: String(configDraft.creditPricePack5 / 100)})
+                      }
+                    }}
                     className="bg-gray-700 border-gray-600 text-white"
                   />
                 </div>
@@ -705,6 +1053,496 @@ export default function AdminPage() {
                 </>
               )}
             </Card>
+          </div>
+        )}
+
+        {/* Logs Tab */}
+        {activeTab === 'logs' && (
+          <div className="space-y-6">
+            {/* Toggle entre Admin Logs e Activity Logs */}
+            <div className="flex gap-3">
+              <Button
+                onClick={() => { setLogsType('admin'); setLogsPage(1); loadLogs(1); }}
+                className={logsType === 'admin' ? 'bg-purple-600' : 'bg-gray-700'}
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Logs Admin
+              </Button>
+              <Button
+                onClick={() => { setLogsType('activity'); setLogsPage(1); loadLogs(1); }}
+                className={logsType === 'activity' ? 'bg-purple-600' : 'bg-gray-700'}
+              >
+                <Activity className="w-4 h-4 mr-2" />
+                Atividade de Usuários
+              </Button>
+            </div>
+
+            {/* Admin Logs */}
+            {logsType === 'admin' && (
+              <Card className="bg-gray-800 border-gray-700 p-6">
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-red-500" />
+                  Logs de Alterações do Sistema
+                </h3>
+                
+                {/* Estatísticas rápidas */}
+                {logsStats && Array.isArray(logsStats) && logsStats.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                    {logsStats.slice(0, 4).map((stat: any) => (
+                      <div key={stat.action} className="bg-gray-700 p-3 rounded-lg">
+                        <p className="text-xs text-gray-400">{stat.action}</p>
+                        <p className="text-xl font-bold text-white">{stat.count}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {loadingLogs ? (
+                  <div className="flex justify-center py-8">
+                    <RefreshCw className="w-8 h-8 animate-spin text-purple-500" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="text-left text-gray-400 text-sm border-b border-gray-700">
+                            <th className="pb-3">Data/Hora</th>
+                            <th className="pb-3">Admin</th>
+                            <th className="pb-3">Ação</th>
+                            <th className="pb-3">Entidade</th>
+                            <th className="pb-3">Alterações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {adminLogs.map((log: any) => (
+                            <tr key={log.id} className="border-b border-gray-700/50 align-top">
+                              <td className="py-3 text-white text-sm">
+                                {new Date(log.createdAt).toLocaleString('pt-BR')}
+                              </td>
+                              <td className="py-3 text-gray-400 text-sm">{log.adminEmail}</td>
+                              <td className="py-3">
+                                <span className="px-2 py-1 rounded text-xs font-semibold bg-purple-600/20 text-purple-300">
+                                  {log.action}
+                                </span>
+                              </td>
+                              <td className="py-3 text-gray-400 text-sm">
+                                {log.entity}
+                                {log.entityId && log.entityId !== 'default' && (
+                                  <span className="block text-xs text-gray-500 truncate max-w-[100px]" title={log.entityId}>
+                                    ID: {log.entityId.substring(0, 8)}...
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3 text-xs max-w-md">
+                                {/* Mostrar alterações de forma legível */}
+                                {log.oldValue && log.newValue && (
+                                  <div className="space-y-1">
+                                    {Object.keys(log.newValue || {}).map((key: string) => {
+                                      const oldVal = log.oldValue?.[key]
+                                      const newVal = log.newValue?.[key]
+                                      // Só mostrar se realmente mudou
+                                      if (oldVal === newVal) return null
+                                      
+                                      // Formatar valores especiais
+                                      const formatValue = (val: any) => {
+                                        if (val === null || val === undefined) return '-'
+                                        if (typeof val === 'boolean') return val ? 'Sim' : 'Não'
+                                        if (typeof val === 'object') return JSON.stringify(val)
+                                        // Valores em centavos (preços)
+                                        if (key.includes('Price') || key.includes('Cents')) {
+                                          return `R$ ${(Number(val) / 100).toFixed(2)}`
+                                        }
+                                        return String(val)
+                                      }
+                                      
+                                      // Traduzir nomes dos campos
+                                      const fieldLabels: Record<string, string> = {
+                                        proPriceMonthly: 'Preço PRO Mensal',
+                                        proPriceQuarterly: 'Preço PRO Trimestral',
+                                        proPriceYearly: 'Preço PRO Anual',
+                                        creditPriceSingle: 'Preço 1 Crédito',
+                                        creditPricePack3: 'Preço Pacote 3',
+                                        creditPricePack5: 'Preço Pacote 5',
+                                        freeCreditsDaily: 'Créditos Diários',
+                                        geminiDailyLimit: 'Limite Diário Gemini',
+                                        geminiMonthlyBudgetCents: 'Orçamento Mensal Gemini',
+                                        maintenanceMode: 'Modo Manutenção',
+                                        allowNewRegistrations: 'Novos Cadastros',
+                                        minAnalysesFirstTime: 'Mín. Análises 1ª Vez',
+                                        minNewAnalysesForUnlock: 'Mín. Novas Análises',
+                                        plan: 'Plano',
+                                        creditsPaid: 'Créditos Pagos',
+                                        proUntil: 'PRO Até',
+                                        email: 'Email',
+                                      }
+                                      
+                                      return (
+                                        <div key={key} className="flex items-center gap-1 text-gray-300">
+                                          <span className="font-medium text-gray-400">
+                                            {fieldLabels[key] || key}:
+                                          </span>
+                                          <span className="text-red-400 line-through">
+                                            {formatValue(oldVal)}
+                                          </span>
+                                          <span className="text-gray-500">→</span>
+                                          <span className="text-green-400">
+                                            {formatValue(newVal)}
+                                          </span>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                                {/* Se não houver alterações detalhadas, mostrar resumo */}
+                                {(!log.oldValue || !log.newValue || Object.keys(log.newValue || {}).length === 0) && (
+                                  <span className="text-gray-500 italic">Sem detalhes disponíveis</span>
+                                )}
+                                {/* IP em texto menor */}
+                                {log.ipAddress && (
+                                  <div className="mt-1 text-gray-600 text-[10px]">
+                                    IP: {log.ipAddress}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination */}
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
+                      <p className="text-sm text-gray-400">
+                        Mostrando {adminLogs.length} de {logsTotal} logs
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => { const newPage = logsPage - 1; setLogsPage(newPage); loadLogs(newPage); }}
+                          disabled={logsPage === 1}
+                          variant="outline"
+                          size="sm"
+                          className="border-gray-600 text-gray-400"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                        <span className="px-3 py-1 text-gray-400">
+                          {logsPage} / {logsTotalPages}
+                        </span>
+                        <Button
+                          onClick={() => { const newPage = logsPage + 1; setLogsPage(newPage); loadLogs(newPage); }}
+                          disabled={logsPage === logsTotalPages}
+                          variant="outline"
+                          size="sm"
+                          className="border-gray-600 text-gray-400"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </Card>
+            )}
+
+            {/* Activity Logs */}
+            {logsType === 'activity' && (
+              <>
+                {/* Estatísticas de atividade */}
+                {logsStats && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    {/* Top eventos */}
+                    <Card className="bg-gray-800 border-gray-700 p-4">
+                      <h4 className="text-sm font-semibold text-gray-400 mb-3">Top Eventos</h4>
+                      <div className="space-y-2">
+                        {logsStats.eventTypes?.slice(0, 5).map((stat: any) => (
+                          <div key={stat.eventType} className="flex justify-between text-sm">
+                            <span className="text-gray-300">{stat.eventType}</span>
+                            <span className="text-purple-400 font-semibold">{stat.count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+
+                    {/* Páginas mais visitadas */}
+                    <Card className="bg-gray-800 border-gray-700 p-4">
+                      <h4 className="text-sm font-semibold text-gray-400 mb-3">Páginas Mais Visitadas</h4>
+                      <div className="space-y-2">
+                        {logsStats.topPages?.slice(0, 5).map((page: any) => (
+                          <div key={page.page} className="text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-300 truncate">{page.page}</span>
+                              <span className="text-purple-400 font-semibold">{page.views}</span>
+                            </div>
+                            {page.avgDuration && (
+                              <span className="text-xs text-gray-500">
+                                ~{page.avgDuration}s médio
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+
+                    {/* Atividade diária */}
+                    <Card className="bg-gray-800 border-gray-700 p-4">
+                      <h4 className="text-sm font-semibold text-gray-400 mb-3">Últimos 7 Dias</h4>
+                      <div className="space-y-2">
+                        {logsStats.dailyActivity?.map((day: any) => (
+                          <div key={day.date} className="flex justify-between text-sm">
+                            <span className="text-gray-300">{day.date}</span>
+                            <span className="text-purple-400 font-semibold">{day.count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Filtros de atividade */}
+                <Card className="bg-gray-800 border-gray-700 p-4 mb-4">
+                  <div className="flex flex-wrap gap-3 items-end">
+                    <div className="flex-1 min-w-[150px]">
+                      <label className="block text-xs text-gray-400 mb-1">Tipo de Evento</label>
+                      <select
+                        value={activityEventFilter}
+                        onChange={(e) => setActivityEventFilter(e.target.value)}
+                        className="w-full bg-gray-700 border-gray-600 text-white text-sm rounded px-3 py-2"
+                      >
+                        <option value="">Todos os eventos</option>
+                        <option value="PAGE_VIEW">PAGE_VIEW</option>
+                        <option value="PAGE_EXIT">PAGE_EXIT</option>
+                        <option value="LOGIN">LOGIN</option>
+                        <option value="LOGIN_ATTEMPT">LOGIN_ATTEMPT</option>
+                        <option value="LOGIN_FAILED">LOGIN_FAILED</option>
+                        <option value="ANALYSIS_STARTED">ANALYSIS_STARTED</option>
+                        <option value="ANALYSIS_CREATED">ANALYSIS_CREATED</option>
+                        <option value="ANALYSIS_FAILED">ANALYSIS_FAILED</option>
+                        <option value="BUTTON_CLICK">BUTTON_CLICK</option>
+                        <option value="SCROLL_DEPTH">SCROLL_DEPTH</option>
+                        <option value="ERROR">ERROR</option>
+                      </select>
+                    </div>
+                    <div className="flex-1 min-w-[150px]">
+                      <label className="block text-xs text-gray-400 mb-1">ID do Usuário</label>
+                      <Input
+                        type="text"
+                        placeholder="ID ou parte..."
+                        value={activityUserFilter}
+                        onChange={(e) => setActivityUserFilter(e.target.value)}
+                        className="bg-gray-700 border-gray-600 text-white text-sm h-9"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-[140px]">
+                      <label className="block text-xs text-gray-400 mb-1">Data Início</label>
+                      <Input
+                        type="date"
+                        value={activityStartDate}
+                        onChange={(e) => setActivityStartDate(e.target.value)}
+                        className="bg-gray-700 border-gray-600 text-white text-sm h-9"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-[140px]">
+                      <label className="block text-xs text-gray-400 mb-1">Data Fim</label>
+                      <Input
+                        type="date"
+                        value={activityEndDate}
+                        onChange={(e) => setActivityEndDate(e.target.value)}
+                        className="bg-gray-700 border-gray-600 text-white text-sm h-9"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={applyActivityFilters}
+                        size="sm"
+                        className="bg-purple-600 hover:bg-purple-700 h-9"
+                      >
+                        <Search className="w-4 h-4 mr-1" />
+                        Filtrar
+                      </Button>
+                      <Button
+                        onClick={clearActivityFilters}
+                        size="sm"
+                        variant="outline"
+                        className="border-gray-600 text-gray-400 h-9"
+                      >
+                        Limpar
+                      </Button>
+                    </div>
+                  </div>
+                  {/* Indicador de filtros ativos */}
+                  {(activityEventFilter || activityUserFilter || activityStartDate || activityEndDate) && (
+                    <div className="mt-3 pt-3 border-t border-gray-700 flex flex-wrap gap-2">
+                      <span className="text-xs text-gray-500">Filtros ativos:</span>
+                      {activityEventFilter && (
+                        <span className="text-xs bg-purple-600/20 text-purple-300 px-2 py-1 rounded">
+                          Evento: {activityEventFilter}
+                        </span>
+                      )}
+                      {activityUserFilter && (
+                        <span className="text-xs bg-blue-600/20 text-blue-300 px-2 py-1 rounded">
+                          Usuário: {activityUserFilter}
+                        </span>
+                      )}
+                      {activityStartDate && (
+                        <span className="text-xs bg-green-600/20 text-green-300 px-2 py-1 rounded">
+                          De: {activityStartDate}
+                        </span>
+                      )}
+                      {activityEndDate && (
+                        <span className="text-xs bg-green-600/20 text-green-300 px-2 py-1 rounded">
+                          Até: {activityEndDate}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </Card>
+
+                {/* Tabela de logs */}
+                <Card className="bg-gray-800 border-gray-700 p-6">
+                  <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-blue-500" />
+                    Logs de Atividade de Usuários
+                  </h3>
+
+                  {loadingLogs ? (
+                    <div className="flex justify-center py-8">
+                      <RefreshCw className="w-8 h-8 animate-spin text-purple-500" />
+                    </div>
+                  ) : activityLogs.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Activity className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                      <p className="text-gray-400 mb-2">Nenhum log de atividade encontrado</p>
+                      <p className="text-gray-500 text-sm">
+                        {(activityEventFilter || activityUserFilter || activityStartDate || activityEndDate)
+                          ? 'Tente ajustar os filtros ou limpar para ver todos os logs.'
+                          : 'Os logs serão exibidos aqui quando os usuários interagirem com o sistema.'}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="text-left text-gray-400 text-sm border-b border-gray-700">
+                              <th className="pb-3">Data/Hora</th>
+                              <th className="pb-3">Email</th>
+                              <th className="pb-3">Evento</th>
+                              <th className="pb-3">Página</th>
+                              <th className="pb-3">Detalhes</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {activityLogs.map((log: any) => {
+                              // Definir cor baseada no tipo de evento
+                              const eventColors: Record<string, string> = {
+                                'LOGIN': 'bg-green-600/20 text-green-300',
+                                'LOGIN_ATTEMPT': 'bg-yellow-600/20 text-yellow-300',
+                                'LOGIN_FAILED': 'bg-red-600/20 text-red-300',
+                                'PAGE_VIEW': 'bg-blue-600/20 text-blue-300',
+                                'PAGE_EXIT': 'bg-gray-600/20 text-gray-300',
+                                'ANALYSIS_STARTED': 'bg-purple-600/20 text-purple-300',
+                                'ANALYSIS_CREATED': 'bg-green-600/20 text-green-300',
+                                'ANALYSIS_FAILED': 'bg-red-600/20 text-red-300',
+                                'BUTTON_CLICK': 'bg-orange-600/20 text-orange-300',
+                                'SCROLL_DEPTH': 'bg-cyan-600/20 text-cyan-300',
+                                'ERROR': 'bg-red-600/20 text-red-300',
+                              }
+                              const colorClass = eventColors[log.eventType] || 'bg-blue-600/20 text-blue-300'
+                              
+                              return (
+                                <tr key={log.id} className="border-b border-gray-700/50 align-top">
+                                  <td className="py-3 text-white text-sm">
+                                    {new Date(log.createdAt).toLocaleString('pt-BR')}
+                                  </td>
+                                  <td className="py-3 text-sm">
+                                    {log.userEmail ? (
+                                      <div>
+                                        <span className="text-gray-300" title={log.userId}>
+                                          {log.userEmail}
+                                        </span>
+                                        {log.userName && (
+                                          <span className="block text-xs text-gray-500">{log.userName}</span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span className="text-gray-500 italic">Anônimo</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3">
+                                    <span className={`px-2 py-1 rounded text-xs font-semibold ${colorClass}`}>
+                                      {log.eventType}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 text-gray-400 text-sm">
+                                    {log.page || '-'}
+                                  </td>
+                                  <td className="py-3 text-xs max-w-xs">
+                                    {/* Mostrar duração */}
+                                    {log.duration && (
+                                      <div className="text-gray-300 mb-1">
+                                        <span className="text-gray-500">Duração:</span> {Math.round(log.duration / 1000)}s
+                                      </div>
+                                    )}
+                                    {/* Mostrar eventData */}
+                                    {log.eventData && Object.keys(log.eventData).length > 0 && (
+                                      <div className="space-y-0.5">
+                                        {Object.entries(log.eventData).map(([key, value]) => (
+                                          <div key={key} className="text-gray-400">
+                                            <span className="text-gray-500">{key}:</span>{' '}
+                                            <span className="text-gray-300">
+                                              {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {/* Se não houver duração nem eventData */}
+                                    {!log.duration && (!log.eventData || Object.keys(log.eventData).length === 0) && (
+                                      <span className="text-gray-600">-</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Pagination */}
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
+                        <p className="text-sm text-gray-400">
+                          Mostrando {activityLogs.length} de {logsTotal} logs
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => { const newPage = logsPage - 1; setLogsPage(newPage); loadLogs(newPage); }}
+                            disabled={logsPage === 1}
+                            variant="outline"
+                            size="sm"
+                            className="border-gray-600 text-gray-400"
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </Button>
+                          <span className="px-3 py-1 text-gray-400">
+                            {logsPage} / {logsTotalPages}
+                          </span>
+                          <Button
+                            onClick={() => { const newPage = logsPage + 1; setLogsPage(newPage); loadLogs(newPage); }}
+                            disabled={logsPage === logsTotalPages}
+                            variant="outline"
+                            size="sm"
+                            className="border-gray-600 text-gray-400"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </Card>
+              </>
+            )}
           </div>
         )}
 

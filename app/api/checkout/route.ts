@@ -1,16 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
+import { getSystemConfig } from '@/lib/config'
 
 // Asaas API integration
 const ASAAS_API_URL = process.env.ASAAS_API_URL || 'https://api.asaas.com/v3'
 const ASAAS_API_KEY = process.env.ASAAS_API_KEY!
 
+type SubscriptionPeriod = 'MONTHLY' | 'QUARTERLY' | 'YEARLY'
+type CreditPackage = 'SINGLE' | 'PACK_3' | 'PACK_5'
+
+// Mapeamento de períodos para ciclos do Asaas
+const SUBSCRIPTION_CYCLES: Record<SubscriptionPeriod, string> = {
+  MONTHLY: 'MONTHLY',
+  QUARTERLY: 'QUARTERLY',
+  YEARLY: 'YEARLY',
+}
+
+// Quantidade de créditos por pacote
+const CREDITS_BY_PACKAGE: Record<CreditPackage, number> = {
+  SINGLE: 1,
+  PACK_3: 3,
+  PACK_5: 5,
+}
+
 async function createAsaasPayment(
   customerId: string,
   amount: number,
   description: string,
-  type: 'ONE_TIME' | 'SUBSCRIPTION'
+  type: 'ONE_TIME' | 'SUBSCRIPTION',
+  subscriptionCycle?: string
 ) {
   const response = await fetch(`${ASAAS_API_URL}/payments`, {
     method: 'POST',
@@ -24,8 +43,8 @@ async function createAsaasPayment(
       value: amount,
       description,
       dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 3 days
-      ...(type === 'SUBSCRIPTION' && {
-        cycle: 'MONTHLY',
+      ...(type === 'SUBSCRIPTION' && subscriptionCycle && {
+        cycle: subscriptionCycle,
       }),
     }),
   })
@@ -98,45 +117,113 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { analysisId, type } = body // type: 'UNLOCK' | 'SUBSCRIPTION'
+    const { 
+      analysisId, 
+      type, // 'ONE_TIME' | 'SUBSCRIPTION'
+      creditPackage, // 'SINGLE' | 'PACK_3' | 'PACK_5' (para ONE_TIME)
+      subscriptionPeriod, // 'MONTHLY' | 'QUARTERLY' | 'YEARLY' (para SUBSCRIPTION)
+    } = body
 
-    if (type === 'UNLOCK' && analysisId) {
-      // Unlock single analysis
-      const analysis = await prisma.analysis.findUnique({
-        where: { id: analysisId },
-      })
+    const config = await getSystemConfig()
 
-      if (!analysis || analysis.userId !== dbUser.id) {
-        return NextResponse.json({ error: 'Análise não encontrada' }, { status: 404 })
-      }
-
-      if (analysis.isPaid) {
-        return NextResponse.json({ error: 'Análise já desbloqueada' }, { status: 400 })
-      }
-
-      // In development, unlock directly without payment
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[CHECKOUT] Modo desenvolvimento: desbloqueando análise sem pagamento')
-        await prisma.analysis.update({
-          where: { id: analysisId },
-          data: { isPaid: true },
-        })
+    // Modo desenvolvimento: desbloquear sem pagamento
+    if (process.env.NODE_ENV === 'development') {
+      if (type === 'ONE_TIME') {
+        if (analysisId) {
+          // Desbloquear análise específica
+          await prisma.analysis.update({
+            where: { id: analysisId },
+            data: { isPaid: true },
+          })
+        } else if (creditPackage) {
+          // Adicionar créditos
+          const credits = CREDITS_BY_PACKAGE[creditPackage as CreditPackage] || 1
+          await prisma.user.update({
+            where: { id: dbUser.id },
+            data: {
+              creditsPaid: {
+                increment: credits,
+              },
+            },
+          })
+        }
         return NextResponse.json({
           success: true,
-          message: 'Análise desbloqueada (modo desenvolvimento)',
+          message: 'Créditos adicionados (modo desenvolvimento)',
           unlocked: true,
         })
+      } else if (type === 'SUBSCRIPTION') {
+        const period = subscriptionPeriod || 'MONTHLY'
+        let proUntil = new Date()
+        
+        if (period === 'MONTHLY') {
+          proUntil.setMonth(proUntil.getMonth() + 1)
+        } else if (period === 'QUARTERLY') {
+          proUntil.setMonth(proUntil.getMonth() + 3)
+        } else if (period === 'YEARLY') {
+          proUntil.setFullYear(proUntil.getFullYear() + 1)
+        }
+        
+        await prisma.user.update({
+          where: { id: dbUser.id },
+          data: {
+            plan: 'PRO',
+            proUntil,
+          },
+        })
+        
+        return NextResponse.json({
+          success: true,
+          message: 'Upgrade para PRO realizado (modo desenvolvimento)',
+          upgraded: true,
+        })
       }
+    }
 
-      const customerId = await getOrCreateAsaasCustomer(
-        dbUser.email,
-        dbUser.name || dbUser.email
-      )
+    const customerId = await getOrCreateAsaasCustomer(
+      dbUser.email,
+      dbUser.name || dbUser.email
+    )
+
+    if (type === 'ONE_TIME') {
+      // Pagamento avulso - pacote de créditos
+      let amount: number
+      let description: string
+      let packageType: CreditPackage
+      let credits: number
+
+      if (analysisId) {
+        // Desbloquear análise específica (compatibilidade com código antigo)
+        amount = config.creditPriceSingle / 100
+        description = `Desbloquear análise ${analysisId}`
+        packageType = 'SINGLE'
+        credits = 1
+      } else if (creditPackage && ['SINGLE', 'PACK_3', 'PACK_5'].includes(creditPackage)) {
+        // Novo sistema de pacotes
+        packageType = creditPackage as CreditPackage
+        credits = CREDITS_BY_PACKAGE[packageType]
+        
+        if (packageType === 'SINGLE') {
+          amount = config.creditPriceSingle / 100
+          description = '1 crédito - Desbloquear análise'
+        } else if (packageType === 'PACK_3') {
+          amount = config.creditPricePack3 / 100
+          description = 'Pacote 3 créditos - Desbloquear análises'
+        } else {
+          amount = config.creditPricePack5 / 100
+          description = 'Pacote 5 créditos - Desbloquear análises'
+        }
+      } else {
+        return NextResponse.json(
+          { error: 'Pacote inválido. Use SINGLE, PACK_3 ou PACK_5' },
+          { status: 400 }
+        )
+      }
 
       const payment = await createAsaasPayment(
         customerId,
-        9.90, // R$ 9.90 to unlock
-        `Desbloquear análise ${analysisId}`,
+        amount,
+        description,
         'ONE_TIME'
       )
 
@@ -147,9 +234,11 @@ export async function POST(request: NextRequest) {
           provider: 'asaas',
           externalId: payment.id,
           status: 'PENDING',
-          amountCents: 990,
+          amountCents: Math.round(amount * 100),
           currency: 'BRL',
           type: 'ONE_TIME',
+          creditPackage: packageType,
+          creditsGranted: credits,
         },
       })
 
@@ -158,39 +247,38 @@ export async function POST(request: NextRequest) {
         paymentId: payment.id,
       })
     } else if (type === 'SUBSCRIPTION') {
-      // Monthly subscription
+      // Assinatura recorrente
+      const period = (subscriptionPeriod || 'MONTHLY') as SubscriptionPeriod
       
-      // In development, upgrade directly without payment
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[CHECKOUT] Modo desenvolvimento: upgrade para PRO sem pagamento')
-        const nextMonth = new Date()
-        nextMonth.setMonth(nextMonth.getMonth() + 1)
-        
-        await prisma.user.update({
-          where: { id: dbUser.id },
-          data: {
-            plan: 'PRO',
-            proUntil: nextMonth,
-          },
-        })
-        
-        return NextResponse.json({
-          success: true,
-          message: 'Upgrade para PRO realizado (modo desenvolvimento)',
-          upgraded: true,
-        })
-      }
+      let amount: number
+      let description: string
+      let cycle: string
 
-      const customerId = await getOrCreateAsaasCustomer(
-        dbUser.email,
-        dbUser.name || dbUser.email
-      )
+      if (period === 'MONTHLY') {
+        amount = config.proPriceMonthly / 100
+        description = 'Assinatura PRO Mensal'
+        cycle = SUBSCRIPTION_CYCLES.MONTHLY
+      } else if (period === 'QUARTERLY') {
+        amount = config.proPriceQuarterly / 100
+        description = 'Assinatura PRO Trimestral'
+        cycle = SUBSCRIPTION_CYCLES.QUARTERLY
+      } else if (period === 'YEARLY') {
+        amount = config.proPriceYearly / 100
+        description = 'Assinatura PRO Anual'
+        cycle = SUBSCRIPTION_CYCLES.YEARLY
+      } else {
+        return NextResponse.json(
+          { error: 'Período inválido. Use MONTHLY, QUARTERLY ou YEARLY' },
+          { status: 400 }
+        )
+      }
 
       const payment = await createAsaasPayment(
         customerId,
-        29.90, // R$ 29.90/month
-        'Assinatura rednit PRO',
-        'SUBSCRIPTION'
+        amount,
+        description,
+        'SUBSCRIPTION',
+        cycle
       )
 
       await prisma.payment.create({
@@ -199,9 +287,10 @@ export async function POST(request: NextRequest) {
           provider: 'asaas',
           externalId: payment.id,
           status: 'PENDING',
-          amountCents: 2990,
+          amountCents: Math.round(amount * 100),
           currency: 'BRL',
           type: 'SUBSCRIPTION',
+          subscriptionPeriod: period,
         },
       })
 

@@ -114,6 +114,18 @@ export async function PATCH(request: NextRequest) {
       updateData.proUntil = new Date(proUntil)
     }
 
+    // Buscar dados antigos para audit log
+    const oldUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        plan: true,
+        creditsPaid: true,
+        proUntil: true
+      }
+    })
+
     const user = await prisma.user.update({
       where: { id: userId },
       data: updateData,
@@ -124,6 +136,28 @@ export async function PATCH(request: NextRequest) {
         plan: true,
         creditsPaid: true,
         proUntil: true
+      }
+    })
+
+    // Determinar tipo de ação para log mais específico
+    let action = 'USER_UPDATE'
+    if (updateData.plan && oldUser && updateData.plan !== oldUser.plan) {
+      action = 'USER_PLAN_UPDATE'
+    } else if (updateData.creditsPaid !== undefined && oldUser && updateData.creditsPaid !== oldUser.creditsPaid) {
+      action = 'USER_CREDITS_UPDATE'
+    }
+
+    // Registrar alteração no log de auditoria
+    await prisma.adminLog.create({
+      data: {
+        adminEmail: admin.email!,
+        action,
+        entity: 'User',
+        entityId: userId,
+        oldValue: oldUser || {},
+        newValue: updateData,
+        ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+        userAgent: request.headers.get('user-agent'),
       }
     })
 

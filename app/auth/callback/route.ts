@@ -42,7 +42,7 @@ export async function GET(request: Request) {
         console.log('[AUTH CALLBACK] Tentando fazer upsert no Prisma...')
         
         try {
-          await prisma.user.upsert({
+          const dbUser = await prisma.user.upsert({
             where: { email: user.email! },
             update: {
               name: user.user_metadata?.full_name || user.email!,
@@ -54,6 +54,17 @@ export async function GET(request: Request) {
             },
           })
           console.log('[AUTH CALLBACK] Usuário sincronizado com sucesso')
+          
+          // Registrar evento de login
+          await prisma.userActivityLog.create({
+            data: {
+              userId: dbUser.id,
+              sessionId: `session-${Date.now()}`, // Será atualizado pelo cookie no próximo request
+              eventType: 'LOGIN',
+              eventData: { provider: 'google' },
+              page: '/auth/callback',
+            }
+          }).catch(err => console.error('[AUTH CALLBACK] Erro ao registrar log de login:', err))
         } catch (prismaError: any) {
           const prismaMessage = prismaError?.message || ''
           console.error('[AUTH CALLBACK] Erro ao fazer upsert no Prisma:', prismaMessage)

@@ -102,6 +102,18 @@ export async function GET() {
         isFirstTimeAvailable,
         neededForNext,
       },
+      prices: {
+        subscription: {
+          monthly: config.proPriceMonthly,
+          quarterly: config.proPriceQuarterly,
+          yearly: config.proPriceYearly,
+        },
+        credits: {
+          single: config.creditPriceSingle,
+          pack3: config.creditPricePack3,
+          pack5: config.creditPricePack5,
+        },
+      },
     })
   } catch (error) {
     console.error('Error in /api/me:', error)

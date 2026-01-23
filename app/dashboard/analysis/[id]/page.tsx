@@ -7,7 +7,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Logo } from '@/components/logo'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { X, Lock, Sparkles, TrendingUp, Shield, CheckCircle2, AlertTriangle, Eye, Zap, Heart } from 'lucide-react'
+import { CreditPackages } from '@/components/credit-packages'
+import { SubscriptionPlans } from '@/components/subscription-plans'
+import { trackEvent } from '@/lib/tracking'
+import { X, Lock, Sparkles, TrendingUp, Shield, CheckCircle2, AlertTriangle, Eye, Zap, Heart, Crown } from 'lucide-react'
 
 type AnalysisResult = {
   id: string
@@ -19,6 +22,10 @@ type AnalysisResult = {
   has_access: boolean
 }
 
+type UserCredits = {
+  creditsPaid: number
+}
+
 export default function AnalysisPage() {
   const router = useRouter()
   const params = useParams()
@@ -27,6 +34,19 @@ export default function AnalysisPage() {
   const [loading, setLoading] = useState(true)
   const [unlocking, setUnlocking] = useState(false)
   const [showUnlockModal, setShowUnlockModal] = useState(false)
+  const [userCredits, setUserCredits] = useState<UserCredits | null>(null)
+  const [showCreditPackages, setShowCreditPackages] = useState(false)
+  const [showSubscriptionPlans, setShowSubscriptionPlans] = useState(false)
+  const [prices, setPrices] = useState({
+    single: 799,
+    pack3: 2490,
+    pack5: 3990,
+  })
+  const [subscriptionPrices, setSubscriptionPrices] = useState({
+    monthly: 2990,
+    quarterly: 7990,
+    yearly: 29900,
+  })
 
   const hypothesisLabels: Record<string, string> = {
     EXPLORANDO: 'Explorando possibilidades',
@@ -50,10 +70,40 @@ export default function AnalysisPage() {
       if (res.ok) {
         const data = await res.json()
         setAnalysis(data)
+        trackEvent('ANALYSIS_VIEWED', {
+          analysisId: id,
+          hasAccess: data.has_access,
+          isPaid: data.isPaid,
+          stage: data.stage,
+        })
       }
       setLoading(false)
     }
+    
+    async function loadUserCredits() {
+      const res = await fetch('/api/me')
+      if (res.ok) {
+        const data = await res.json()
+        setUserCredits({ creditsPaid: data.creditsPaid || 0 })
+        
+        // Atualizar preços do sistema
+        if (data.prices) {
+          setPrices({
+            single: data.prices.credits.single,
+            pack3: data.prices.credits.pack3,
+            pack5: data.prices.credits.pack5,
+          })
+          setSubscriptionPrices({
+            monthly: data.prices.subscription.monthly,
+            quarterly: data.prices.subscription.quarterly,
+            yearly: data.prices.subscription.yearly,
+          })
+        }
+      }
+    }
+    
     loadAnalysis()
+    loadUserCredits()
   }, [id])
 
   // Mostrar modal de forma recorrente se não tiver acesso premium
@@ -81,34 +131,116 @@ export default function AnalysisPage() {
     }
   }, [loading, analysis, showUnlockModal])
 
-  const handleUnlock = async () => {
+  const handleUnlockWithCredit = async () => {
     setUnlocking(true)
+    trackEvent('UNLOCK_WITH_CREDIT_STARTED', { analysisId: id })
+    
     try {
-      const res = await fetch('/api/checkout', {
+      const res = await fetch(`/api/analyses/${id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ analysisId: id, type: 'UNLOCK' }),
       })
 
       if (!res.ok) {
         const error = await res.json()
+        trackEvent('UNLOCK_WITH_CREDIT_FAILED', { analysisId: id, error: error.error })
+        alert(error.error || 'Erro ao desbloquear análise')
+        return
+      }
+
+      const data = await res.json()
+      trackEvent('UNLOCK_WITH_CREDIT_SUCCESS', { analysisId: id })
+      alert('Análise desbloqueada com sucesso!')
+      window.location.reload()
+    } catch (error) {
+      console.error('Error:', error)
+      trackEvent('UNLOCK_WITH_CREDIT_FAILED', { analysisId: id, error: 'unknown' })
+      alert('Erro ao desbloquear análise')
+    } finally {
+      setUnlocking(false)
+    }
+  }
+
+  const handleBuyPackage = async (packageType: 'SINGLE' | 'PACK_3' | 'PACK_5') => {
+    setUnlocking(true)
+    trackEvent('CHECKOUT_STARTED', { type: 'ONE_TIME', package: packageType })
+    
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          type: 'ONE_TIME',
+          creditPackage: packageType,
+        }),
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        trackEvent('CHECKOUT_FAILED', { type: 'ONE_TIME', package: packageType, error: error.error })
         alert(error.error || 'Erro ao criar checkout')
         return
       }
 
       const data = await res.json()
       
-      // In development, unlock directly and reload
-      if (data.unlocked || data.success) {
-        alert('Análise desbloqueada! (modo desenvolvimento)')
+      // In development, add credits directly
+      if (data.success) {
+        trackEvent('CHECKOUT_COMPLETED', { type: 'ONE_TIME', package: packageType, dev: true })
+        alert('Créditos adicionados! (modo desenvolvimento)')
         window.location.reload()
         return
       }
       
       // In production, redirect to payment
+      trackEvent('CHECKOUT_REDIRECT', { type: 'ONE_TIME', package: packageType })
       window.location.href = data.checkoutUrl
     } catch (error) {
       console.error('Error:', error)
+      trackEvent('CHECKOUT_FAILED', { type: 'ONE_TIME', package: packageType, error: 'unknown' })
+      alert('Erro ao criar checkout')
+    } finally {
+      setUnlocking(false)
+    }
+  }
+
+  const handleSubscribe = async (period: 'MONTHLY' | 'QUARTERLY' | 'YEARLY') => {
+    setUnlocking(true)
+    trackEvent('CHECKOUT_STARTED', { type: 'SUBSCRIPTION', period })
+    
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          type: 'SUBSCRIPTION',
+          subscriptionPeriod: period,
+        }),
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        trackEvent('CHECKOUT_FAILED', { type: 'SUBSCRIPTION', period, error: error.error })
+        alert(error.error || 'Erro ao criar checkout')
+        return
+      }
+
+      const data = await res.json()
+      
+      // In development, activate plan directly
+      if (data.success || data.upgraded) {
+        trackEvent('CHECKOUT_COMPLETED', { type: 'SUBSCRIPTION', period, dev: true })
+        alert('Plano PRO ativado! (modo desenvolvimento)')
+        window.location.reload()
+        return
+      }
+      
+      // In production, redirect to payment
+      trackEvent('CHECKOUT_REDIRECT', { type: 'SUBSCRIPTION', period })
+      window.location.href = data.checkoutUrl
+    } catch (error) {
+      console.error('Error:', error)
+      trackEvent('CHECKOUT_FAILED', { type: 'SUBSCRIPTION', period, error: 'unknown' })
       alert('Erro ao criar checkout')
     } finally {
       setUnlocking(false)
@@ -188,16 +320,39 @@ export default function AnalysisPage() {
                 Veja as hipóteses alternativas, o mapa completo de risco e o plano de ação por estágio.
                 É aqui que estão as decisões mais inteligentes.
               </p>
-              <Button
-                onClick={handleUnlock}
-                disabled={unlocking}
-                className="w-full bg-white text-purple-700 hover:text-purple-800 font-extrabold py-5 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all"
-              >
-                <Zap className="w-6 h-6 mr-2" />
-                {unlocking ? 'Processando...' : 'Quero desbloquear agora • R$ 9,90'}
-              </Button>
+              
+              {userCredits && userCredits.creditsPaid > 0 ? (
+                <div className="space-y-3">
+                  <Button
+                    onClick={handleUnlockWithCredit}
+                    disabled={unlocking}
+                    className="w-full bg-white text-purple-700 hover:text-purple-800 font-extrabold py-5 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all"
+                  >
+                    <Zap className="w-6 h-6 mr-2" />
+                    {unlocking ? 'Processando...' : `Usar 1 Crédito (${userCredits.creditsPaid} disponíveis)`}
+                  </Button>
+                  <button
+                    onClick={() => setShowCreditPackages(true)}
+                    className="w-full text-white/90 text-sm underline hover:text-white transition-colors"
+                  >
+                    Ou comprar mais créditos
+                  </button>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => setShowCreditPackages(true)}
+                  disabled={unlocking}
+                  className="w-full bg-white text-purple-700 hover:text-purple-800 font-extrabold py-5 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all"
+                >
+                  <Zap className="w-6 h-6 mr-2" />
+                  {unlocking ? 'Processando...' : 'Comprar Créditos para Desbloquear'}
+                </Button>
+              )}
+              
               <p className="text-xs text-white/80 mt-3 text-center">
-                Pix e cartão • Acesso imediato • Compra única
+                {userCredits && userCredits.creditsPaid > 0 
+                  ? 'Use seus créditos ou compre pacotes com desconto'
+                  : `A partir de R$ ${(prices.single / 100).toFixed(2).replace('.', ',')} • Pix e cartão • Acesso imediato`}
               </p>
             </div>
           </div>
@@ -842,16 +997,39 @@ export default function AnalysisPage() {
                 Veja as hipóteses alternativas, o mapa completo de risco e o plano de ação por estágio.
                 É aqui que estão as decisões mais inteligentes.
               </p>
-              <Button
-                onClick={handleUnlock}
-                disabled={unlocking}
-                className="w-full bg-white text-purple-700 hover:text-purple-800 font-extrabold py-5 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all"
-              >
-                <Zap className="w-6 h-6 mr-2" />
-                {unlocking ? 'Processando...' : 'Quero desbloquear agora • R$ 9,90'}
-              </Button>
+              
+              {userCredits && userCredits.creditsPaid > 0 ? (
+                <div className="space-y-3">
+                  <Button
+                    onClick={handleUnlockWithCredit}
+                    disabled={unlocking}
+                    className="w-full bg-white text-purple-700 hover:text-purple-800 font-extrabold py-5 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all"
+                  >
+                    <Zap className="w-6 h-6 mr-2" />
+                    {unlocking ? 'Processando...' : `Usar 1 Crédito (${userCredits.creditsPaid} disponíveis)`}
+                  </Button>
+                  <button
+                    onClick={() => setShowCreditPackages(true)}
+                    className="w-full text-white/90 text-sm underline hover:text-white transition-colors"
+                  >
+                    Ou comprar mais créditos
+                  </button>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => setShowCreditPackages(true)}
+                  disabled={unlocking}
+                  className="w-full bg-white text-purple-700 hover:text-purple-800 font-extrabold py-5 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all"
+                >
+                  <Zap className="w-6 h-6 mr-2" />
+                  {unlocking ? 'Processando...' : 'Comprar Créditos para Desbloquear'}
+                </Button>
+              )}
+              
               <p className="text-xs text-white/80 mt-3 text-center">
-                Pix e cartão • Acesso imediato • Compra única
+                {userCredits && userCredits.creditsPaid > 0 
+                  ? 'Use seus créditos ou compre pacotes com desconto'
+                  : `A partir de R$ ${(prices.single / 100).toFixed(2).replace('.', ',')} • Pix e cartão • Acesso imediato`}
               </p>
             </div>
           </div>
@@ -904,19 +1082,121 @@ export default function AnalysisPage() {
                 </div>
               </div>
 
-              <Button
-                onClick={handleUnlock}
-                disabled={unlocking}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all mb-3"
-              >
-                <Zap className="w-5 h-5 mr-2" />
-                {unlocking ? 'Processando...' : 'Desbloquear Agora - R$ 9,90'}
-              </Button>
+              {userCredits && userCredits.creditsPaid > 0 ? (
+                <Button
+                  onClick={handleUnlockWithCredit}
+                  disabled={unlocking}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all mb-3"
+                >
+                  <Zap className="w-5 h-5 mr-2" />
+                  {unlocking ? 'Processando...' : `Usar 1 Crédito (${userCredits.creditsPaid} disponíveis)`}
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => {
+                    setShowUnlockModal(false)
+                    setShowCreditPackages(true)
+                  }}
+                  disabled={unlocking}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all mb-3"
+                >
+                  <Zap className="w-5 h-5 mr-2" />
+                  {unlocking ? 'Processando...' : `Comprar Créditos - A partir de R$ ${(prices.single / 100).toFixed(2).replace('.', ',')}`}
+                </Button>
+              )}
 
               <div className="text-center">
                 <p className="text-xs text-gray-500">
                   💳 Pix e cartão • ⚡ Acesso imediato • 🔄 Cancele quando quiser
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Pacotes de Créditos */}
+        {showCreditPackages && !has_access && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity duration-300">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-5xl w-full p-8 relative transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto">
+              <button
+                onClick={() => setShowCreditPackages(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors z-10"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <CreditPackages
+                onSelect={handleBuyPackage}
+                loading={unlocking}
+                prices={prices}
+              />
+
+              {/* Divisor */}
+              <div className="relative my-8">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-white text-gray-500 font-medium">OU ECONOMIZE MAIS</span>
+                </div>
+              </div>
+
+              {/* Destaque para Planos de Assinatura */}
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 border-2 border-purple-200">
+                <div className="text-center mb-4">
+                  <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-full font-bold text-sm mb-3">
+                    <Crown className="w-5 h-5" />
+                    MAIS VANTAJOSO
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                    Planos PRO com Análises Ilimitadas
+                  </h3>
+                  <p className="text-gray-600">
+                    Acesso completo a todas as análises sem limite + Economize até 17%
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                  <button
+                    onClick={() => handleSubscribe('MONTHLY')}
+                    disabled={unlocking}
+                    className="bg-white hover:bg-purple-50 border-2 border-purple-300 hover:border-purple-500 rounded-xl p-4 transition-all text-left"
+                  >
+                    <div className="font-bold text-lg text-gray-900">Mensal</div>
+                    <div className="text-3xl font-bold text-purple-600 my-2">R$ {(subscriptionPrices.monthly / 100).toFixed(2).replace('.', ',')}</div>
+                    <div className="text-sm text-gray-600">por mês</div>
+                  </button>
+
+                  <button
+                    onClick={() => handleSubscribe('QUARTERLY')}
+                    disabled={unlocking}
+                    className="bg-white hover:bg-purple-50 border-2 border-purple-400 hover:border-purple-600 rounded-xl p-4 transition-all text-left relative"
+                  >
+                    <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                      11% OFF
+                    </div>
+                    <div className="font-bold text-lg text-gray-900">Trimestral</div>
+                    <div className="text-3xl font-bold text-purple-600 my-2">R$ {(subscriptionPrices.quarterly / 100).toFixed(2).replace('.', ',')}</div>
+                    <div className="text-sm text-gray-600">R$ {(subscriptionPrices.quarterly / 300).toFixed(2).replace('.', ',')}/mês</div>
+                  </button>
+
+                  <button
+                    onClick={() => handleSubscribe('YEARLY')}
+                    disabled={unlocking}
+                    className="bg-gradient-to-br from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 border-2 border-purple-600 rounded-xl p-4 transition-all text-left relative"
+                  >
+                    <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                      17% OFF
+                    </div>
+                    <div className="font-bold text-lg text-white">Anual</div>
+                    <div className="text-3xl font-bold text-white my-2">R$ {(subscriptionPrices.yearly / 100).toFixed(2).replace('.', ',')}</div>
+                    <div className="text-sm text-white/90">R$ {(subscriptionPrices.yearly / 1200).toFixed(2).replace('.', ',')}/mês</div>
+                  </button>
+                </div>
+
+                <div className="mt-6 text-center text-sm text-gray-600">
+                  ✨ Análises ilimitadas • 🎯 Relatórios completos • 🔄 Cancele quando quiser
+                </div>
               </div>
             </div>
           </div>

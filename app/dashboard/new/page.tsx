@@ -11,6 +11,7 @@ import { Progress } from '@/components/ui/progress'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { trackEvent } from '@/lib/tracking'
 import { 
   Heart, Zap, Clock, MessageCircle, Calendar, 
   AlertTriangle, CheckCircle2, XCircle, 
@@ -461,6 +462,11 @@ export default function NewAnalysisPage() {
         dataToSend.nome_match = formData.nome_match.trim()
       }
 
+      trackEvent('ANALYSIS_STARTED', {
+        stage: dataToSend.estagio,
+        objective: dataToSend.objetivo_usuario,
+      })
+
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -470,14 +476,17 @@ export default function NewAnalysisPage() {
       if (!response.ok) {
         const error = await response.json()
         console.error('Erro do servidor:', error)
+        trackEvent('ANALYSIS_FAILED', { error: error.error })
         alert(error.error || 'Erro ao processar análise')
         return
       }
 
       const data = await response.json()
+      trackEvent('ANALYSIS_CREATED', { analysisId: data.id })
       router.push(`/dashboard/analysis/${data.id}`)
     } catch (error) {
       console.error('Error:', error)
+      trackEvent('ANALYSIS_FAILED', { error: 'unknown' })
       alert('Erro ao processar análise')
     } finally {
       setLoading(false)

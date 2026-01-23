@@ -57,23 +57,44 @@ model Analysis {
   @@map("analyses")
 }
 
+enum PaymentType {
+  ONE_TIME
+  SUBSCRIPTION
+}
+
+enum SubscriptionPeriod {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum CreditPackage {
+  SINGLE    // 1 crédito
+  PACK_3    // 3 créditos
+  PACK_5    // 5 créditos
+}
+
 model Payment {
-  id          String   @id @default(uuid())
-  userId      String
-  provider    String   @default("asaas")
-  externalId  String
-  status      String   // PENDING, CONFIRMED, CANCELED, REFUNDED
-  amountCents Int
-  currency    String   @default("BRL")
-  type        String   // ONE_TIME, SUBSCRIPTION
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String            @id @default(uuid())
+  userId            String
+  provider          String            @default("asaas")
+  externalId        String
+  status            String            // PENDING, CONFIRMED, CANCELED, REFUNDED
+  amountCents       Int
+  currency          String            @default("BRL")
+  type              PaymentType
+  subscriptionPeriod SubscriptionPeriod? // MONTHLY, QUARTERLY, YEARLY (apenas para SUBSCRIPTION)
+  creditPackage     CreditPackage?    // SINGLE, PACK_3, PACK_5 (apenas para ONE_TIME)
+  creditsGranted    Int?              // Quantidade de créditos concedidos
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([externalId])
   @@index([status])
+  @@index([type])
   @@map("payments")
 }
 
@@ -107,9 +128,15 @@ model SystemConfig {
   geminiCallsToday         Int @default(0)      // Contador de chamadas hoje
   geminiLastResetDate      DateTime?            // Última vez que resetou contador diário
   
-  // Configurações de preços
+  // Configurações de preços - Assinaturas
   proPriceMonthly          Int @default(2990)   // Preço mensal PRO em centavos
+  proPriceQuarterly         Int @default(7990)   // Preço trimestral PRO em centavos
   proPriceYearly           Int @default(29900)  // Preço anual PRO em centavos
+  
+  // Configurações de preços - Pacotes de créditos
+  creditPriceSingle        Int @default(799)    // Preço 1 crédito em centavos
+  creditPricePack3         Int @default(2490)   // Preço pacote 3 créditos em centavos
+  creditPricePack5         Int @default(3990)   // Preço pacote 5 créditos em centavos
   
   // Feature flags
   maintenanceMode          Boolean @default(false)
@@ -137,4 +164,41 @@ model GeminiUsageLog {
   @@index([userId])
   @@index([endpoint])
   @@map("gemini_usage_logs")
+}
+
+// Log de alterações do sistema (audit trail)
+model AdminLog {
+  id          String   @id @default(uuid())
+  adminEmail  String
+  action      String   // CONFIG_UPDATE, USER_PLAN_UPDATE, USER_CREDITS_UPDATE
+  entity      String   // "SystemConfig", "User", etc
+  entityId    String?
+  oldValue    Json?
+  newValue    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([adminEmail])
+  @@index([action])
+  @@map("admin_logs")
+}
+
+// Log de jornada do usuário (analytics)
+model UserActivityLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  sessionId   String   // Para agrupar eventos da mesma sessão
+  eventType   String   // PAGE_VIEW, CLICK, ANALYSIS_CREATED, LOGIN, etc
+  eventData   Json?    // Dados específicos do evento
+  page        String?  // URL/rota da página
+  duration    Int?     // Tempo em ms (para PAGE_VIEW)
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([sessionId])
+  @@index([eventType])
+  @@map("user_activity_logs")
 }
