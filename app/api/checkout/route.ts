@@ -2,99 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { getSystemConfig } from '@/lib/config'
-
-// Asaas API integration
-const ASAAS_API_URL = process.env.ASAAS_API_URL || 'https://api.asaas.com/v3'
-const ASAAS_API_KEY = process.env.ASAAS_API_KEY!
+import { stripe, getOrCreateStripeCustomer } from '@/lib/stripe'
 
 type SubscriptionPeriod = 'MONTHLY' | 'QUARTERLY' | 'YEARLY'
 type CreditPackage = 'SINGLE' | 'PACK_3' | 'PACK_5'
-
-// Mapeamento de períodos para ciclos do Asaas
-const SUBSCRIPTION_CYCLES: Record<SubscriptionPeriod, string> = {
-  MONTHLY: 'MONTHLY',
-  QUARTERLY: 'QUARTERLY',
-  YEARLY: 'YEARLY',
-}
 
 // Quantidade de créditos por pacote
 const CREDITS_BY_PACKAGE: Record<CreditPackage, number> = {
   SINGLE: 1,
   PACK_3: 3,
   PACK_5: 5,
-}
-
-async function createAsaasPayment(
-  customerId: string,
-  amount: number,
-  description: string,
-  type: 'ONE_TIME' | 'SUBSCRIPTION',
-  subscriptionCycle?: string
-) {
-  const response = await fetch(`${ASAAS_API_URL}/payments`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      access_token: ASAAS_API_KEY,
-    },
-    body: JSON.stringify({
-      customer: customerId,
-      billingType: 'PIX', // Can be PIX, CREDIT_CARD, etc.
-      value: amount,
-      description,
-      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 3 days
-      ...(type === 'SUBSCRIPTION' && subscriptionCycle && {
-        cycle: subscriptionCycle,
-      }),
-    }),
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`Asaas API error: ${error}`)
-  }
-
-  return response.json()
-}
-
-async function getOrCreateAsaasCustomer(email: string, name: string) {
-  // First, try to find existing customer
-  const searchResponse = await fetch(
-    `${ASAAS_API_URL}/customers?email=${encodeURIComponent(email)}`,
-    {
-      headers: {
-        access_token: ASAAS_API_KEY,
-      },
-    }
-  )
-
-  if (searchResponse.ok) {
-    const data = await searchResponse.json()
-    if (data.data && data.data.length > 0) {
-      return data.data[0].id
-    }
-  }
-
-  // Create new customer
-  const createResponse = await fetch(`${ASAAS_API_URL}/customers`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      access_token: ASAAS_API_KEY,
-    },
-    body: JSON.stringify({
-      name,
-      email,
-    }),
-  })
-
-  if (!createResponse.ok) {
-    const error = await createResponse.text()
-    throw new Error(`Failed to create Asaas customer: ${error}`)
-  }
-
-  const customer = await createResponse.json()
-  return customer.id
 }
 
 export async function POST(request: NextRequest) {
@@ -125,6 +42,7 @@ export async function POST(request: NextRequest) {
     } = body
 
     const config = await getSystemConfig()
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
     // Modo desenvolvimento: desbloquear sem pagamento
     if (process.env.NODE_ENV === 'development') {
@@ -180,21 +98,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const customerId = await getOrCreateAsaasCustomer(
+    // Obter ou criar cliente Stripe
+    const customerId = await getOrCreateStripeCustomer(
       dbUser.email,
-      dbUser.name || dbUser.email
+      dbUser.name || dbUser.email,
+      dbUser.id
     )
 
     if (type === 'ONE_TIME') {
       // Pagamento avulso - pacote de créditos
-      let amount: number
+      let amountCents: number
       let description: string
       let packageType: CreditPackage
       let credits: number
 
       if (analysisId) {
         // Desbloquear análise específica (compatibilidade com código antigo)
-        amount = config.creditPriceSingle / 100
+        amountCents = config.creditPriceSingle
         description = `Desbloquear análise ${analysisId}`
         packageType = 'SINGLE'
         credits = 1
@@ -204,13 +124,13 @@ export async function POST(request: NextRequest) {
         credits = CREDITS_BY_PACKAGE[packageType]
         
         if (packageType === 'SINGLE') {
-          amount = config.creditPriceSingle / 100
+          amountCents = config.creditPriceSingle
           description = '1 crédito - Desbloquear análise'
         } else if (packageType === 'PACK_3') {
-          amount = config.creditPricePack3 / 100
+          amountCents = config.creditPricePack3
           description = 'Pacote 3 créditos - Desbloquear análises'
         } else {
-          amount = config.creditPricePack5 / 100
+          amountCents = config.creditPricePack5
           description = 'Pacote 5 créditos - Desbloquear análises'
         }
       } else {
@@ -220,21 +140,43 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const payment = await createAsaasPayment(
-        customerId,
-        amount,
-        description,
-        'ONE_TIME'
-      )
+      // Criar Stripe Checkout Session para pagamento único
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'brl',
+              product_data: {
+                name: description,
+                description: `${credits} crédito${credits > 1 ? 's' : ''} para desbloquear análises`,
+              },
+              unit_amount: amountCents,
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'payment',
+        success_url: `${appUrl}/dashboard?payment=success`,
+        cancel_url: `${appUrl}/account?payment=cancelled`,
+        metadata: {
+          userId: dbUser.id,
+          type: 'ONE_TIME',
+          creditPackage: packageType,
+          creditsGranted: credits.toString(),
+          analysisId: analysisId || '',
+        },
+      })
 
-      // Save payment record
+      // Salvar registro de pagamento
       await prisma.payment.create({
         data: {
           userId: dbUser.id,
-          provider: 'asaas',
-          externalId: payment.id,
+          provider: 'stripe',
+          externalId: session.id,
           status: 'PENDING',
-          amountCents: Math.round(amount * 100),
+          amountCents: amountCents,
           currency: 'BRL',
           type: 'ONE_TIME',
           creditPackage: packageType,
@@ -243,29 +185,33 @@ export async function POST(request: NextRequest) {
       })
 
       return NextResponse.json({
-        checkoutUrl: payment.invoiceUrl,
-        paymentId: payment.id,
+        checkoutUrl: session.url,
+        sessionId: session.id,
       })
     } else if (type === 'SUBSCRIPTION') {
       // Assinatura recorrente
       const period = (subscriptionPeriod || 'MONTHLY') as SubscriptionPeriod
       
-      let amount: number
+      let amountCents: number
       let description: string
-      let cycle: string
+      let interval: 'month' | 'year'
+      let intervalCount: number
 
       if (period === 'MONTHLY') {
-        amount = config.proPriceMonthly / 100
+        amountCents = config.proPriceMonthly
         description = 'Assinatura PRO Mensal'
-        cycle = SUBSCRIPTION_CYCLES.MONTHLY
+        interval = 'month'
+        intervalCount = 1
       } else if (period === 'QUARTERLY') {
-        amount = config.proPriceQuarterly / 100
+        amountCents = config.proPriceQuarterly
         description = 'Assinatura PRO Trimestral'
-        cycle = SUBSCRIPTION_CYCLES.QUARTERLY
+        interval = 'month'
+        intervalCount = 3
       } else if (period === 'YEARLY') {
-        amount = config.proPriceYearly / 100
+        amountCents = config.proPriceYearly
         description = 'Assinatura PRO Anual'
-        cycle = SUBSCRIPTION_CYCLES.YEARLY
+        interval = 'year'
+        intervalCount = 1
       } else {
         return NextResponse.json(
           { error: 'Período inválido. Use MONTHLY, QUARTERLY ou YEARLY' },
@@ -273,21 +219,45 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const payment = await createAsaasPayment(
-        customerId,
-        amount,
-        description,
-        'SUBSCRIPTION',
-        cycle
-      )
+      // Criar Stripe Checkout Session para assinatura
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'brl',
+              product_data: {
+                name: description,
+                description: 'Acesso ilimitado a todas as análises',
+              },
+              unit_amount: amountCents,
+              recurring: {
+                interval,
+                interval_count: intervalCount,
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'subscription',
+        success_url: `${appUrl}/dashboard?payment=success`,
+        cancel_url: `${appUrl}/account?payment=cancelled`,
+        metadata: {
+          userId: dbUser.id,
+          type: 'SUBSCRIPTION',
+          subscriptionPeriod: period,
+        },
+      })
 
+      // Salvar registro de pagamento
       await prisma.payment.create({
         data: {
           userId: dbUser.id,
-          provider: 'asaas',
-          externalId: payment.id,
+          provider: 'stripe',
+          externalId: session.id,
           status: 'PENDING',
-          amountCents: Math.round(amount * 100),
+          amountCents: amountCents,
           currency: 'BRL',
           type: 'SUBSCRIPTION',
           subscriptionPeriod: period,
@@ -295,8 +265,8 @@ export async function POST(request: NextRequest) {
       })
 
       return NextResponse.json({
-        checkoutUrl: payment.invoiceUrl,
-        paymentId: payment.id,
+        checkoutUrl: session.url,
+        sessionId: session.id,
       })
     } else {
       return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 })

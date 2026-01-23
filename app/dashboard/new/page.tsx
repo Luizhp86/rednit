@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/logo'
@@ -581,13 +582,38 @@ export default function NewAnalysisPage() {
         )
 
       case 'avatar-select':
+        const avatarImage = formData.genero_match === 'ELE' 
+          ? '/images/homem.svg' 
+          : '/images/mulher.svg'
+        const avatarAlt = formData.genero_match === 'ELE' 
+          ? 'Avatar masculino' 
+          : 'Avatar feminino'
+        
         return (
-          <Input
-            value={(formData.nome_match as string) || ''}
-            onChange={(e) => updateField('nome_match', e.target.value.toUpperCase())}
-            placeholder={currentQuestion.placeholder}
-            className="h-20 text-base rounded-2xl text-center text-3xl font-semibold uppercase tracking-widest"
-          />
+          <div className="flex flex-col items-center space-y-6">
+            <Input
+              value={(formData.nome_match as string) || ''}
+              onChange={(e) => updateField('nome_match', e.target.value.toUpperCase())}
+              placeholder={currentQuestion.placeholder}
+              className="h-20 text-base rounded-2xl text-center text-3xl font-semibold uppercase tracking-widest"
+            />
+            {formData.genero_match && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+                className="flex flex-col items-center"
+              >
+                <Image
+                  src={avatarImage}
+                  alt={avatarAlt}
+                  width={150}
+                  height={150}
+                  className="drop-shadow-lg"
+                />
+              </motion.div>
+            )}
+          </div>
         )
 
       default:

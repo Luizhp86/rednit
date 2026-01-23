@@ -29,6 +29,7 @@ model User {
   creditsPaid       Int       @default(0)
   proUntil          DateTime?
   lastDailyReset    DateTime?
+  stripeCustomerId  String?   @unique
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

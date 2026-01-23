@@ -24,7 +24,10 @@ import {
   TrendingUp,
   Zap,
   FileText,
-  Activity
+  Activity,
+  Key,
+  Check,
+  X
 } from 'lucide-react'
 
 type SystemConfig = {
@@ -67,7 +70,7 @@ export default function AdminPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'config' | 'users' | 'logs'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'config' | 'users' | 'logs' | 'apikeys'>('dashboard')
   
   // Dashboard data
   const [stats, setStats] = useState<Stats | null>(null)
@@ -117,6 +120,11 @@ export default function AdminPage() {
   const [activityPageFilter, setActivityPageFilter] = useState('')
   const [activityStartDate, setActivityStartDate] = useState('')
   const [activityEndDate, setActivityEndDate] = useState('')
+  
+  // API Keys
+  const [apiKeys, setApiKeys] = useState<any>(null)
+  const [apiKeysSummary, setApiKeysSummary] = useState<any>(null)
+  const [loadingApiKeys, setLoadingApiKeys] = useState(false)
   
   // Error state
   const [error, setError] = useState<string | null>(null)
@@ -264,6 +272,22 @@ export default function AdminPage() {
     }
   }
   
+  const loadApiKeys = async () => {
+    setLoadingApiKeys(true)
+    try {
+      const res = await fetch('/api/admin/api-keys')
+      if (res.ok) {
+        const data = await res.json()
+        setApiKeys(data.apiKeys)
+        setApiKeysSummary(data.summary)
+      }
+    } catch (error) {
+      console.error('Error loading API keys:', error)
+    } finally {
+      setLoadingApiKeys(false)
+    }
+  }
+
   const clearActivityFilters = () => {
     setActivityEventFilter('')
     setActivityUserFilter('')
@@ -471,6 +495,17 @@ export default function AdminPage() {
           >
             <FileText className="w-5 h-5" />
             Logs
+          </button>
+          <button
+            onClick={() => { setActiveTab('apikeys'); loadApiKeys(); }}
+            className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
+              activeTab === 'apikeys' 
+                ? 'bg-purple-600 text-white' 
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            }`}
+          >
+            <Key className="w-5 h-5" />
+            API Keys
           </button>
           
           {/* Botão Refresh */}
@@ -1543,6 +1578,165 @@ export default function AdminPage() {
                 </Card>
               </>
             )}
+          </div>
+        )}
+
+        {/* API Keys Tab */}
+        {activeTab === 'apikeys' && (
+          <div className="space-y-6">
+            {/* Resumo */}
+            {apiKeysSummary && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="bg-gray-800 border-gray-700 p-6">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-lg ${
+                      apiKeysSummary.required.configured === apiKeysSummary.required.total 
+                        ? 'bg-green-600/20' 
+                        : 'bg-yellow-600/20'
+                    }`}>
+                      <Key className={`w-6 h-6 ${
+                        apiKeysSummary.required.configured === apiKeysSummary.required.total 
+                          ? 'text-green-500' 
+                          : 'text-yellow-500'
+                      }`} />
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm">Serviços Obrigatórios</p>
+                      <p className="text-2xl font-bold text-white">
+                        {apiKeysSummary.required.configured} / {apiKeysSummary.required.total}
+                      </p>
+                      <p className="text-xs text-gray-500">configurados</p>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="bg-gray-800 border-gray-700 p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-blue-600/20 rounded-lg">
+                      <Zap className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm">Serviços Opcionais</p>
+                      <p className="text-2xl font-bold text-white">
+                        {apiKeysSummary.optional.configured} / {apiKeysSummary.optional.total}
+                      </p>
+                      <p className="text-xs text-gray-500">configurados</p>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {loadingApiKeys ? (
+              <div className="flex justify-center py-8">
+                <RefreshCw className="w-8 h-8 animate-spin text-purple-500" />
+              </div>
+            ) : apiKeys ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {Object.entries(apiKeys).map(([key, service]: [string, any]) => {
+                  const allConfigured = Object.values(service.keys).every((k: any) => k.configured)
+                  const someConfigured = Object.values(service.keys).some((k: any) => k.configured)
+                  
+                  return (
+                    <Card 
+                      key={key} 
+                      className={`border p-6 ${
+                        allConfigured 
+                          ? 'bg-gray-800 border-green-700/50' 
+                          : someConfigured 
+                            ? 'bg-gray-800 border-yellow-700/50'
+                            : service.optional 
+                              ? 'bg-gray-800 border-gray-700' 
+                              : 'bg-gray-800 border-red-700/50'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                            {service.name}
+                            {service.optional && (
+                              <span className="text-xs bg-gray-600 text-gray-300 px-2 py-0.5 rounded">
+                                Opcional
+                              </span>
+                            )}
+                          </h3>
+                          <p className="text-sm text-gray-400">{service.description}</p>
+                        </div>
+                        <div className={`p-2 rounded-full ${
+                          allConfigured 
+                            ? 'bg-green-600/20' 
+                            : someConfigured 
+                              ? 'bg-yellow-600/20'
+                              : 'bg-red-600/20'
+                        }`}>
+                          {allConfigured ? (
+                            <Check className="w-5 h-5 text-green-500" />
+                          ) : someConfigured ? (
+                            <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                          ) : (
+                            <X className="w-5 h-5 text-red-500" />
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        {Object.entries(service.keys).map(([keyName, keyData]: [string, any]) => (
+                          <div 
+                            key={keyName} 
+                            className="flex items-center justify-between py-2 border-b border-gray-700 last:border-0"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-gray-300">{keyData.label}</span>
+                                {keyData.configured ? (
+                                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                ) : (
+                                  <X className="w-4 h-4 text-red-500" />
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500 font-mono">{keyData.envVar}</p>
+                            </div>
+                            <div className="text-right">
+                              {keyData.configured ? (
+                                <code className="text-xs bg-gray-700 px-2 py-1 rounded text-gray-300 font-mono">
+                                  {keyData.masked}
+                                </code>
+                              ) : (
+                                <span className="text-xs text-red-400">Não configurado</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )
+                })}
+              </div>
+            ) : (
+              <Card className="bg-gray-800 border-gray-700 p-12 text-center">
+                <Key className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400">Clique em "API Keys" para carregar as informações</p>
+              </Card>
+            )}
+
+            {/* Instruções */}
+            <Card className="bg-gray-800 border-gray-700 p-6">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                Informações de Segurança
+              </h3>
+              <div className="space-y-2 text-sm text-gray-400">
+                <p>
+                  As chaves de API são armazenadas no arquivo <code className="bg-gray-700 px-1 rounded">.env</code> no servidor.
+                </p>
+                <p>
+                  Por segurança, apenas os primeiros e últimos caracteres são exibidos aqui.
+                </p>
+                <p>
+                  Para alterar uma chave, edite o arquivo <code className="bg-gray-700 px-1 rounded">.env</code> diretamente e reinicie o servidor.
+                </p>
+              </div>
+            </Card>
           </div>
         )}
 

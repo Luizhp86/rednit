@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { prisma } from '../prisma'
 import type { AnalysisInput, AnalysisResult } from '../rules/engine'
 
 const apiKey = process.env.GEMINI_API_KEY
@@ -7,10 +8,48 @@ if (!apiKey) {
 }
 const genAI = new GoogleGenerativeAI(apiKey || '')
 
+// Função para registrar uso do Gemini no banco de dados
+async function logGeminiUsage(params: {
+  userId?: string
+  endpoint: string
+  tokensInput?: number
+  tokensOutput?: number
+  success: boolean
+  errorMessage?: string
+}) {
+  try {
+    // Estimar custo: Gemini 1.5 Flash = $0.075/1M input tokens, $0.30/1M output tokens
+    // Convertendo para centavos de dólar
+    const inputCost = ((params.tokensInput || 0) / 1000000) * 7.5 // centavos
+    const outputCost = ((params.tokensOutput || 0) / 1000000) * 30 // centavos
+    const estimatedCost = Math.round(inputCost + outputCost)
+
+    await prisma.geminiUsageLog.create({
+      data: {
+        userId: params.userId || null,
+        endpoint: params.endpoint,
+        tokensInput: params.tokensInput || 0,
+        tokensOutput: params.tokensOutput || 0,
+        estimatedCost,
+        success: params.success,
+        errorMessage: params.errorMessage || null,
+      }
+    })
+    console.log(`[GEMINI] Log registrado: ${params.endpoint}, tokens: ${params.tokensInput}/${params.tokensOutput}, sucesso: ${params.success}`)
+  } catch (error: any) {
+    console.error('[GEMINI] Erro ao registrar log de uso:', error.message)
+    // Não falhar a operação principal por causa do log
+  }
+}
+
 export async function analyzeWithGemini(
   input: AnalysisInput,
-  ruleBasedResult: AnalysisResult
+  ruleBasedResult: AnalysisResult,
+  userId?: string
 ): Promise<AnalysisResult> {
+  const promptTokenEstimate = 0
+  let outputTokenEstimate = 0
+  
   try {
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-1.5-flash',
@@ -23,15 +62,25 @@ export async function analyzeWithGemini(
     const prompt = buildAnalysisPrompt(input, ruleBasedResult)
     
     // Log para debug de tamanho do prompt
-    const promptTokenEstimate = Math.ceil(prompt.length / 4)
-    console.log(`[GEMINI] Prompt de análise: ~${promptTokenEstimate} tokens estimados (${prompt.length} chars)`)
+    const inputTokens = Math.ceil(prompt.length / 4)
+    console.log(`[GEMINI] Prompt de análise: ~${inputTokens} tokens estimados (${prompt.length} chars)`)
     console.log('[GEMINI] Gerando análise completa (FREE + PREMIUM) com IA...')
     
     const result = await model.generateContent(prompt)
     const response = await result.response
     const text = response.text()
+    
+    outputTokenEstimate = Math.ceil(text.length / 4)
+    console.log(`[GEMINI] Resposta recebida: ${text.length} chars (~${outputTokenEstimate} tokens)`)
 
-    console.log(`[GEMINI] Resposta recebida: ${text.length} chars`)
+    // Registrar uso com sucesso
+    await logGeminiUsage({
+      userId,
+      endpoint: 'analyze',
+      tokensInput: inputTokens,
+      tokensOutput: outputTokenEstimate,
+      success: true,
+    })
 
     // Parse JSON response from Gemini
     const aiAnalysis = parseGeminiResponse(text, ruleBasedResult)
@@ -41,6 +90,16 @@ export async function analyzeWithGemini(
   } catch (error: any) {
     console.error('[GEMINI] Erro ao analisar com Gemini:', error.message)
     console.error('[GEMINI] Stack:', error.stack)
+    
+    // Registrar erro
+    await logGeminiUsage({
+      userId,
+      endpoint: 'analyze',
+      tokensInput: promptTokenEstimate,
+      tokensOutput: 0,
+      success: false,
+      errorMessage: error.message,
+    })
     
     // Log mais detalhado para erros de quota/limite
     if (error.message?.includes('quota') || error.message?.includes('limit') || error.message?.includes('token')) {
@@ -180,7 +239,7 @@ function parseGeminiResponse(text: string, fallback: AnalysisResult): Partial<An
       hypotheses_enhancements: parsed.hypotheses_enhancements || [],
       flags_enhancements: parsed.flags_enhancements || [],
       premium_enhancements: parsed.premium_enhancements || {}
-    }
+    } as any
   } catch (error: any) {
     console.error('[GEMINI] Erro ao fazer parse da resposta:', error.message)
     console.error('[GEMINI] Texto recebido:', text.substring(0, 500))
@@ -509,8 +568,12 @@ export function prepareAnalysisDataForAI(
 }
 
 export async function analyzeRouteCorrection(
-  input: RouteCorrectionInput
+  input: RouteCorrectionInput,
+  userId?: string
 ): Promise<RouteCorrectionResult> {
+  let inputTokens = 0
+  let outputTokens = 0
+  
   try {
     // Usar modelo compatível com API gratuita
     // gemini-2.0-flash é o modelo disponível na API gratuita v1beta
@@ -525,8 +588,8 @@ export async function analyzeRouteCorrection(
     const prompt = buildRouteCorrectionPrompt(input)
     
     // Log para debug de tamanho do prompt
-    const promptTokenEstimate = Math.ceil(prompt.length / 4) // ~4 chars per token (estimativa)
-    console.log(`[GEMINI] Prompt de análise de comportamento: ~${promptTokenEstimate} tokens estimados (${prompt.length} chars)`)
+    inputTokens = Math.ceil(prompt.length / 4) // ~4 chars per token (estimativa)
+    console.log(`[GEMINI] Prompt de análise de comportamento: ~${inputTokens} tokens estimados (${prompt.length} chars)`)
     console.log(`[GEMINI] Analisando ${input.aggregatedData?.totalAnalyses || input.analyses.length} análises para análise de comportamento...`)
     if (input.aggregatedData) {
       console.log(`[GEMINI] Modo agregado: ${input.analyses.length} detalhadas + dados resumidos de ${input.aggregatedData.totalAnalyses} total`)
@@ -536,7 +599,17 @@ export async function analyzeRouteCorrection(
     const response = await result.response
     const text = response.text()
     
-    console.log(`[GEMINI] Resposta recebida: ${text.length} chars`)
+    outputTokens = Math.ceil(text.length / 4)
+    console.log(`[GEMINI] Resposta recebida: ${text.length} chars (~${outputTokens} tokens)`)
+    
+    // Registrar uso com sucesso
+    await logGeminiUsage({
+      userId,
+      endpoint: 'route-correction',
+      tokensInput: inputTokens,
+      tokensOutput: outputTokens,
+      success: true,
+    })
     
     return parseRouteCorrectionResponse(text, input)
   } catch (error: any) {
@@ -545,6 +618,16 @@ export async function analyzeRouteCorrection(
     console.error('[GEMINI] Nome:', error.name)
     console.error('[GEMINI] Status:', error.status)
     console.error('[GEMINI] StatusText:', error.statusText)
+    
+    // Registrar erro
+    await logGeminiUsage({
+      userId,
+      endpoint: 'route-correction',
+      tokensInput: inputTokens,
+      tokensOutput: 0,
+      success: false,
+      errorMessage: error.message,
+    })
     
     // Log detalhado do errorDetails (array)
     if (error.errorDetails) {

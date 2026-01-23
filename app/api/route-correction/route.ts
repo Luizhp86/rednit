@@ -132,8 +132,8 @@ export async function GET(request: NextRequest) {
       console.log(`[ROUTE-CORRECTION] Modo agregado ativado para economizar tokens`)
     }
 
-    // Analyze with Gemini
-    const correction = await analyzeRouteCorrection(routeCorrectionInput)
+    // Analyze with Gemini (passando userId para log de uso)
+    const correction = await analyzeRouteCorrection(routeCorrectionInput, dbUser.id)
 
     // IMPORTANTE: Marcar TODAS as análises como usadas para controlar custo
     // O usuário precisará fazer 2 novas análises para desbloquear novamente
