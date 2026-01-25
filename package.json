@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:push": "prisma db push",
+    "verify:prod": "node scripts/verify-production.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
