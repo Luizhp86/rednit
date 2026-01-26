@@ -39,6 +39,9 @@ type SystemConfig = {
   proPriceMonthly: number
   proPriceQuarterly: number
   proPriceYearly: number
+  creditPriceSingle: number
+  creditPricePack3: number
+  creditPricePack5: number
   maintenanceMode: boolean
   allowNewRegistrations: boolean
 }

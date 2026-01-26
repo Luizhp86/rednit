@@ -153,6 +153,10 @@ export async function POST(request: NextRequest) {
     const result = analyze(validatedInput as AnalysisInput)
 
     // Save analysis
+    // #region agent log
+    console.log('[ANALYZE] PRE_CREATE userId:', dbUser.id, 'stage:', validatedInput.estagio)
+    // #endregion
+    
     const analysis = await prisma.analysis.create({
       data: {
         userId: dbUser.id,
@@ -162,6 +166,10 @@ export async function POST(request: NextRequest) {
         isPaid: false,
       },
     })
+
+    // #region agent log
+    console.log('[ANALYZE] POST_CREATE analysisId:', analysis.id, 'hasId:', !!analysis.id, 'type:', typeof analysis.id)
+    // #endregion
 
     // Deduct credit for free users
     if (dbUser.plan === 'FREE') {
@@ -175,12 +183,22 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // #region agent log
+    console.log('[ANALYZE] RESPONSE_PREPARE id:', analysis.id)
+    // #endregion
+
     // Return free teaser + analysis ID
-    return NextResponse.json({
+    const responseData = {
       id: analysis.id,
       free_teaser: result.free_teaser,
       premium_available: true, // Premium report exists but locked behind paywall
-    })
+    }
+    
+    // #region agent log
+    console.log('[ANALYZE] RESPONSE_SEND', JSON.stringify(responseData))
+    // #endregion
+    
+    return NextResponse.json(responseData)
   } catch (error: any) {
     console.error('Error in /api/analyze:', error)
     if (error.name === 'ZodError') {

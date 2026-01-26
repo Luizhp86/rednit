@@ -63,9 +63,17 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadData() {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:66',message:'LOAD_START',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6,H9'})}).catch(()=>{});
+      // #endregion
+
       const {
         data: { user },
       } = await supabase.auth.getUser()
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:75',message:'AUTH_CHECK',data:{hasUser:!!user,userId:user?.id,email:user?.email},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H6,H8'})}).catch(()=>{});
+      // #endregion
 
       if (!user) {
         router.push('/login')
@@ -75,10 +83,25 @@ export default function DashboardPage() {
       setUser(user)
 
       // Load analyses
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:89',message:'ANALYSES_FETCH_START',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H7,H9'})}).catch(()=>{});
+      // #endregion
+      
       const res = await fetch('/api/analyses')
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:96',message:'ANALYSES_FETCH_RESPONSE',data:{ok:res.ok,status:res.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H7'})}).catch(()=>{});
+      // #endregion
+      
       if (res.ok) {
         const data = await res.json()
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:104',message:'ANALYSES_DATA_RECEIVED',data:{isArray:Array.isArray(data),length:data?.length,hasData:!!data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H8'})}).catch(()=>{});
+        // #endregion
         setAnalyses(data)
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'dashboard/page.tsx:109',message:'ANALYSES_STATE_SET',data:{count:data?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H8'})}).catch(()=>{});
+        // #endregion
       }
 
       // Load plan info and route correction status

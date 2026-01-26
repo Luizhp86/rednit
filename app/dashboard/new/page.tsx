@@ -404,12 +404,19 @@ export default function NewAnalysisPage() {
   const handleSubmit = async () => {
     setLoading(true)
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'new/page.tsx:405',message:'SUBMIT_START',data:{formDataKeys:Object.keys(formData)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2'})}).catch(()=>{});
+    // #endregion
+
     try {
       // Validar campos obrigatórios antes de enviar
       const requiredFields = ['genero_match', 'objetivo_usuario', 'ritmo_usuario', 'estagio', 'iniciativa', 'frequencia_contato']
       const missingFields = requiredFields.filter(field => !formData[field as keyof FormData] || formData[field as keyof FormData] === '')
       
       if (missingFields.length > 0) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'new/page.tsx:415',message:'VALIDATION_FAILED',data:{missingFields},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
+        // #endregion
         alert(`Por favor, preencha todos os campos obrigatórios. Campos faltando: ${missingFields.join(', ')}`)
         setLoading(false)
         return
@@ -468,14 +475,25 @@ export default function NewAnalysisPage() {
         objective: dataToSend.objetivo_usuario,
       })
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'new/page.tsx:471',message:'API_CALL_START',data:{dataToSend},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H3'})}).catch(()=>{});
+      // #endregion
+
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSend),
       })
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'new/page.tsx:481',message:'API_RESPONSE_RECEIVED',data:{ok:response.ok,status:response.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion
+
       if (!response.ok) {
         const error = await response.json()
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'new/page.tsx:488',message:'API_ERROR',data:{error},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3,H5'})}).catch(()=>{});
+        // #endregion
         console.error('Erro do servidor:', error)
         trackEvent('ANALYSIS_FAILED', { error: error.error })
         alert(error.error || 'Erro ao processar análise')
@@ -483,7 +501,14 @@ export default function NewAnalysisPage() {
       }
 
       const data = await response.json()
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'new/page.tsx:499',message:'API_SUCCESS',data:{hasId:!!data.id,id:data.id,dataKeys:Object.keys(data)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       trackEvent('ANALYSIS_CREATED', { analysisId: data.id })
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'new/page.tsx:506',message:'ROUTER_PUSH_START',data:{path:`/dashboard/analysis/${data.id}`},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
       router.push(`/dashboard/analysis/${data.id}`)
     } catch (error) {
       console.error('Error:', error)

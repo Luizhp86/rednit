@@ -4,10 +4,18 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
+    // #region agent log
+    console.log('[ANALYSES] GET_START')
+    // #endregion
+    
     const supabase = await createClient()
     const {
       data: { user },
     } = await supabase.auth.getUser()
+
+    // #region agent log
+    console.log('[ANALYSES] AUTH_CHECK hasUser:', !!user, 'email:', user?.email)
+    // #endregion
 
     if (!user) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
@@ -17,9 +25,17 @@ export async function GET() {
       where: { email: user.email! },
     })
 
+    // #region agent log
+    console.log('[ANALYSES] DB_USER hasDbUser:', !!dbUser, 'dbUserId:', dbUser?.id)
+    // #endregion
+
     if (!dbUser) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
     }
+
+    // #region agent log
+    console.log('[ANALYSES] QUERY_START userId:', dbUser.id)
+    // #endregion
 
     const analyses = await prisma.analysis.findMany({
       where: { userId: dbUser.id },
@@ -33,6 +49,10 @@ export async function GET() {
         inputJson: true,
       },
     })
+
+    // #region agent log
+    console.log('[ANALYSES] QUERY_RESULT count:', analyses.length, 'hasResults:', analyses.length > 0)
+    // #endregion
 
     const response = analyses.map((analysis) => {
       const resultJson = analysis.resultJson as any
@@ -89,8 +109,15 @@ export async function GET() {
       }
     })
 
+    // #region agent log
+    console.log('[ANALYSES] RESPONSE_PREPARE responseCount:', response.length)
+    // #endregion
+
     return NextResponse.json(response)
   } catch (error) {
+    // #region agent log
+    console.error('[ANALYSES] ERROR', error)
+    // #endregion
     console.error('Error in /api/analyses:', error)
     return NextResponse.json({ error: 'Erro ao buscar análises' }, { status: 500 })
   }
