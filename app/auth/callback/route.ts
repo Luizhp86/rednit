@@ -60,6 +60,7 @@ export async function GET(request: Request) {
             data: {
               userId: dbUser.id,
               sessionId: `session-${Date.now()}`, // Será atualizado pelo cookie no próximo request
+              journeyType: 'LEAD',
               eventType: 'LOGIN',
               eventData: { provider: 'google' },
               page: '/auth/callback',
