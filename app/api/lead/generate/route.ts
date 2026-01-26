@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Se for CTA e terapeuta é PRO, incluir WhatsApp
-      if (existingLead?.therapist && validatedData.type === 'CTA' && canReceiveWhatsappDirect(existingLead.therapist.plan)) {
+      if (existingLead?.therapist && validatedData.type === 'CTA' && canReceiveWhatsappDirect(existingLead.therapist.plan) && existingLead.therapist.whatsapp) {
         response.whatsapp = existingLead.therapist.whatsapp
         response.whatsappUrl = `https://wa.me/55${existingLead.therapist.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Vim do Radar Match e gostaria de conversar sobre minha análise.')}`
       }
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
         }
         
         // Se for CTA e terapeuta é PRO, incluir WhatsApp para redirect
-        if (validatedData.type === 'CTA' && canReceiveWhatsappDirect(therapist.plan)) {
+        if (validatedData.type === 'CTA' && canReceiveWhatsappDirect(therapist.plan) && therapist.whatsapp) {
           response.whatsapp = therapist.whatsapp
           response.whatsappUrl = `https://wa.me/55${therapist.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Vim do Radar Match e gostaria de conversar sobre minha análise.')}`
         }
