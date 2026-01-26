@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { sendTherapistWelcomeEmail } from '@/lib/email'
+import { SignJWT } from 'jose'
+import { cookies } from 'next/headers'
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'therapist-secret-key-change-in-production'
+)
 
 const completeProfileSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -61,6 +67,26 @@ export async function POST(request: NextRequest) {
     await sendTherapistWelcomeEmail({
       email: therapist.email,
       name: therapist.name,
+    })
+    
+    // Criar token JWT para o terapeuta
+    const token = await new SignJWT({ 
+      therapistId: therapist.id,
+      email: therapist.email,
+      type: 'therapist'
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('7d')
+      .sign(JWT_SECRET)
+    
+    // Setar cookie
+    const cookieStore = await cookies()
+    cookieStore.set('therapist-token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 dias
+      path: '/',
     })
     
     return NextResponse.json({

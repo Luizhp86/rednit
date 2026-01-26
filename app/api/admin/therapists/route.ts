@@ -64,13 +64,25 @@ export async function GET(request: NextRequest) {
           type: true,
           plan: true,
           whatsapp: true,
+          bio: true,
+          instagram: true,
+          website: true,
+          crp: true,
           status: true,
           active: true,
+          profileCompleted: true,
           subscriptionStatus: true,
+          subscriptionId: true,
+          stripeCustomerId: true,
           leadsReceived: true,
           leadsThisMonth: true,
+          leadsSignup: true,
+          leadsAnalysis: true,
+          leadsCta: true,
+          lastLeadAt: true,
           createdAt: true,
           approvedAt: true,
+          updatedAt: true,
         }
       }),
       prisma.therapist.count({ where })
@@ -169,6 +181,27 @@ export async function PATCH(request: NextRequest) {
         if (updateData.plan) data.plan = updateData.plan
         if (updateData.status) data.status = updateData.status
         break
+      case 'edit':
+        // Edição completa dos campos do terapeuta
+        if (updateData.name !== undefined) data.name = updateData.name
+        if (updateData.email !== undefined) data.email = updateData.email
+        if (updateData.whatsapp !== undefined) data.whatsapp = updateData.whatsapp
+        if (updateData.type !== undefined) data.type = updateData.type
+        if (updateData.bio !== undefined) data.bio = updateData.bio
+        if (updateData.instagram !== undefined) data.instagram = updateData.instagram
+        if (updateData.website !== undefined) data.website = updateData.website
+        if (updateData.crp !== undefined) data.crp = updateData.crp
+        if (updateData.plan !== undefined) data.plan = updateData.plan
+        if (updateData.status !== undefined) data.status = updateData.status
+        if (updateData.active !== undefined) data.active = updateData.active
+        if (updateData.subscriptionStatus !== undefined) data.subscriptionStatus = updateData.subscriptionStatus
+        break
+      case 'change_plan':
+        // Alterar apenas o plano
+        if (updateData.plan && ['BASIC', 'INTERMEDIATE', 'PRO'].includes(updateData.plan)) {
+          data.plan = updateData.plan
+        }
+        break
     }
     
     const updated = await prisma.therapist.update({
@@ -199,7 +232,7 @@ export async function PATCH(request: NextRequest) {
         action: `THERAPIST_${action?.toUpperCase() || 'UPDATE'}`,
         entity: 'Therapist',
         entityId: therapistId,
-        oldValue: { status: therapist.status, active: therapist.active, plan: therapist.plan },
+        oldValue: { status: therapist.status, active: therapist.active, plan: therapist.plan, name: therapist.name, email: therapist.email },
         newValue: data,
       }
     })
@@ -208,6 +241,81 @@ export async function PATCH(request: NextRequest) {
     
   } catch (error) {
     console.error('Erro ao atualizar terapeuta:', error)
+    return NextResponse.json(
+      { error: 'Erro interno do servidor' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    if (!await isAdmin()) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 403 })
+    }
+    
+    const { searchParams } = new URL(request.url)
+    const therapistId = searchParams.get('therapistId')
+    
+    if (!therapistId) {
+      return NextResponse.json({ error: 'therapistId é obrigatório' }, { status: 400 })
+    }
+    
+    // Buscar terapeuta
+    const therapist = await prisma.therapist.findUnique({
+      where: { id: therapistId },
+      include: {
+        leads: true
+      }
+    })
+    
+    if (!therapist) {
+      return NextResponse.json({ error: 'Terapeuta não encontrado' }, { status: 404 })
+    }
+    
+    // Desassociar leads antes de excluir (manter os leads no sistema)
+    if (therapist.leads.length > 0) {
+      await prisma.lead.updateMany({
+        where: { therapistId: therapistId },
+        data: { therapistId: null }
+      })
+    }
+    
+    // Deletar o terapeuta
+    await prisma.therapist.delete({
+      where: { id: therapistId }
+    })
+    
+    // Log da ação
+    const cookieStore = await cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { getAll: () => cookieStore.getAll() } }
+    )
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    await prisma.adminLog.create({
+      data: {
+        adminEmail: user?.email || 'unknown',
+        action: 'THERAPIST_DELETE',
+        entity: 'Therapist',
+        entityId: therapistId,
+        oldValue: { 
+          name: therapist.name, 
+          email: therapist.email, 
+          plan: therapist.plan,
+          status: therapist.status,
+          leadsCount: therapist.leads.length
+        },
+        newValue: null,
+      }
+    })
+    
+    return NextResponse.json({ success: true, message: 'Terapeuta excluído com sucesso' })
+    
+  } catch (error) {
+    console.error('Erro ao deletar terapeuta:', error)
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }

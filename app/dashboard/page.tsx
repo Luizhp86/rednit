@@ -7,7 +7,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/logo'
 import { PhoneInputModal } from '@/components/phone-input-modal'
-import { BarChart3, TrendingUp, Brain, Shield, ArrowRight, Sparkles, Compass, Lock, Zap, X, Info, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { BarChart3, TrendingUp, Brain, Shield, ArrowRight, Sparkles, Compass, X, AlertTriangle, CheckCircle2, MessageCircle, Heart, Phone } from 'lucide-react'
 
 type Analysis = {
   id: string
@@ -45,11 +45,16 @@ export default function DashboardPage() {
   const [plan, setPlan] = useState<'FREE' | 'PRO' | null>(null)
   const [routeCorrection, setRouteCorrection] = useState<RouteCorrection | null>(null)
   const [showMinAnalysesModal, setShowMinAnalysesModal] = useState(false)
-  const [showRoutePaywallModal, setShowRoutePaywallModal] = useState(false)
   const [showRouteCorrectionTooltip, setShowRouteCorrectionTooltip] = useState(false)
-  const [unlockingRoute, setUnlockingRoute] = useState(false)
   const [showPhoneModal, setShowPhoneModal] = useState(false)
   const [userName, setUserName] = useState<string | null>(null)
+  const [therapist, setTherapist] = useState<{
+    id: string
+    name: string
+    whatsapp: string | null
+    photoUrl: string | null
+  } | null>(null)
+  const [showTherapistDisclaimer, setShowTherapistDisclaimer] = useState(false)
 
   const stageLabels: Record<string, string> = {
     FIRST_CHAT: 'Primeira conversa',
@@ -128,6 +133,11 @@ export default function DashboardPage() {
         if (!meData.phone) {
           setShowPhoneModal(true)
         }
+        
+        // Setar terapeuta atribuído (se houver)
+        if (meData.therapist) {
+          setTherapist(meData.therapist)
+        }
       }
 
       setLoading(false)
@@ -148,47 +158,11 @@ export default function DashboardPage() {
       return
     }
 
-    if (plan === 'FREE') {
-      setShowRoutePaywallModal(true)
-      return
-    }
-
     // Hide tooltip when user clicks
     setShowRouteCorrectionTooltip(false)
     router.push('/dashboard/route-correction')
   }
 
-  const handleRouteCheckout = async () => {
-    setUnlockingRoute(true)
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'SUBSCRIPTION' }),
-      })
-
-      if (!res.ok) {
-        const error = await res.json()
-        alert(error.error || 'Erro ao criar checkout')
-        return
-      }
-
-      const data = await res.json()
-
-      if (data.upgraded || data.success) {
-        alert('Plano PRO ativado! (modo desenvolvimento)')
-        window.location.reload()
-        return
-      }
-
-      window.location.href = data.checkoutUrl
-    } catch (error) {
-      console.error('Error:', error)
-      alert('Erro ao criar checkout')
-    } finally {
-      setUnlockingRoute(false)
-    }
-  }
 
   if (loading) {
     return (
@@ -279,12 +253,6 @@ export default function DashboardPage() {
                       <p className="text-gray-200 leading-relaxed">
                         Descubra se você está <strong>evoluindo</strong> ou <strong>regredindo</strong> na atração de pessoas com mesmas intenções. Veja sua evolução ao longo do tempo!
                       </p>
-                      {plan === 'FREE' && (
-                        <p className="text-yellow-300 text-xs mt-2 flex items-center gap-1">
-                          <Lock className="w-3 h-3" />
-                          Recurso exclusivo do Plano PRO
-                        </p>
-                      )}
                       {/* Seta do tooltip */}
                       <div className="absolute -top-2 right-8 w-4 h-4 bg-gray-900 rotate-45"></div>
                     </div>
@@ -303,18 +271,8 @@ export default function DashboardPage() {
                   {routeCorrection?.available && (
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg blur-md opacity-50 -z-10"></div>
                   )}
-                  {plan === 'FREE' ? (
-                    <Lock className="w-5 h-5" />
-                  ) : (
-                    <Compass className="w-5 h-5" />
-                  )}
-                  Analisar meu comportamento
-                  {/* Badge PRO para usuários FREE */}
-                  {plan === 'FREE' && (
-                    <span className="ml-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-[10px] font-bold px-2 py-0.5 rounded-full text-gray-900">
-                      PRO
-                    </span>
-                  )}
+                  <Compass className="w-5 h-5" />
+                  Analisar meu comportamento com I.A.
                   {/* Contador de análises quando disponível */}
                   {routeCorrection?.available && (
                     <span className="ml-1 bg-white/20 text-xs px-2 py-0.5 rounded-full">
@@ -323,6 +281,20 @@ export default function DashboardPage() {
                   )}
                 </button>
               </div>
+            )}
+            {/* Botão de WhatsApp para falar com terapeuta */}
+            {therapist?.whatsapp && (
+              <button
+                onClick={() => setShowTherapistDisclaimer(true)}
+                className="group relative overflow-hidden bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-lg font-semibold transition-all flex items-center gap-2 shadow-lg hover:shadow-xl ring-2 ring-green-400 ring-offset-2 animate-pulse-subtle"
+              >
+                {/* Efeito de brilho shimmer */}
+                <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out animate-shimmer"></span>
+                {/* Glow effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg blur-md opacity-50 -z-10"></div>
+                <MessageCircle className="w-5 h-5 relative z-10" />
+                <span className="relative z-10">Falar com Terapeuta</span>
+              </button>
             )}
             <Link
               href="/dashboard/new"
@@ -402,84 +374,94 @@ export default function DashboardPage() {
                 <Link
                   key={analysis.id}
                   href={`/dashboard/analysis/${analysis.id}`}
-                  className="relative overflow-hidden bg-white p-6 pt-8 rounded-xl shadow hover:shadow-lg transition-all hover:scale-[1.01]"
+                  className="group relative overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]"
                 >
-                  <div className={`absolute top-0 left-0 right-0 h-2 bg-gradient-to-r ${gradientColor}`}></div>
+                  {/* Gradiente no topo */}
+                  <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r ${gradientColor}`}></div>
                   
-                  <div className="flex justify-between items-start gap-4">
-                    {/* Lado esquerdo - Info principal */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-bold text-gray-900 truncate">
+                  {/* Glow effect de fundo */}
+                  <div className={`absolute -top-20 left-1/2 -translate-x-1/2 w-40 h-40 rounded-full blur-3xl opacity-20 bg-gradient-to-r ${gradientColor}`}></div>
+                  
+                  <div className="relative p-6">
+                    {/* Status badge no topo direito */}
+                    <div className="absolute top-4 right-4">
+                      {analysis.isPaid || plan === 'PRO' ? (
+                        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-semibold shadow-sm">
+                          Completo
+                        </span>
+                      ) : (
+                        <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-semibold shadow-sm">
+                          Prévia
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* Nome do match centralizado e em destaque */}
+                    <div className="flex flex-col items-center text-center mb-4 pt-2">
+                      {/* Imagem do gênero */}
+                      {getGeneroImage(analysis.genero_match) && (
+                        <div className="relative mb-3">
+                          <div className={`absolute inset-0 bg-gradient-to-r ${gradientColor} rounded-full blur-md opacity-50`}></div>
+                          <div className="relative w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-lg bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center">
+                            <Image
+                              src={getGeneroImage(analysis.genero_match) as string}
+                              alt={analysis.genero_match === 'ELE' ? 'Imagem de homem' : 'Imagem de mulher'}
+                              width={80}
+                              height={80}
+                              className="w-full h-full object-contain p-2"
+                            />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Nome com efeitos */}
+                      <div className="flex items-center justify-center gap-2">
+                        {analysis.hasRedFlag && (
+                          <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
+                        )}
+                        <h3 className={`text-2xl font-bold bg-gradient-to-r ${gradientColor} bg-clip-text text-transparent`}>
                           {analysis.nome_match ? analysis.nome_match : 'Crush sem nome'}
                         </h3>
-                        {analysis.hasRedFlag && (
-                          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                        )}
                         {analysis.hasGreenFlag && (
-                          <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                          <CheckCircle2 className="w-5 h-5 text-green-500" />
                         )}
                       </div>
                       
                       {/* Headline resumido */}
                       {analysis.headline && (
-                        <p className="text-sm text-gray-700 mb-2 line-clamp-1">
+                        <p className="text-sm text-gray-600 mt-2 line-clamp-2 max-w-md">
                           {analysis.headline}
                         </p>
                       )}
-                      
-                      {/* Badges de risco e compatibilidade */}
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {analysis.riskScore && (
-                          <span className={`text-xs font-medium px-2 py-1 rounded-full ${getRiskColor(analysis.riskScore.value)}`}>
-                            {analysis.riskScore.label}: {analysis.riskScore.value}%
-                          </span>
-                        )}
-                        {analysis.compatScore !== null && analysis.compatScore !== undefined && (
-                          <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                            analysis.compatScore >= 65 ? 'text-green-600 bg-green-50' :
-                            analysis.compatScore >= 45 ? 'text-yellow-600 bg-yellow-50' :
-                            'text-red-600 bg-red-50'
-                          }`}>
-                            Compatibilidade: {analysis.compatScore}%
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="text-xs text-gray-500 flex items-center gap-3">
-                        <span>{new Date(analysis.createdAt).toLocaleDateString('pt-BR')}</span>
-                        <span>•</span>
-                        <span>{getStageLabel(analysis.stage)}</span>
-                      </div>
                     </div>
                     
-                    {/* Lado direito - Imagem e status */}
-                    <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                      {analysis.isPaid || plan === 'PRO' ? (
-                        <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-[10px] font-semibold">
-                          Completo
-                        </span>
-                      ) : (
-                        <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-[10px] font-semibold">
-                          Prévia
+                    {/* Badges de risco e compatibilidade */}
+                    <div className="flex flex-wrap justify-center gap-2 mb-3">
+                      {analysis.riskScore && (
+                        <span className={`text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm ${getRiskColor(analysis.riskScore.value)}`}>
+                          {analysis.riskScore.label}: {analysis.riskScore.value}%
                         </span>
                       )}
-                      {getGeneroImage(analysis.genero_match) && (
-                        <div className="w-16 h-16 rounded-lg overflow-hidden border-2 border-purple-100 bg-purple-50 shadow-sm flex items-center justify-center">
-                          <Image
-                            src={getGeneroImage(analysis.genero_match) as string}
-                            alt={
-                              analysis.genero_match === 'ELE'
-                                ? 'Imagem de homem'
-                                : 'Imagem de mulher'
-                            }
-                            width={64}
-                            height={64}
-                            className="w-full h-full object-contain p-1"
-                          />
-                        </div>
+                      {analysis.compatScore !== null && analysis.compatScore !== undefined && (
+                        <span className={`text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm ${
+                          analysis.compatScore >= 65 ? 'text-green-600 bg-green-50' :
+                          analysis.compatScore >= 45 ? 'text-yellow-600 bg-yellow-50' :
+                          'text-red-600 bg-red-50'
+                        }`}>
+                          Compatibilidade: {analysis.compatScore}%
+                        </span>
                       )}
                     </div>
+                    
+                    {/* Data e estágio */}
+                    <div className="flex justify-center items-center gap-3 text-xs text-gray-500">
+                      <span>{new Date(analysis.createdAt).toLocaleDateString('pt-BR')}</span>
+                      <span className="w-1 h-1 rounded-full bg-gray-400"></span>
+                      <span className="px-2 py-0.5 bg-gray-100 rounded-full">{getStageLabel(analysis.stage)}</span>
+                    </div>
+                    
+                    {/* Indicador de hover */}
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-purple-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   </div>
                 </Link>
               )
@@ -534,61 +516,74 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {showRoutePaywallModal && (
+
+        {/* Modal de Disclaimer para falar com terapeuta */}
+        {showTherapistDisclaimer && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 relative">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 relative">
               <button
-                onClick={() => setShowRoutePaywallModal(false)}
+                onClick={() => setShowTherapistDisclaimer(false)}
                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
                 aria-label="Fechar"
               >
                 <X className="w-6 h-6" />
               </button>
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 mb-4">
-                  <Lock className="w-10 h-10 text-white" />
+              
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-100 mb-4">
+                  <Shield className="w-8 h-8 text-purple-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                  Desbloqueie a Análise de Comportamento
-                </h3>
-                <p className="text-gray-600">
-                  Descubra se você está evoluindo ou regredindo na atração de pessoas certas.
-                </p>
+                <h3 className="text-xl font-bold text-gray-900 mb-3">Aviso Importante</h3>
+                
+                <div className="bg-gray-50 rounded-lg p-4 mb-4 text-left">
+                  <p className="text-gray-600 text-sm mb-3">
+                    Os especialistas parceiros do Radar Match oferecem <strong className="text-gray-900">orientação em relacionamentos</strong> e não substituem acompanhamento médico ou psicológico profissional.
+                  </p>
+                  <p className="text-gray-600 text-sm">
+                    O Radar Match atua apenas como <strong className="text-gray-900">intermediador</strong> e não se responsabiliza pelo conteúdo das conversas ou orientações prestadas pelos especialistas.
+                  </p>
+                </div>
+                
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <Heart className="w-5 h-5 text-red-500" />
+                    <span className="text-red-700 font-semibold text-sm">Precisa de ajuda urgente?</span>
+                  </div>
+                  <p className="text-red-600 text-sm mb-3">
+                    Se você está passando por uma crise emocional, pensamentos suicidas ou precisa de apoio imediato:
+                  </p>
+                  <a 
+                    href="tel:188" 
+                    className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold transition-colors"
+                  >
+                    <Phone className="w-4 h-4" />
+                    CVV - Ligue 188
+                  </a>
+                  <p className="text-red-500 text-xs mt-2">
+                    Centro de Valorização da Vida • 24 horas • Gratuito
+                  </p>
+                </div>
+                
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => setShowTherapistDisclaimer(false)}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    Cancelar
+                  </button>
+                  <a
+                    href={`https://wa.me/55${therapist?.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Vim do Radar Match e gostaria de conversar com você.')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setShowTherapistDisclaimer(false)}
+                    className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Entendi, continuar
+                  </a>
+                </div>
               </div>
-              <div className="space-y-3 mb-6">
-                <div className="flex items-start gap-3 p-3 rounded-xl bg-green-50">
-                  <TrendingUp className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <div className="font-semibold text-gray-900">Gráfico de Evolução</div>
-                    <div className="text-sm text-gray-600">Veja se está melhorando ou piorando</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 rounded-xl bg-purple-50">
-                  <Compass className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <div className="font-semibold text-gray-900">Diagnóstico de padrão</div>
-                    <div className="text-sm text-gray-600">O que se repete e por quê</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 rounded-xl bg-orange-50">
-                  <Zap className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <div className="font-semibold text-gray-900">Ações corretivas</div>
-                    <div className="text-sm text-gray-600">Passo a passo para evoluir</div>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={handleRouteCheckout}
-                disabled={unlockingRoute}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
-              >
-                <Zap className="w-5 h-5" />
-                {unlockingRoute ? 'Processando...' : 'Quero desbloquear agora'}
-              </button>
-              <p className="text-xs text-gray-500 mt-3 text-center">
-                Pix e cartão • Acesso imediato • Plano PRO
-              </p>
             </div>
           </div>
         )}

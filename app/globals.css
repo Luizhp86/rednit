@@ -114,3 +114,7 @@
 .animate-shimmer {
   animation: shimmer 2.5s ease-in-out infinite;
 }
+
+.animate-shimmer-slow {
+  animation: shimmer 3s ease-in-out infinite;
+}

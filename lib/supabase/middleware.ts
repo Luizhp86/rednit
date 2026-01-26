@@ -53,12 +53,25 @@ export async function updateSession(request: NextRequest) {
       console.log('[MIDDLEWARE] Usuário:', user ? user.email : 'não autenticado')
     }
 
-    if (
-      !user &&
-      !request.nextUrl.pathname.startsWith('/login') &&
-      !request.nextUrl.pathname.startsWith('/auth') &&
-      request.nextUrl.pathname !== '/'
-    ) {
+    // Rotas públicas que não precisam de autenticação
+    const publicRoutes = [
+      '/',
+      '/login',
+      '/auth',
+      '/terapeuta',           // Landing page do terapeuta
+      '/terapeuta/login',     // Login do terapeuta
+      '/terapeuta/cadastro',  // Cadastro do terapeuta
+      '/terapeuta/auth',      // Callback de auth do terapeuta
+      '/api',                 // Rotas de API
+      '/test-checkout',       // Página de teste
+    ]
+    
+    const isPublicRoute = publicRoutes.some(route => 
+      request.nextUrl.pathname === route || 
+      request.nextUrl.pathname.startsWith(route + '/')
+    )
+
+    if (!user && !isPublicRoute) {
       console.log('[MIDDLEWARE] Usuário não autenticado, redirecionando para /login')
       // no user, potentially respond by redirecting the user to the login page
       const url = request.nextUrl.clone()

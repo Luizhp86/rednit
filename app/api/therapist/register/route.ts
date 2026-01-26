@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
         website: validatedData.website || null,
         crp: validatedData.crp || null,
         status: 'PENDING', // Aguardando aprovação do admin
+        profileCompleted: true, // Cadastro completo pelo formulário
       }
     })
     

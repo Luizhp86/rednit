@@ -11,7 +11,10 @@ import {
   ArrowRight,
   CheckCircle2,
   AlertTriangle,
-  Phone
+  Phone,
+  X,
+  Heart,
+  Shield
 } from 'lucide-react'
 
 type TherapistCtaProps = {
@@ -23,6 +26,11 @@ type TherapistCtaProps = {
   matchName?: string
   hasRedFlags?: boolean
   onPhoneUpdated?: (phone: string) => void
+  therapist?: {
+    id: string
+    name: string
+    whatsapp: string | null
+  } | null
 }
 
 export function TherapistCta({
@@ -34,13 +42,16 @@ export function TherapistCta({
   matchName,
   hasRedFlags = false,
   onPhoneUpdated,
+  therapist,
 }: TherapistCtaProps) {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [whatsappOpened, setWhatsappOpened] = useState(false)
   const [error, setError] = useState('')
   const [showPhoneInput, setShowPhoneInput] = useState(false)
   const [phoneInput, setPhoneInput] = useState('')
   const [currentPhone, setCurrentPhone] = useState(userPhone || '')
+  const [showDisclaimer, setShowDisclaimer] = useState(false)
 
   const formatPhone = (value: string) => {
     const digits = value.replace(/\D/g, '')
@@ -86,13 +97,26 @@ export function TherapistCta({
     }
   }
 
-  const handleClick = async () => {
-    // Se não tem telefone, mostrar input
-    if (!currentPhone) {
-      setShowPhoneInput(true)
+  const handleClick = () => {
+    // Mostrar disclaimer antes de prosseguir
+    setShowDisclaimer(true)
+  }
+
+  const handleConfirmDisclaimer = () => {
+    setShowDisclaimer(false)
+    
+    // Se já tem terapeuta com WhatsApp, abrir direto
+    if (therapist?.whatsapp) {
+      const whatsappUrl = `https://wa.me/55${therapist.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Vim do Radar Match e gostaria de conversar sobre minha análise.')}`
+      window.open(whatsappUrl, '_blank')
+      setWhatsappOpened(true)
+      setSuccess(true)
       return
     }
-    await handleGenerateLead(currentPhone)
+    
+    // Se não tem terapeuta, mostrar mensagem que um especialista entrará em contato
+    setWhatsappOpened(false)
+    setSuccess(true)
   }
 
   const handleGenerateLead = async (phone: string) => {
@@ -145,15 +169,25 @@ export function TherapistCta({
 
   if (success) {
     return (
-      <Card className="bg-green-900/20 border-green-700 p-6">
+      <Card className="bg-green-800 border-green-600 p-6">
         <div className="flex items-center gap-4">
-          <CheckCircle2 className="w-8 h-8 text-green-500 flex-shrink-0" />
+          <CheckCircle2 className="w-8 h-8 text-green-300 flex-shrink-0" />
           <div>
-            <h3 className="text-lg font-semibold text-white">Especialista notificado!</h3>
-            <p className="text-green-300 text-sm">
-              Um especialista foi notificado e entrará em contato em breve.
-              {' '}Se o WhatsApp abriu, você pode iniciar a conversa agora!
-            </p>
+            {whatsappOpened ? (
+              <>
+                <h3 className="text-lg font-semibold text-white">WhatsApp aberto!</h3>
+                <p className="text-gray-100 text-sm">
+                  O WhatsApp foi aberto. Inicie a conversa com o especialista agora!
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold text-white">Solicitação enviada!</h3>
+                <p className="text-gray-100 text-sm">
+                  Um especialista entrará em contato com você em breve.
+                </p>
+              </>
+            )}
           </div>
         </div>
       </Card>
@@ -201,29 +235,104 @@ export function TherapistCta({
     )
   }
 
+  // Modal de Disclaimer
+  if (showDisclaimer) {
+    return (
+      <>
+        <Card className="relative overflow-hidden p-6 bg-gradient-to-br from-purple-900/50 via-purple-800/40 to-pink-900/30 border-2 border-purple-500/50 shadow-lg shadow-purple-500/20">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-600/30 mb-4">
+              <Shield className="w-8 h-8 text-purple-300" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-3">Aviso Importante</h3>
+            
+            <div className="bg-gray-800/50 rounded-lg p-4 mb-4 text-left">
+              <p className="text-gray-300 text-sm mb-3">
+                Os especialistas parceiros do Radar Match oferecem <strong className="text-white">orientação em relacionamentos</strong> e não substituem acompanhamento médico ou psicológico profissional.
+              </p>
+              <p className="text-gray-300 text-sm">
+                O Radar Match atua apenas como <strong className="text-white">intermediador</strong> e não se responsabiliza pelo conteúdo das conversas ou orientações prestadas pelos especialistas.
+              </p>
+            </div>
+            
+            <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-4 mb-6">
+              <div className="flex items-center gap-2 mb-2">
+                <Heart className="w-5 h-5 text-red-400" />
+                <span className="text-red-300 font-semibold text-sm">Precisa de ajuda urgente?</span>
+              </div>
+              <p className="text-red-200 text-sm mb-2">
+                Se você está passando por uma crise emocional, pensamentos suicidas ou precisa de apoio imediato:
+              </p>
+              <a 
+                href="tel:188" 
+                className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold transition-colors"
+              >
+                <Phone className="w-4 h-4" />
+                CVV - Ligue 188
+              </a>
+              <p className="text-red-300 text-xs mt-2">
+                Centro de Valorização da Vida • 24 horas • Gratuito
+              </p>
+            </div>
+            
+            <div className="flex gap-3 justify-center">
+              <Button
+                onClick={() => setShowDisclaimer(false)}
+                variant="outline"
+                className="border-gray-600 text-gray-300 hover:bg-gray-700"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleConfirmDisclaimer}
+                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Entendi, continuar
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </>
+    )
+  }
+
   return (
-    <Card className={`p-6 ${hasRedFlags ? 'bg-purple-900/30 border-purple-600' : 'bg-gray-800/50 border-gray-700'}`}>
-      <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-        <div className={`p-3 rounded-full ${hasRedFlags ? 'bg-purple-600/20' : 'bg-gray-700'}`}>
+    <Card className="relative overflow-hidden p-6 bg-gradient-to-br from-purple-900/50 via-purple-800/40 to-pink-900/30 border-2 border-purple-500/50 shadow-lg shadow-purple-500/20">
+      {/* Gradiente decorativo no topo */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500"></div>
+      
+      {/* Glow effect de fundo */}
+      <div className="absolute -top-20 -right-20 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl"></div>
+      <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-pink-500/20 rounded-full blur-3xl"></div>
+      
+      <div className="relative flex flex-col md:flex-row items-start md:items-center gap-4">
+        <div className="relative p-4 rounded-full bg-gradient-to-br from-purple-600/30 to-pink-600/30 border border-purple-500/30">
+          {/* Pulse animation */}
+          <div className="absolute inset-0 rounded-full bg-purple-500/20 animate-ping"></div>
           {hasRedFlags ? (
-            <AlertTriangle className="w-8 h-8 text-purple-400" />
+            <AlertTriangle className="relative w-8 h-8 text-purple-300" />
           ) : (
-            <MessageCircle className="w-8 h-8 text-purple-400" />
+            <MessageCircle className="relative w-8 h-8 text-purple-300" />
           )}
         </div>
         
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+          <h3 className="text-xl font-bold text-white flex items-center gap-2">
             {hasRedFlags ? (
               <>
-                <Sparkles className="w-5 h-5 text-purple-400" />
+                <Sparkles className="w-5 h-5 text-yellow-400 animate-pulse" />
                 Detectamos sinais que merecem atenção
               </>
             ) : (
-              'Quer conversar com um especialista?'
+              <>
+                <Sparkles className="w-5 h-5 text-yellow-400 animate-pulse" />
+                Quer conversar com um especialista?
+              </>
             )}
           </h3>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="text-purple-200/80 text-sm mt-2">
             {hasRedFlags 
               ? 'Um especialista pode te ajudar a entender melhor esses padrões e como lidar com eles.'
               : 'Nossos especialistas em relacionamentos podem te ajudar a entender melhor sua situação.'}
@@ -233,17 +342,20 @@ export function TherapistCta({
         <Button
           onClick={handleClick}
           disabled={loading}
-          className={`${hasRedFlags ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-700 hover:bg-gray-600'} text-white px-6`}
+          className="group relative overflow-hidden bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-8 py-5 text-lg font-bold rounded-xl border-2 border-green-400/50 shadow-2xl shadow-green-500/40 hover:shadow-green-500/60 ring-2 ring-green-400/30 ring-offset-2 ring-offset-transparent hover:scale-105 transition-all duration-300"
         >
+          {/* Efeito shimmer */}
+          <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
           {loading ? (
-            <span className="flex items-center gap-2">
-              <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+            <span className="relative flex items-center gap-3">
+              <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
               Conectando...
             </span>
           ) : (
-            <span className="flex items-center gap-2">
+            <span className="relative flex items-center gap-3">
+              <MessageCircle className="w-6 h-6" />
               Falar com especialista
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
             </span>
           )}
         </Button>

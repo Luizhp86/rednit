@@ -53,6 +53,17 @@ export async function GET() {
     // Buscar configurações do sistema
     const config = await getSystemConfig()
 
+    // Buscar terapeuta atribuído ao lead mais recente (se houver)
+    const latestLead = await prisma.lead.findFirst({
+      where: { userId: dbUser.id, therapistId: { not: null } },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        therapist: {
+          select: { id: true, name: true, whatsapp: true, photoUrl: true }
+        }
+      }
+    })
+
     // Contar análises NOVAS (não usadas em análise de comportamento anterior)
     const newAnalysesCount = await prisma.analysis.count({
       where: {
@@ -117,6 +128,12 @@ export async function GET() {
           pack5: config.creditPricePack5,
         },
       },
+      therapist: latestLead?.therapist ? {
+        id: latestLead.therapist.id,
+        name: latestLead.therapist.name,
+        whatsapp: latestLead.therapist.whatsapp,
+        photoUrl: latestLead.therapist.photoUrl,
+      } : null,
     })
   } catch (error) {
     console.error('Error in /api/me:', error)

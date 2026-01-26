@@ -6,6 +6,45 @@ import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/logo'
 import { useState, useEffect } from 'react'
 
+// Frases rotativas que capturam a atenção (público feminino)
+const rotatingPhrases = [
+  "Ele está interessado ou só te enrolando?",
+  "Por que ele demora tanto pra responder?",
+  "É red flag ou você tá exagerando?",
+  "Será que vale a pena insistir?",
+  "Ele some e volta... isso é normal?",
+  "Ele disse que precisa de tempo. E agora?",
+  "Vocês conversam todo dia, mas ele nunca marca nada?",
+  "Ele visualiza e não responde. O que fazer?",
+]
+
+// Componente de frase rotativa
+function RotatingPhrase() {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isVisible, setIsVisible] = useState(true)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIsVisible(false)
+      setTimeout(() => {
+        setCurrentIndex((prev) => (prev + 1) % rotatingPhrases.length)
+        setIsVisible(true)
+      }, 300)
+    }, 3500)
+    return () => clearInterval(timer)
+  }, [])
+
+  return (
+    <span 
+      className={`inline transition-opacity duration-300 ${
+        isVisible ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
+      {rotatingPhrases[currentIndex]}
+    </span>
+  )
+}
+
 // Componente de Demo Animado
 function AnimatedDemo() {
   const [step, setStep] = useState(0)
@@ -157,20 +196,35 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             {/* Lado esquerdo - Texto */}
             <div className="text-center md:text-left">
-              {/* Badge */}
-              <div className="inline-flex items-center gap-2 bg-purple-100 text-purple-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
-                <Target className="h-4 w-4" />
-                <span>Coach de relacionamentos</span>
+              {/* Badge com animação */}
+              <div className="relative inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-5 py-2.5 rounded-full text-sm font-bold shadow-lg group overflow-hidden animate-pulse-subtle">
+                {/* Efeito de brilho passando */}
+                <div 
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full animate-shimmer-slow"
+                  style={{ animationDuration: '3s' }}
+                />
+                {/* Borda brilhante */}
+                <div className="absolute inset-0 rounded-full border-2 border-white/20 animate-pulse" />
+                <Target className="h-4 w-4 relative z-10" />
+                <span className="relative z-10">Seu coach de relacionamentos</span>
               </div>
 
-              {/* Headline */}
+              {/* Frase rotativa que gera identificação */}
+              <div className="min-h-16 md:min-h-20 mt-6 mb-4 flex items-center justify-center md:justify-start">
+                <h2 className="text-xl md:text-3xl font-bold text-gray-800 italic">
+                  <span className="text-purple-600">"</span>
+                  <RotatingPhrase />
+                  <span className="text-purple-600">"</span>
+                </h2>
+              </div>
+
+              {/* Headline principal */}
               <h1 className="text-3xl md:text-5xl font-bold text-gray-900 mb-5 leading-tight">
-                Seu amigo e o ChatGPT vão{' '}
-                <span className="text-gray-500">concordar com você.</span>
-                <br />
                 <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  Nós vamos te mostrar a verdade.
+                  Sem viés. Sem julgamento.
                 </span>
+                <br />
+                Só a verdade.
               </h1>
 
               {/* Subheadline */}
@@ -220,6 +274,133 @@ export default function LandingPage() {
             {/* Lado direito - Demo animado */}
             <div className="flex justify-center md:justify-end">
               <AnimatedDemo />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Seção: Como usar o Radar Match */}
+      <div className="bg-white/60 backdrop-blur-sm py-20">
+        <div className="container mx-auto px-4">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-12">
+              <div className="inline-flex items-center gap-2 bg-purple-100 text-purple-700 px-4 py-2 rounded-full text-sm font-medium mb-4">
+                <Sparkles className="h-4 w-4" />
+                Sua jornada começa aqui
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                Como usar seu coach de relacionamentos
+              </h2>
+              <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+                É simples: responda sobre comportamentos, receba sua análise e, se quiser ir além, 
+                converse com um especialista real.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-4 gap-6">
+              {/* Passo 1 */}
+              <div className="relative">
+                <div className="bg-white rounded-2xl p-6 shadow-xl shadow-gray-300/60 border-2 border-gray-300 h-full hover:shadow-2xl hover:shadow-purple-200/50 hover:border-purple-300 transition-all duration-300">
+                  <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg mb-4">
+                    1
+                  </div>
+                  <h3 className="font-bold text-lg text-gray-900 mb-2">Faça sua análise</h3>
+                  <p className="text-gray-600 text-sm">
+                    Responda 14 perguntas objetivas sobre os comportamentos do seu match. Leva apenas 2 minutos.
+                  </p>
+                </div>
+                <div className="hidden md:block absolute top-1/2 -right-3 transform -translate-y-1/2 text-purple-300">
+                  <ChevronRight className="w-6 h-6" />
+                </div>
+              </div>
+
+              {/* Passo 2 */}
+              <div className="relative">
+                <div className="bg-white rounded-2xl p-6 shadow-xl shadow-gray-300/60 border-2 border-gray-300 h-full hover:shadow-2xl hover:shadow-purple-200/50 hover:border-purple-300 transition-all duration-300">
+                  <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg mb-4">
+                    2
+                  </div>
+                  <h3 className="font-bold text-lg text-gray-900 mb-2">Receba o resultado</h3>
+                  <p className="text-gray-600 text-sm">
+                    Veja scores de interesse, red flags, green flags e a probabilidade de ghosting — tudo baseado em padrões reais.
+                  </p>
+                </div>
+                <div className="hidden md:block absolute top-1/2 -right-3 transform -translate-y-1/2 text-purple-300">
+                  <ChevronRight className="w-6 h-6" />
+                </div>
+              </div>
+
+              {/* Passo 3 */}
+              <div className="relative">
+                <div className="bg-white rounded-2xl p-6 shadow-xl shadow-gray-300/60 border-2 border-gray-300 h-full hover:shadow-2xl hover:shadow-purple-200/50 hover:border-purple-300 transition-all duration-300">
+                  <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg mb-4">
+                    3
+                  </div>
+                  <h3 className="font-bold text-lg text-gray-900 mb-2">Acompanhe novas análises</h3>
+                  <p className="text-gray-600 text-sm">
+                    Salve múltiplos matches e acompanhe a evolução. Veja se os sinais melhoram ou pioram com o tempo.
+                  </p>
+                </div>
+                <div className="hidden md:block absolute top-1/2 -right-3 transform -translate-y-1/2 text-purple-300">
+                  <ChevronRight className="w-6 h-6" />
+                </div>
+              </div>
+
+              {/* Passo 4 - Destaque para terapeuta */}
+              <div className="relative">
+                {/* Glow animado por trás do card */}
+                <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 rounded-2xl opacity-75 blur-sm animate-pulse"></div>
+                <div className="relative bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 shadow-2xl shadow-purple-300/80 border-[3px] border-purple-400 h-full">
+                  {/* Badge animado */}
+                  <div className="absolute -top-3 -right-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg animate-bounce">
+                    NOVO
+                  </div>
+                  <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg mb-4 shadow-lg">
+                    4
+                  </div>
+                  <h3 className="font-bold text-lg text-gray-900 mb-2">Fale com um especialista</h3>
+                  <p className="text-gray-600 text-sm">
+                    Precisa de mais clareza? Conecte-se com terapeutas e especialistas em relacionamentos para uma orientação personalizada.
+                  </p>
+                  {/* Indicador de destaque */}
+                  <div className="mt-4 flex items-center gap-2 text-purple-600 font-medium text-sm">
+                    <Target className="w-4 h-4" />
+                    <span>Seu próximo passo</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* CTA para especialistas */}
+            <div className="mt-12 bg-gradient-to-r from-purple-100 to-pink-100 rounded-3xl p-8 md:p-10 shadow-xl shadow-purple-200/40">
+              <div className="flex flex-col md:flex-row items-center gap-6">
+                <div className="flex-shrink-0">
+                  <div className="bg-white p-4 rounded-2xl shadow-lg">
+                    <MessageCircle className="w-12 h-12 text-purple-600" />
+                  </div>
+                </div>
+                <div className="flex-1 text-center md:text-left">
+                  <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">
+                    Às vezes, você precisa de mais do que uma análise
+                  </h3>
+                  <p className="text-gray-600">
+                    Nossa plataforma conecta você a <strong>terapeutas e especialistas em relacionamentos</strong> que 
+                    podem ajudar a interpretar seus resultados, trabalhar suas inseguranças e te guiar para 
+                    decisões mais saudáveis. Tudo com privacidade e sem julgamento.
+                  </p>
+                </div>
+                <div className="flex-shrink-0">
+                  <Button
+                    asChild
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-6 text-lg font-semibold rounded-xl shadow-lg"
+                  >
+                    <Link href="/login" className="flex items-center gap-2">
+                      <span>Começar agora</span>
+                      <ArrowRight className="h-5 w-5" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

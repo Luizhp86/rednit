@@ -156,9 +156,9 @@ export default function CompletarCadastroPage() {
           <p className="text-gray-500 text-sm mb-6">
             Você receberá um email quando seu cadastro for aprovado.
           </p>
-          <Link href="/terapeuta/login">
+          <Link href="/terapeuta/dashboard">
             <Button className="bg-purple-600 hover:bg-purple-700 w-full">
-              Ir para Login
+              Ir para Dashboard
             </Button>
           </Link>
         </Card>

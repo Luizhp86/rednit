@@ -181,6 +181,27 @@ export default function AdminPage() {
   const [loadingTherapists, setLoadingTherapists] = useState(false)
   const [therapistStats, setTherapistStats] = useState<any>(null)
   
+  // Modal de edição de terapeuta
+  const [editingTherapist, setEditingTherapist] = useState<any | null>(null)
+  const [editTherapistMode, setEditTherapistMode] = useState<'view' | 'edit'>('view')
+  const [editTherapistForm, setEditTherapistForm] = useState({
+    name: '',
+    email: '',
+    whatsapp: '',
+    type: 'OUTRO',
+    bio: '',
+    instagram: '',
+    website: '',
+    crp: '',
+    plan: 'BASIC',
+    status: 'PENDING',
+    subscriptionStatus: 'inactive'
+  })
+  const [savingTherapist, setSavingTherapist] = useState(false)
+  const [deletingTherapist, setDeletingTherapist] = useState<string | null>(null)
+  const [showChangePlanModal, setShowChangePlanModal] = useState<string | null>(null)
+  const [newPlanForTherapist, setNewPlanForTherapist] = useState('')
+  
   // Leads tab
   const [adminLeads, setAdminLeads] = useState<any[]>([])
   const [leadTypeFilter, setLeadTypeFilter] = useState('')
@@ -703,6 +724,105 @@ export default function AdminPage() {
     }
   }
 
+  const openTherapistModal = (therapist: any, mode: 'view' | 'edit' = 'view') => {
+    setEditingTherapist(therapist)
+    setEditTherapistMode(mode)
+    setEditTherapistForm({
+      name: therapist.name || '',
+      email: therapist.email || '',
+      whatsapp: therapist.whatsapp || '',
+      type: therapist.type || 'OUTRO',
+      bio: therapist.bio || '',
+      instagram: therapist.instagram || '',
+      website: therapist.website || '',
+      crp: therapist.crp || '',
+      plan: therapist.plan || 'BASIC',
+      status: therapist.status || 'PENDING',
+      subscriptionStatus: therapist.subscriptionStatus || 'inactive'
+    })
+  }
+
+  const saveTherapistEdit = async () => {
+    if (!editingTherapist) return
+    setSavingTherapist(true)
+    try {
+      const res = await fetch('/api/admin/therapists', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          therapistId: editingTherapist.id,
+          action: 'edit',
+          ...editTherapistForm
+        })
+      })
+      if (res.ok) {
+        loadTherapists(therapistPage, therapistSearch, therapistStatusFilter)
+        setEditingTherapist(null)
+        setEditTherapistMode('view')
+        alert('Terapeuta atualizado com sucesso!')
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Erro ao salvar terapeuta')
+      }
+    } catch (error) {
+      console.error('Error saving therapist:', error)
+      alert('Erro ao salvar terapeuta')
+    } finally {
+      setSavingTherapist(false)
+    }
+  }
+
+  const changeTherapistPlan = async (therapistId: string, newPlan: string) => {
+    try {
+      const res = await fetch('/api/admin/therapists', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          therapistId,
+          action: 'change_plan',
+          plan: newPlan
+        })
+      })
+      if (res.ok) {
+        loadTherapists(therapistPage, therapistSearch, therapistStatusFilter)
+        setShowChangePlanModal(null)
+        setNewPlanForTherapist('')
+        alert('Plano alterado com sucesso!')
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Erro ao alterar plano')
+      }
+    } catch (error) {
+      console.error('Error changing therapist plan:', error)
+      alert('Erro ao alterar plano')
+    }
+  }
+
+  const deleteTherapist = async (therapistId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este terapeuta? Esta ação não pode ser desfeita. Os leads associados serão desvinculados mas mantidos no sistema.')) {
+      return
+    }
+    
+    setDeletingTherapist(therapistId)
+    try {
+      const res = await fetch(`/api/admin/therapists?therapistId=${therapistId}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        loadTherapists(therapistPage, therapistSearch, therapistStatusFilter)
+        alert('Terapeuta excluído com sucesso!')
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Erro ao excluir terapeuta')
+      }
+    } catch (error) {
+      console.error('Error deleting therapist:', error)
+      alert('Erro ao excluir terapeuta')
+    } finally {
+      setDeletingTherapist(null)
+    }
+  }
+
   const clearActivityFilters = () => {
     setActivityEventFilter('')
     setActivityUserFilter('')
@@ -809,7 +929,7 @@ export default function AdminPage() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <Link href="/dashboard" className="flex items-center gap-3">
-              <Logo size="lg" variant="dark" />
+              <Logo size="lg" variant="dark" disableShine />
               <div className="flex flex-col">
                 <span className="text-sm md:text-base font-semibold text-purple-400">
                   Coach de Relacionamentos
@@ -2454,16 +2574,28 @@ export default function AdminPage() {
                               <div>
                                 <p className="text-white font-medium">{t.name}</p>
                                 <p className="text-gray-400 text-sm">{t.email}</p>
+                                {t.whatsapp && (
+                                  <p className="text-gray-500 text-xs flex items-center gap-1">
+                                    <Phone className="w-3 h-3" />
+                                    {t.whatsapp}
+                                  </p>
+                                )}
                               </div>
                             </td>
                             <td className="py-3 text-gray-300">{t.type}</td>
                             <td className="py-3">
-                              <Badge className={
-                                t.plan === 'PRO' ? 'bg-purple-600' : 
-                                t.plan === 'INTERMEDIATE' ? 'bg-orange-600' : 'bg-gray-600'
-                              }>
-                                {t.plan}
-                              </Badge>
+                              <button
+                                onClick={() => { setShowChangePlanModal(t.id); setNewPlanForTherapist(t.plan); }}
+                                className="cursor-pointer hover:opacity-80 transition"
+                                title="Clique para alterar plano"
+                              >
+                                <Badge className={
+                                  t.plan === 'PRO' ? 'bg-purple-600' : 
+                                  t.plan === 'INTERMEDIATE' ? 'bg-orange-600' : 'bg-gray-600'
+                                }>
+                                  {t.plan}
+                                </Badge>
+                              </button>
                             </td>
                             <td className="py-3">
                               <Badge className={
@@ -2476,7 +2608,19 @@ export default function AdminPage() {
                             </td>
                             <td className="py-3 text-white">{t.leadsReceived}</td>
                             <td className="py-3">
-                              <div className="flex gap-2">
+                              <div className="flex gap-2 flex-wrap">
+                                {/* Botão Ver/Editar */}
+                                <Button 
+                                  onClick={() => openTherapistModal(t, 'view')} 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="border-gray-600"
+                                  title="Ver detalhes"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                
+                                {/* Ações de status */}
                                 {t.status === 'PENDING' && (
                                   <Button onClick={() => updateTherapist(t.id, 'approve')} size="sm" className="bg-green-600 hover:bg-green-700">
                                     Aprovar
@@ -2497,6 +2641,22 @@ export default function AdminPage() {
                                     Bloquear
                                   </Button>
                                 )}
+                                
+                                {/* Botão Excluir */}
+                                <Button 
+                                  onClick={() => deleteTherapist(t.id)} 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="border-red-600 text-red-400 hover:bg-red-900/30"
+                                  disabled={deletingTherapist === t.id}
+                                  title="Excluir terapeuta"
+                                >
+                                  {deletingTherapist === t.id ? (
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </Button>
                               </div>
                             </td>
                           </tr>
@@ -2535,6 +2695,346 @@ export default function AdminPage() {
                 </>
               )}
             </Card>
+
+            {/* Modal de Alteração de Plano */}
+            {showChangePlanModal && (
+              <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+                <Card className="bg-gray-800 border-gray-700 p-6 w-full max-w-md">
+                  <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <Crown className="w-5 h-5 text-purple-500" />
+                    Alterar Plano
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer hover:bg-gray-700 transition">
+                      <input 
+                        type="radio" 
+                        name="newPlan" 
+                        value="BASIC"
+                        checked={newPlanForTherapist === 'BASIC'}
+                        onChange={(e) => setNewPlanForTherapist(e.target.value)}
+                        className="w-4 h-4 text-purple-600"
+                      />
+                      <div>
+                        <p className="text-white font-medium">BASIC</p>
+                        <p className="text-gray-400 text-sm">Leads de cadastro (frios)</p>
+                      </div>
+                    </label>
+                    
+                    <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer hover:bg-gray-700 transition">
+                      <input 
+                        type="radio" 
+                        name="newPlan" 
+                        value="INTERMEDIATE"
+                        checked={newPlanForTherapist === 'INTERMEDIATE'}
+                        onChange={(e) => setNewPlanForTherapist(e.target.value)}
+                        className="w-4 h-4 text-purple-600"
+                      />
+                      <div>
+                        <p className="text-white font-medium">INTERMEDIATE</p>
+                        <p className="text-gray-400 text-sm">Leads de cadastro + análise</p>
+                      </div>
+                    </label>
+                    
+                    <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-600 cursor-pointer hover:bg-gray-700 transition">
+                      <input 
+                        type="radio" 
+                        name="newPlan" 
+                        value="PRO"
+                        checked={newPlanForTherapist === 'PRO'}
+                        onChange={(e) => setNewPlanForTherapist(e.target.value)}
+                        className="w-4 h-4 text-purple-600"
+                      />
+                      <div>
+                        <p className="text-white font-medium">PRO</p>
+                        <p className="text-gray-400 text-sm">Todos os leads + WhatsApp direto</p>
+                      </div>
+                    </label>
+                  </div>
+                  
+                  <div className="flex justify-end gap-3 mt-6">
+                    <Button 
+                      onClick={() => { setShowChangePlanModal(null); setNewPlanForTherapist(''); }}
+                      variant="outline"
+                      className="border-gray-600"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button 
+                      onClick={() => changeTherapistPlan(showChangePlanModal, newPlanForTherapist)}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      Salvar Plano
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* Modal de Edição/Visualização de Terapeuta */}
+            {editingTherapist && (
+              <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 overflow-y-auto py-8">
+                <Card className="bg-gray-800 border-gray-700 p-6 w-full max-w-2xl mx-4">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                      <UserCheck className="w-5 h-5 text-purple-500" />
+                      {editTherapistMode === 'edit' ? 'Editar Terapeuta' : 'Detalhes do Terapeuta'}
+                    </h3>
+                    <div className="flex gap-2">
+                      {editTherapistMode === 'view' && (
+                        <Button 
+                          onClick={() => setEditTherapistMode('edit')}
+                          size="sm"
+                          className="bg-purple-600 hover:bg-purple-700"
+                        >
+                          <Edit className="w-4 h-4 mr-1" />
+                          Editar
+                        </Button>
+                      )}
+                      <Button 
+                        onClick={() => { setEditingTherapist(null); setEditTherapistMode('view'); }}
+                        size="sm"
+                        variant="outline"
+                        className="border-gray-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {editTherapistMode === 'view' ? (
+                    // Modo Visualização
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-gray-400 text-sm">Nome</p>
+                          <p className="text-white">{editingTherapist.name}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400 text-sm">Email</p>
+                          <p className="text-white">{editingTherapist.email}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400 text-sm">WhatsApp</p>
+                          <p className="text-white">{editingTherapist.whatsapp || '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400 text-sm">Tipo</p>
+                          <p className="text-white">{editingTherapist.type}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400 text-sm">Plano</p>
+                          <Badge className={
+                            editingTherapist.plan === 'PRO' ? 'bg-purple-600' : 
+                            editingTherapist.plan === 'INTERMEDIATE' ? 'bg-orange-600' : 'bg-gray-600'
+                          }>
+                            {editingTherapist.plan}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-gray-400 text-sm">Status</p>
+                          <Badge className={
+                            editingTherapist.status === 'APPROVED' ? 'bg-green-600' :
+                            editingTherapist.status === 'PENDING' ? 'bg-yellow-600' :
+                            editingTherapist.status === 'SUSPENDED' ? 'bg-orange-600' : 'bg-red-600'
+                          }>
+                            {editingTherapist.status}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-gray-400 text-sm">Assinatura</p>
+                          <Badge className={editingTherapist.subscriptionStatus === 'active' ? 'bg-green-600' : 'bg-gray-600'}>
+                            {editingTherapist.subscriptionStatus}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-gray-400 text-sm">CRP</p>
+                          <p className="text-white">{editingTherapist.crp || '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400 text-sm">Instagram</p>
+                          <p className="text-white">{editingTherapist.instagram || '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400 text-sm">Website</p>
+                          <p className="text-white">{editingTherapist.website || '-'}</p>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <p className="text-gray-400 text-sm">Bio</p>
+                        <p className="text-white">{editingTherapist.bio || '-'}</p>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-700">
+                        <div>
+                          <p className="text-gray-400 text-sm">Leads Recebidos</p>
+                          <p className="text-white text-xl font-bold">{editingTherapist.leadsReceived || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400 text-sm">Leads Este Mês</p>
+                          <p className="text-white text-xl font-bold">{editingTherapist.leadsThisMonth || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400 text-sm">Cadastro</p>
+                          <p className="text-white text-sm">{new Date(editingTherapist.createdAt).toLocaleDateString('pt-BR')}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    // Modo Edição
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-1">Nome</label>
+                          <Input
+                            value={editTherapistForm.name}
+                            onChange={(e) => setEditTherapistForm({...editTherapistForm, name: e.target.value})}
+                            className="bg-gray-700 border-gray-600 text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-1">Email</label>
+                          <Input
+                            value={editTherapistForm.email}
+                            onChange={(e) => setEditTherapistForm({...editTherapistForm, email: e.target.value})}
+                            className="bg-gray-700 border-gray-600 text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-1">WhatsApp</label>
+                          <Input
+                            value={editTherapistForm.whatsapp}
+                            onChange={(e) => setEditTherapistForm({...editTherapistForm, whatsapp: e.target.value})}
+                            placeholder="5511999999999"
+                            className="bg-gray-700 border-gray-600 text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-1">Tipo</label>
+                          <select
+                            value={editTherapistForm.type}
+                            onChange={(e) => setEditTherapistForm({...editTherapistForm, type: e.target.value})}
+                            className="w-full bg-gray-700 border-gray-600 text-white rounded-lg px-3 py-2"
+                          >
+                            <option value="TAROLOGO">Tarólogo</option>
+                            <option value="COACH">Coach</option>
+                            <option value="HOLISTICO">Holístico</option>
+                            <option value="ASTROLOGO">Astrólogo</option>
+                            <option value="TERAPEUTA_FLORAL">Terapeuta Floral</option>
+                            <option value="CONSTELADOR">Constelador</option>
+                            <option value="PSICOLOGO">Psicólogo</option>
+                            <option value="OUTRO">Outro</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-1">Plano</label>
+                          <select
+                            value={editTherapistForm.plan}
+                            onChange={(e) => setEditTherapistForm({...editTherapistForm, plan: e.target.value})}
+                            className="w-full bg-gray-700 border-gray-600 text-white rounded-lg px-3 py-2"
+                          >
+                            <option value="BASIC">BASIC</option>
+                            <option value="INTERMEDIATE">INTERMEDIATE</option>
+                            <option value="PRO">PRO</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-1">Status</label>
+                          <select
+                            value={editTherapistForm.status}
+                            onChange={(e) => setEditTherapistForm({...editTherapistForm, status: e.target.value})}
+                            className="w-full bg-gray-700 border-gray-600 text-white rounded-lg px-3 py-2"
+                          >
+                            <option value="PENDING">Pendente</option>
+                            <option value="APPROVED">Aprovado</option>
+                            <option value="SUSPENDED">Suspenso</option>
+                            <option value="BLOCKED">Bloqueado</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-1">Status Assinatura</label>
+                          <select
+                            value={editTherapistForm.subscriptionStatus}
+                            onChange={(e) => setEditTherapistForm({...editTherapistForm, subscriptionStatus: e.target.value})}
+                            className="w-full bg-gray-700 border-gray-600 text-white rounded-lg px-3 py-2"
+                          >
+                            <option value="inactive">Inativa</option>
+                            <option value="active">Ativa</option>
+                            <option value="past_due">Atrasada</option>
+                            <option value="canceled">Cancelada</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-1">CRP</label>
+                          <Input
+                            value={editTherapistForm.crp}
+                            onChange={(e) => setEditTherapistForm({...editTherapistForm, crp: e.target.value})}
+                            placeholder="00/00000"
+                            className="bg-gray-700 border-gray-600 text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-1">Instagram</label>
+                          <Input
+                            value={editTherapistForm.instagram}
+                            onChange={(e) => setEditTherapistForm({...editTherapistForm, instagram: e.target.value})}
+                            placeholder="@usuario"
+                            className="bg-gray-700 border-gray-600 text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-400 text-sm mb-1">Website</label>
+                          <Input
+                            value={editTherapistForm.website}
+                            onChange={(e) => setEditTherapistForm({...editTherapistForm, website: e.target.value})}
+                            placeholder="https://..."
+                            className="bg-gray-700 border-gray-600 text-white"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-gray-400 text-sm mb-1">Bio</label>
+                        <textarea
+                          value={editTherapistForm.bio}
+                          onChange={(e) => setEditTherapistForm({...editTherapistForm, bio: e.target.value})}
+                          className="w-full bg-gray-700 border-gray-600 text-white rounded-lg px-3 py-2 min-h-[100px]"
+                          placeholder="Biografia do terapeuta..."
+                        />
+                      </div>
+                      
+                      <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
+                        <Button 
+                          onClick={() => setEditTherapistMode('view')}
+                          variant="outline"
+                          className="border-gray-600"
+                        >
+                          Cancelar
+                        </Button>
+                        <Button 
+                          onClick={saveTherapistEdit}
+                          disabled={savingTherapist}
+                          className="bg-purple-600 hover:bg-purple-700"
+                        >
+                          {savingTherapist ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                              Salvando...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="w-4 h-4 mr-2" />
+                              Salvar Alterações
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              </div>
+            )}
           </div>
         )}
 

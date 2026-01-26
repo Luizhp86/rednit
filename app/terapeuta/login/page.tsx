@@ -93,7 +93,7 @@ export default function LoginTerapeutaPage() {
       <nav className="bg-gray-900/50 backdrop-blur border-b border-gray-800">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-3">
-            <Logo size="lg" variant="dark" />
+            <Logo size="lg" variant="dark" disableShine />
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-purple-400">Radar Match</span>
               <span className="text-xs text-gray-500">Área do Terapeuta</span>

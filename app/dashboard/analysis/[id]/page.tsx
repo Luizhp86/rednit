@@ -31,6 +31,11 @@ type UserData = {
   email: string
   name: string | null
   phone: string | null
+  therapist?: {
+    id: string
+    name: string
+    whatsapp: string | null
+  } | null
 }
 
 export default function AnalysisPage() {
@@ -92,6 +97,7 @@ export default function AnalysisPage() {
           email: data.email,
           name: data.name,
           phone: data.phone,
+          therapist: data.therapist || null,
         })
         
         // Atualizar preços do sistema
@@ -945,6 +951,7 @@ export default function AnalysisPage() {
                   matchName={premium?.nome_match || free_teaser?.nome_match}
                   hasRedFlags={premium?.red_flags?.length > 0 || free_teaser?.red_flag}
                   onPhoneUpdated={(phone) => setUserData(prev => prev ? { ...prev, phone } : null)}
+                  therapist={userData.therapist}
                 />
               </div>
             )}
