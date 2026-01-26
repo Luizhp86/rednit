@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
     
     const leadsByTherapistWithNames = leadsByTherapist.map(l => ({
       therapistId: l.therapistId,
-      therapistName: therapistMap.get(l.therapistId) || 'Desconhecido',
+      therapistName: l.therapistId ? therapistMap.get(l.therapistId) || 'Desconhecido' : 'Não atribuído',
       count: l._count,
     }))
     
