@@ -80,7 +80,7 @@ export default function TestCheckoutPage() {
     }
   }
 
-  const handleCredits = async (creditPackage: 'SINGLE' | 'PACK_3' | 'PACK_5') => {
+  const handleCredits = async (creditPackage: 'SINGLE' | 'PACK_3' | 'PACK_5', couponCode?: string) => {
     setLoading(true)
     setResult(null)
 
@@ -91,6 +91,7 @@ export default function TestCheckoutPage() {
         body: JSON.stringify({
           type: 'ONE_TIME',
           creditPackage,
+          couponCode,
         }),
       })
 

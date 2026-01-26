@@ -39,10 +39,80 @@ export async function POST(request: NextRequest) {
       type, // 'ONE_TIME' | 'SUBSCRIPTION'
       creditPackage, // 'SINGLE' | 'PACK_3' | 'PACK_5' (para ONE_TIME)
       subscriptionPeriod, // 'MONTHLY' | 'QUARTERLY' | 'YEARLY' (para SUBSCRIPTION)
+      couponCode, // Código do cupom de desconto (opcional)
     } = body
 
     const config = await getSystemConfig()
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+    // Validar cupom se fornecido
+    let validCoupon: { id: string; percentOff: number | null; amountOff: number | null } | null = null
+    if (couponCode) {
+      try {
+        const coupon = await stripe.coupons.retrieve(couponCode.toLowerCase())
+        if (coupon.valid) {
+          validCoupon = {
+            id: coupon.id,
+            percentOff: coupon.percent_off,
+            amountOff: coupon.amount_off,
+          }
+        }
+      } catch {
+        return NextResponse.json(
+          { error: 'Cupom inválido ou expirado' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Se cupom é 100% de desconto, dar plano PRO mensal automaticamente
+    if (validCoupon && validCoupon.percentOff === 100) {
+      const proUntil = new Date()
+      proUntil.setMonth(proUntil.getMonth() + 1)
+      
+      // Atualizar usuário para PRO
+      await prisma.user.update({
+        where: { id: dbUser.id },
+        data: {
+          plan: 'PRO',
+          proUntil,
+        },
+      })
+
+      // Criar entitlement
+      await prisma.entitlement.upsert({
+        where: { userId: dbUser.id },
+        create: {
+          userId: dbUser.id,
+          proUntil,
+        },
+        update: {
+          proUntil,
+        },
+      })
+
+      // Registrar pagamento com cupom
+      await prisma.payment.create({
+        data: {
+          userId: dbUser.id,
+          provider: 'stripe',
+          externalId: `coupon_${validCoupon.id}_${Date.now()}`,
+          status: 'CONFIRMED',
+          amountCents: 0,
+          currency: 'BRL',
+          type: 'SUBSCRIPTION',
+          subscriptionPeriod: 'MONTHLY',
+        },
+      })
+      
+      return NextResponse.json({
+        success: true,
+        message: `Parabéns! Você ganhou 1 mês de acesso PRO com o cupom ${validCoupon.id}!`,
+        upgraded: true,
+        proUntil: proUntil.toISOString(),
+        couponApplied: validCoupon.id,
+      })
+    }
 
     // Modo desenvolvimento: desbloquear sem pagamento
     if (process.env.NODE_ENV === 'development') {
@@ -141,7 +211,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Criar Stripe Checkout Session para pagamento único
-      const session = await stripe.checkout.sessions.create({
+      const sessionConfig: any = {
         customer: customerId,
         payment_method_types: ['card'],
         line_items: [
@@ -167,7 +237,14 @@ export async function POST(request: NextRequest) {
           creditsGranted: credits.toString(),
           analysisId: analysisId || '',
         },
-      })
+      }
+
+      // Adicionar cupom se válido
+      if (validCoupon) {
+        sessionConfig.discounts = [{ coupon: validCoupon.id }]
+      }
+
+      const session = await stripe.checkout.sessions.create(sessionConfig)
 
       // Salvar registro de pagamento
       await prisma.payment.create({
@@ -220,7 +297,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Criar Stripe Checkout Session para assinatura
-      const session = await stripe.checkout.sessions.create({
+      const subscriptionConfig: any = {
         customer: customerId,
         payment_method_types: ['card'],
         line_items: [
@@ -248,7 +325,14 @@ export async function POST(request: NextRequest) {
           type: 'SUBSCRIPTION',
           subscriptionPeriod: period,
         },
-      })
+      }
+
+      // Adicionar cupom se válido
+      if (validCoupon) {
+        subscriptionConfig.discounts = [{ coupon: validCoupon.id }]
+      }
+
+      const session = await stripe.checkout.sessions.create(subscriptionConfig)
 
       // Salvar registro de pagamento
       await prisma.payment.create({

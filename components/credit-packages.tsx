@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle2, Sparkles } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { CheckCircle2, Sparkles, Tag, Loader2 } from 'lucide-react'
 
 type CreditPackage = 'SINGLE' | 'PACK_3' | 'PACK_5'
 
 interface CreditPackagesProps {
-  onSelect: (packageType: CreditPackage) => void
+  onSelect: (packageType: CreditPackage, couponCode?: string) => void
   loading?: boolean
   prices: {
     single: number // em centavos
@@ -19,6 +20,11 @@ interface CreditPackagesProps {
 
 export function CreditPackages({ onSelect, loading = false, prices }: CreditPackagesProps) {
   const [selected, setSelected] = useState<CreditPackage | null>(null)
+  const [couponCode, setCouponCode] = useState('')
+  const [couponValid, setCouponValid] = useState<boolean | null>(null)
+  const [couponLoading, setCouponLoading] = useState(false)
+  const [couponError, setCouponError] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState<{ id: string; percentOff: number } | null>(null)
 
   const packages = [
     {
@@ -61,7 +67,55 @@ export function CreditPackages({ onSelect, loading = false, prices }: CreditPack
 
   const handleSelect = (packageType: CreditPackage) => {
     setSelected(packageType)
-    onSelect(packageType)
+  }
+
+  const handleBuy = () => {
+    if (selected) {
+      onSelect(selected, appliedCoupon ? appliedCoupon.id : undefined)
+    }
+  }
+
+  const validateCoupon = async () => {
+    if (!couponCode.trim()) return
+
+    setCouponLoading(true)
+    setCouponError('')
+    setCouponValid(null)
+
+    try {
+      const response = await fetch('/api/validate-coupon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ couponCode: couponCode.trim() }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.valid) {
+        setCouponValid(true)
+        setAppliedCoupon({
+          id: data.coupon.id,
+          percentOff: data.coupon.percentOff,
+        })
+      } else {
+        setCouponValid(false)
+        setCouponError(data.error || 'Cupom inválido')
+        setAppliedCoupon(null)
+      }
+    } catch {
+      setCouponValid(false)
+      setCouponError('Erro ao validar cupom')
+      setAppliedCoupon(null)
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  const removeCoupon = () => {
+    setCouponCode('')
+    setCouponValid(null)
+    setCouponError('')
+    setAppliedCoupon(null)
   }
 
   return (
@@ -150,15 +204,78 @@ export function CreditPackages({ onSelect, loading = false, prices }: CreditPack
         })}
       </div>
 
+      {/* Campo de Cupom */}
+      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+        <div className="flex items-center gap-2 mb-2">
+          <Tag className="w-4 h-4 text-purple-600" />
+          <span className="text-sm font-medium text-gray-700">Tem um cupom de desconto?</span>
+        </div>
+        
+        <div className="flex gap-2">
+          <Input
+            type="text"
+            placeholder="Digite o código do cupom"
+            value={couponCode}
+            onChange={(e) => setCouponCode(e.target.value)}
+            disabled={couponLoading || !!appliedCoupon}
+            className="flex-1"
+          />
+          {!appliedCoupon ? (
+            <Button
+              onClick={validateCoupon}
+              disabled={couponLoading || !couponCode.trim()}
+              variant="outline"
+              className="shrink-0"
+            >
+              {couponLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                'Aplicar'
+              )}
+            </Button>
+          ) : (
+            <Button
+              onClick={removeCoupon}
+              variant="outline"
+              className="shrink-0 text-red-600 hover:text-red-700"
+            >
+              Remover
+            </Button>
+          )}
+        </div>
+
+        {couponError && (
+          <p className="text-sm text-red-600 mt-2">{couponError}</p>
+        )}
+
+        {appliedCoupon && (
+          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+            <p className="text-sm text-green-700 font-medium flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4" />
+              {appliedCoupon.percentOff === 100 
+                ? 'Cupom aplicado: 1 mês de PRO grátis!'
+                : `Cupom aplicado: ${appliedCoupon.percentOff}% de desconto`}
+            </p>
+          </div>
+        )}
+      </div>
+
       {selected && (
         <div className="mt-6 text-center">
           <Button
-            onClick={() => handleSelect(selected)}
+            onClick={handleBuy}
             disabled={loading}
             className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 text-lg font-semibold"
           >
-            {loading ? 'Processando...' : `Comprar ${packages.find((p) => p.id === selected)?.label}`}
+            {loading ? 'Processando...' : appliedCoupon?.percentOff === 100 
+              ? 'Ativar 1 Mês PRO GRÁTIS'
+              : `Comprar ${packages.find((p) => p.id === selected)?.label}`}
           </Button>
+          {appliedCoupon?.percentOff === 100 && (
+            <p className="text-sm text-green-600 mt-2 font-medium">
+              Cupom válido! Você receberá 1 mês de acesso PRO ilimitado!
+            </p>
+          )}
         </div>
       )}
     </div>

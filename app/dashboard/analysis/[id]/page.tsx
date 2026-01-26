@@ -161,9 +161,9 @@ export default function AnalysisPage() {
     }
   }
 
-  const handleBuyPackage = async (packageType: 'SINGLE' | 'PACK_3' | 'PACK_5') => {
+  const handleBuyPackage = async (packageType: 'SINGLE' | 'PACK_3' | 'PACK_5', couponCode?: string) => {
     setUnlocking(true)
-    trackEvent('CHECKOUT_STARTED', { type: 'ONE_TIME', package: packageType })
+    trackEvent('CHECKOUT_STARTED', { type: 'ONE_TIME', package: packageType, coupon: couponCode })
     
     try {
       const res = await fetch('/api/checkout', {
@@ -172,6 +172,7 @@ export default function AnalysisPage() {
         body: JSON.stringify({ 
           type: 'ONE_TIME',
           creditPackage: packageType,
+          couponCode,
         }),
       })
 
@@ -184,10 +185,11 @@ export default function AnalysisPage() {
 
       const data = await res.json()
       
-      // In development, add credits directly
+      // Se cupom foi aplicado ou modo desenvolvimento
       if (data.success) {
-        trackEvent('CHECKOUT_COMPLETED', { type: 'ONE_TIME', package: packageType, dev: true })
-        alert('Créditos adicionados! (modo desenvolvimento)')
+        const isCoupon = !!data.couponApplied
+        trackEvent('CHECKOUT_COMPLETED', { type: 'ONE_TIME', package: packageType, coupon: data.couponApplied, dev: !isCoupon })
+        alert(data.message || 'Créditos adicionados!')
         window.location.reload()
         return
       }
