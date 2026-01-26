@@ -204,78 +204,66 @@ export function CreditPackages({ onSelect, loading = false, prices }: CreditPack
         })}
       </div>
 
-      {/* Campo de Cupom */}
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <div className="flex items-center gap-2 mb-2">
-          <Tag className="w-4 h-4 text-purple-600" />
-          <span className="text-sm font-medium text-gray-700">Tem um cupom de desconto?</span>
-        </div>
-        
-        <div className="flex gap-2">
-          <Input
-            type="text"
-            placeholder="Digite o código do cupom"
-            value={couponCode}
-            onChange={(e) => setCouponCode(e.target.value)}
-            disabled={couponLoading || !!appliedCoupon}
-            className="flex-1"
-          />
-          {!appliedCoupon ? (
-            <Button
-              onClick={validateCoupon}
-              disabled={couponLoading || !couponCode.trim()}
-              variant="outline"
-              className="shrink-0"
-            >
-              {couponLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                'Aplicar'
-              )}
-            </Button>
-          ) : (
-            <Button
-              onClick={removeCoupon}
-              variant="outline"
-              className="shrink-0 text-red-600 hover:text-red-700"
-            >
-              Remover
-            </Button>
-          )}
-        </div>
-
-        {couponError && (
-          <p className="text-sm text-red-600 mt-2">{couponError}</p>
-        )}
-
-        {appliedCoupon && (
-          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
-            <p className="text-sm text-green-700 font-medium flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4" />
-              {appliedCoupon.percentOff === 100 
-                ? 'Cupom aplicado: 1 mês de PRO grátis!'
-                : `Cupom aplicado: ${appliedCoupon.percentOff}% de desconto`}
-            </p>
-          </div>
-        )}
-      </div>
-
+      {/* Botão de compra e cupom inline */}
       {selected && (
-        <div className="mt-6 text-center">
-          <Button
-            onClick={handleBuy}
-            disabled={loading}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 text-lg font-semibold"
-          >
-            {loading ? 'Processando...' : appliedCoupon?.percentOff === 100 
-              ? 'Ativar 1 Mês PRO GRÁTIS'
-              : `Comprar ${packages.find((p) => p.id === selected)?.label}`}
-          </Button>
-          {appliedCoupon?.percentOff === 100 && (
-            <p className="text-sm text-green-600 mt-2 font-medium">
-              Cupom válido! Você receberá 1 mês de acesso PRO ilimitado!
-            </p>
+        <div className="mt-4 space-y-3">
+          {/* Cupom compacto */}
+          {!appliedCoupon ? (
+            <div className="flex items-center justify-center gap-2">
+              <Tag className="w-3 h-3 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Código do cupom"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value)}
+                disabled={couponLoading}
+                className="w-40 h-8 text-sm"
+              />
+              <Button
+                onClick={validateCoupon}
+                disabled={couponLoading || !couponCode.trim()}
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-purple-600 hover:text-purple-700"
+              >
+                {couponLoading ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  'Aplicar'
+                )}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-600" />
+              <span className="text-sm text-green-600 font-medium">
+                {appliedCoupon.percentOff === 100 ? '1 mês PRO grátis!' : `${appliedCoupon.percentOff}% OFF`}
+              </span>
+              <button
+                onClick={removeCoupon}
+                className="text-xs text-gray-400 hover:text-red-500 underline"
+              >
+                remover
+              </button>
+            </div>
           )}
+
+          {couponError && (
+            <p className="text-xs text-red-500 text-center">{couponError}</p>
+          )}
+
+          {/* Botão de compra */}
+          <div className="text-center">
+            <Button
+              onClick={handleBuy}
+              disabled={loading}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 text-lg font-semibold"
+            >
+              {loading ? 'Processando...' : appliedCoupon?.percentOff === 100 
+                ? 'Ativar PRO GRÁTIS'
+                : `Comprar ${packages.find((p) => p.id === selected)?.label}`}
+            </Button>
+          </div>
         </div>
       )}
     </div>
