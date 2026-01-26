@@ -3,8 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { invalidateConfigCache } from '@/lib/config'
 
-// Email autorizado para acessar o painel admin
-const ADMIN_EMAIL = 'luizhenrique.pinotti@gmail.com'
+// Email principal do super admin (fallback)
+const SUPER_ADMIN_EMAIL = 'luizhenrique.pinotti@gmail.com'
 
 async function verifyAdmin(request: NextRequest) {
   const supabase = await createClient()
@@ -12,11 +12,24 @@ async function verifyAdmin(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user || user.email !== ADMIN_EMAIL) {
-    return null
+  if (!user) return null
+
+  // Verificar se é admin no banco
+  try {
+    const admin = await prisma.admin.findUnique({
+      where: { email: user.email!, active: true }
+    })
+    if (admin) return user
+  } catch (e) {
+    // Tabela admin pode não existir ainda
   }
 
-  return user
+  // Fallback: email hardcoded
+  if (user.email === SUPER_ADMIN_EMAIL) {
+    return user
+  }
+
+  return null
 }
 
 // Configurações padrão (caso tabela não exista)
@@ -27,14 +40,24 @@ const DEFAULT_CONFIG = {
   freeCreditsDaily: 10,
   geminiDailyLimit: 100,
   geminiMonthlyBudgetCents: 50000,
-  // Preços de assinaturas
-  proPriceMonthly: 2990,
-  proPriceQuarterly: 7990,
-  proPriceYearly: 29900,
-  // Preços de pacotes de créditos
-  creditPriceSingle: 799,
-  creditPricePack3: 2490,
-  creditPricePack5: 3990,
+  // B2B - Preços de terapeutas
+  therapistPriceBasic: 7900,
+  therapistPriceIntermediate: 14900,
+  therapistPricePro: 24900,
+  therapistLeadsPerDay: 10,
+  // Feature flags B2B
+  enableLeadSignup: true,
+  enableLeadAnalysis: true,
+  enableLeadCta: true,
+  // Regras de geração de leads (configuráveis)
+  leadSignupPlans: '["BASIC","INTERMEDIATE","PRO"]',
+  leadAnalysisPlans: '["INTERMEDIATE","PRO"]',
+  leadCtaPlans: '["PRO"]',
+  leadCooldownHours: 24,
+  leadMaxSignupPerDay: 20,
+  leadMaxAnalysisPerDay: 10,
+  leadMaxCtaPerDay: 5,
+  // Feature flags gerais
   maintenanceMode: false,
   allowNewRegistrations: true,
   geminiCallsToday: 0,
@@ -57,14 +80,6 @@ export async function GET(request: NextRequest) {
       const dbConfig = await prisma.systemConfig.findUnique({
         where: { id: 'default' }
       })
-      
-      // #region agent log
-      const fs = await import('fs')
-      const logPath = 'c:\\Users\\luizh\\radar-match\\.cursor\\debug.log'
-      const logEntryGet = JSON.stringify({location:'api/admin/route.ts:GET:dbConfig',message:'Config lido do banco no GET',data:{dbConfigExists:!!dbConfig,proPriceMonthly:dbConfig?.proPriceMonthly,proPriceQuarterly:dbConfig?.proPriceQuarterly,proPriceYearly:dbConfig?.proPriceYearly,creditPriceSingle:dbConfig?.creditPriceSingle,creditPricePack3:dbConfig?.creditPricePack3,creditPricePack5:dbConfig?.creditPricePack5},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})
-      fs.appendFileSync(logPath, logEntryGet + '\n')
-      // #endregion
-
       if (dbConfig) {
         config = dbConfig
       } else {
@@ -81,10 +96,9 @@ export async function GET(request: NextRequest) {
       console.log('[ADMIN] Tabela SystemConfig não existe, usando padrão')
     }
 
-    // Estatísticas de usuários
+    // Estatísticas de usuários (leads potenciais)
     const totalUsers = await prisma.user.count()
-    const proUsers = await prisma.user.count({ where: { plan: 'PRO' } })
-    const freeUsers = totalUsers - proUsers
+    const usersWithPhone = await prisma.user.count({ where: { phone: { not: null } } })
 
     // Estatísticas de análises
     const totalAnalyses = await prisma.analysis.count()
@@ -103,20 +117,32 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Estatísticas de pagamentos
-    const totalRevenue = await prisma.payment.aggregate({
-      where: { status: 'CONFIRMED' },
-      _sum: { amountCents: true }
-    })
-    const revenueThisMonth = await prisma.payment.aggregate({
-      where: {
-        status: 'CONFIRMED',
-        createdAt: {
-          gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-        }
-      },
-      _sum: { amountCents: true }
-    })
+    // Estatísticas de terapeutas (B2B)
+    let therapistStats = { total: 0, approved: 0, pending: 0 }
+    try {
+      const totalTherapists = await prisma.therapist.count()
+      const approvedTherapists = await prisma.therapist.count({ where: { status: 'APPROVED' } })
+      const pendingTherapists = await prisma.therapist.count({ where: { status: 'PENDING' } })
+      therapistStats = { total: totalTherapists, approved: approvedTherapists, pending: pendingTherapists }
+    } catch (e) {
+      // Tabela ainda não existe
+    }
+
+    // Estatísticas de leads (B2B)
+    let leadStats = { total: 0, today: 0, thisMonth: 0, converted: 0 }
+    try {
+      const totalLeads = await prisma.lead.count()
+      const leadsToday = await prisma.lead.count({
+        where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } }
+      })
+      const leadsThisMonth = await prisma.lead.count({
+        where: { createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } }
+      })
+      const convertedLeads = await prisma.lead.count({ where: { status: 'CONVERTED' } })
+      leadStats = { total: totalLeads, today: leadsToday, thisMonth: leadsThisMonth, converted: convertedLeads }
+    } catch (e) {
+      // Tabela ainda não existe
+    }
 
     // Uso do Gemini (se a tabela existir)
     let geminiStats = {
@@ -158,7 +184,7 @@ export async function GET(request: NextRequest) {
         id: true,
         email: true,
         name: true,
-        plan: true,
+        phone: true,
         _count: {
           select: { analyses: true }
         }
@@ -176,25 +202,22 @@ export async function GET(request: NextRequest) {
       stats: {
         users: {
           total: totalUsers,
-          pro: proUsers,
-          free: freeUsers
+          withPhone: usersWithPhone
         },
         analyses: {
           total: totalAnalyses,
           today: analysesToday,
           thisMonth: analysesThisMonth
         },
-        revenue: {
-          total: totalRevenue._sum.amountCents || 0,
-          thisMonth: revenueThisMonth._sum.amountCents || 0
-        },
+        therapists: therapistStats,
+        leads: leadStats,
         gemini: geminiStats
       },
       topUsers: topUsers.map(u => ({
         id: u.id,
         email: u.email,
         name: u.name,
-        plan: u.plan,
+        phone: u.phone,
         analysesCount: u._count.analyses
       }))
     })
@@ -213,13 +236,6 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    
-    // #region agent log
-    const fs = await import('fs')
-    const logPath = 'c:\\Users\\luizh\\radar-match\\.cursor\\debug.log'
-    const logEntry1 = JSON.stringify({location:'api/admin/route.ts:PATCH:bodyReceived',message:'Body recebido no PATCH',data:{proPriceMonthly:body.proPriceMonthly,proPriceQuarterly:body.proPriceQuarterly,proPriceYearly:body.proPriceYearly,creditPriceSingle:body.creditPriceSingle,creditPricePack3:body.creditPricePack3,creditPricePack5:body.creditPricePack5},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})
-    fs.appendFileSync(logPath, logEntry1 + '\n')
-    // #endregion
 
     // Campos permitidos para atualização
     const allowedFields = [
@@ -228,14 +244,24 @@ export async function PATCH(request: NextRequest) {
       'freeCreditsDaily',
       'geminiDailyLimit',
       'geminiMonthlyBudgetCents',
-      // Preços de assinaturas
-      'proPriceMonthly',
-      'proPriceQuarterly',
-      'proPriceYearly',
-      // Preços de pacotes de créditos
-      'creditPriceSingle',
-      'creditPricePack3',
-      'creditPricePack5',
+      // B2B - Preços de terapeutas
+      'therapistPriceBasic',
+      'therapistPriceIntermediate',
+      'therapistPricePro',
+      'therapistLeadsPerDay',
+      // Feature flags B2B
+      'enableLeadSignup',
+      'enableLeadAnalysis',
+      'enableLeadCta',
+      // Regras de geração de leads
+      'leadSignupPlans',
+      'leadAnalysisPlans',
+      'leadCtaPlans',
+      'leadCooldownHours',
+      'leadMaxSignupPerDay',
+      'leadMaxAnalysisPerDay',
+      'leadMaxCtaPerDay',
+      // Feature flags gerais
       'maintenanceMode',
       'allowNewRegistrations'
     ]
@@ -247,11 +273,6 @@ export async function PATCH(request: NextRequest) {
         updateData[field] = body[field]
       }
     }
-    
-    // #region agent log
-    const logEntry2 = JSON.stringify({location:'api/admin/route.ts:PATCH:updateData',message:'updateData filtrado',data:{updateData,priceFields:{proPriceMonthly:updateData.proPriceMonthly,proPriceQuarterly:updateData.proPriceQuarterly,proPriceYearly:updateData.proPriceYearly,creditPriceSingle:updateData.creditPriceSingle}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})
-    fs.appendFileSync(logPath, logEntry2 + '\n')
-    // #endregion
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: 'Nenhum campo válido para atualizar' }, { status: 400 })
@@ -269,11 +290,6 @@ export async function PATCH(request: NextRequest) {
       update: updateData,
       create: { id: 'default', ...updateData }
     })
-    
-    // #region agent log
-    const logEntry3 = JSON.stringify({location:'api/admin/route.ts:PATCH:afterUpsert',message:'Config após upsert',data:{configFromDb:{id:config.id,proPriceMonthly:config.proPriceMonthly,proPriceQuarterly:config.proPriceQuarterly,proPriceYearly:config.proPriceYearly,creditPriceSingle:config.creditPriceSingle,creditPricePack3:config.creditPricePack3,creditPricePack5:config.creditPricePack5}},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})
-    fs.appendFileSync(logPath, logEntry3 + '\n')
-    // #endregion
 
     // Registrar alteração no log de auditoria
     await prisma.adminLog.create({
@@ -298,12 +314,12 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ 
       config: {
         ...config,
-        proPriceMonthly: config.proPriceMonthly,
-        proPriceQuarterly: config.proPriceQuarterly,
-        proPriceYearly: config.proPriceYearly,
-        creditPriceSingle: config.creditPriceSingle,
-        creditPricePack3: config.creditPricePack3,
-        creditPricePack5: config.creditPricePack5,
+        therapistPriceBasic: config.therapistPriceBasic,
+        therapistPriceIntermediate: config.therapistPriceIntermediate,
+        therapistPricePro: config.therapistPricePro,
+        therapistLeadsPerDay: config.therapistLeadsPerDay,
+        enableLeadSignup: config.enableLeadSignup,
+        enableLeadCta: config.enableLeadCta,
       }
     })
   } catch (error: any) {

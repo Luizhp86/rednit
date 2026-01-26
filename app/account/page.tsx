@@ -5,26 +5,13 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/logo'
-import { Tag, CheckCircle2, Loader2 } from 'lucide-react'
 
 type UserData = {
   id: string
   email: string
   name: string
-  plan: string
-  creditsFreeDaily: number
-  creditsPaid: number
-  proUntil: string | null
   stats: {
     totalAnalyses: number
-    totalPayments: number
-  }
-  prices?: {
-    subscription: {
-      monthly: number
-      quarterly: number
-      yearly: number
-    }
   }
 }
 
@@ -34,15 +21,6 @@ export default function AccountPage() {
   const [user, setUser] = useState<UserData | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
-  const [downgrading, setDowngrading] = useState(false)
-  const [subscribing, setSubscribing] = useState(false)
-  
-  // Estados do cupom
-  const [couponCode, setCouponCode] = useState('')
-  const [couponValid, setCouponValid] = useState<boolean | null>(null)
-  const [couponLoading, setCouponLoading] = useState(false)
-  const [couponError, setCouponError] = useState('')
-  const [appliedCoupon, setAppliedCoupon] = useState<{ id: string; percentOff: number } | null>(null)
 
   useEffect(() => {
     async function loadUser() {
@@ -116,105 +94,6 @@ export default function AccountPage() {
     }
   }
 
-  const handleDowngradePlan = async () => {
-    if (!confirm('Tem certeza que deseja voltar ao plano FREE?')) {
-      return
-    }
-
-    setDowngrading(true)
-    try {
-      const res = await fetch('/api/downgrade-plan', { method: 'POST' })
-      if (res.ok) {
-        const userRes = await fetch('/api/me')
-        if (userRes.ok) {
-          const userData = await userRes.json()
-          setUser(userData)
-        }
-        alert('Seu plano foi alterado para FREE.')
-      } else {
-        const error = await res.json()
-        alert(error.error || 'Erro ao atualizar plano')
-      }
-    } catch (error) {
-      console.error('Error:', error)
-      alert('Erro ao atualizar plano')
-    } finally {
-      setDowngrading(false)
-    }
-  }
-
-  const validateCoupon = async () => {
-    if (!couponCode.trim()) return
-
-    setCouponLoading(true)
-    setCouponError('')
-    setCouponValid(null)
-
-    try {
-      const response = await fetch('/api/validate-coupon', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ couponCode: couponCode.trim() }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok && data.valid) {
-        setCouponValid(true)
-        setAppliedCoupon({
-          id: data.coupon.id,
-          percentOff: data.coupon.percentOff,
-        })
-      } else {
-        setCouponValid(false)
-        setCouponError(data.error || 'Cupom inválido')
-        setAppliedCoupon(null)
-      }
-    } catch {
-      setCouponValid(false)
-      setCouponError('Erro ao validar cupom')
-      setAppliedCoupon(null)
-    } finally {
-      setCouponLoading(false)
-    }
-  }
-
-  const removeCoupon = () => {
-    setCouponCode('')
-    setCouponValid(null)
-    setCouponError('')
-    setAppliedCoupon(null)
-  }
-
-  const handleSubscribe = async (period: 'MONTHLY' | 'QUARTERLY' | 'YEARLY') => {
-    setSubscribing(true)
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          type: 'SUBSCRIPTION', 
-          subscriptionPeriod: period,
-          couponCode: appliedCoupon?.id 
-        }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        if (data.success) {
-          alert(data.message || 'Assinatura ativada!')
-          window.location.reload()
-        } else {
-          window.location.href = data.checkoutUrl
-        }
-      }
-    } catch (error) {
-      console.error('Error:', error)
-      alert('Erro ao processar assinatura')
-    } finally {
-      setSubscribing(false)
-    }
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -258,22 +137,6 @@ export default function AccountPage() {
               <p>
                 <span className="font-semibold">Email:</span> {user.email}
               </p>
-              <p>
-                <span className="font-semibold">Plano:</span>{' '}
-                <span
-                  className={`px-2 py-1 rounded ${
-                    user.plan === 'PRO' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  {user.plan}
-                </span>
-              </p>
-              {user.proUntil && (
-                <p>
-                  <span className="font-semibold">PRO até:</span>{' '}
-                  {new Date(user.proUntil).toLocaleDateString('pt-BR')}
-                </p>
-              )}
             </div>
           </div>
 
@@ -281,119 +144,10 @@ export default function AccountPage() {
             <h2 className="text-xl font-semibold mb-4 text-gray-900">Estatísticas</h2>
             <div className="space-y-2">
               <p>
-                <span className="font-semibold">Análises totais:</span> {user.stats.totalAnalyses}
-              </p>
-              <p>
-                <span className="font-semibold">Créditos gratuitos restantes hoje:</span>{' '}
-                {user.creditsFreeDaily}
-              </p>
-              <p>
-                <span className="font-semibold">Créditos pagos:</span> {user.creditsPaid}
+                <span className="font-semibold">Análises realizadas:</span> {user.stats.totalAnalyses}
               </p>
             </div>
           </div>
-
-          {user.plan === 'FREE' && (
-            <div className="bg-purple-50 p-6 rounded-lg border border-purple-200">
-              <h3 className="text-lg font-semibold mb-2 text-gray-900">✨ Upgrade para PRO</h3>
-              <p className="text-gray-700 mb-4">
-                Acesso ilimitado a análises completas e todos os recursos premium.
-              </p>
-              
-              {/* Planos de assinatura */}
-              <div className="space-y-2 mb-4">
-                <button
-                  onClick={() => handleSubscribe('MONTHLY')}
-                  disabled={subscribing}
-                  className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition disabled:opacity-50 cursor-pointer"
-                >
-                  Mensal - R$ {((user.prices?.subscription.monthly || 2990) / 100).toFixed(2).replace('.', ',')}/mês
-                </button>
-                <button
-                  onClick={() => handleSubscribe('QUARTERLY')}
-                  disabled={subscribing}
-                  className="w-full bg-purple-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-600 transition disabled:opacity-50 relative cursor-pointer"
-                >
-                  <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
-                    11% OFF
-                  </span>
-                  Trimestral - R$ {((user.prices?.subscription.quarterly || 7990) / 100).toFixed(2).replace('.', ',')}
-                </button>
-                <button
-                  onClick={() => handleSubscribe('YEARLY')}
-                  disabled={subscribing}
-                  className="w-full bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-800 transition disabled:opacity-50 relative cursor-pointer"
-                >
-                  <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                    17% OFF
-                  </span>
-                  Anual - R$ {((user.prices?.subscription.yearly || 29900) / 100).toFixed(2).replace('.', ',')}/ano
-                </button>
-              </div>
-
-              {/* Cupom de desconto - sempre visível de forma discreta */}
-              <div className="pt-4 border-t border-purple-200">
-                {!appliedCoupon ? (
-                  <div className="flex items-center justify-center gap-2 opacity-70 hover:opacity-100 transition-opacity">
-                    <Tag className="w-4 h-4 text-purple-400" />
-                    <input
-                      type="text"
-                      placeholder="Cupom de desconto"
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                      onKeyDown={(e) => e.key === 'Enter' && validateCoupon()}
-                      disabled={couponLoading}
-                      className="w-40 h-9 text-sm border border-purple-200 rounded-lg px-3 focus:border-purple-400 focus:outline-none focus:ring-1 focus:ring-purple-400"
-                    />
-                    <button
-                      onClick={validateCoupon}
-                      disabled={couponLoading || !couponCode.trim()}
-                      className="h-9 px-3 text-sm text-purple-600 hover:text-purple-700 hover:bg-purple-100 rounded-lg transition disabled:opacity-50 cursor-pointer"
-                    >
-                      {couponLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        'Aplicar'
-                      )}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center gap-2 bg-green-100 px-4 py-2 rounded-lg">
-                    <CheckCircle2 className="w-4 h-4 text-green-600" />
-                    <span className="text-sm text-green-700 font-medium">
-                      {appliedCoupon.percentOff === 100 ? '1 mês PRO grátis!' : `${appliedCoupon.percentOff}% de desconto aplicado`}
-                    </span>
-                    <button
-                      onClick={removeCoupon}
-                      className="text-xs text-gray-500 hover:text-red-500 underline ml-2 cursor-pointer"
-                    >
-                      remover
-                    </button>
-                  </div>
-                )}
-
-                {couponError && (
-                  <p className="text-xs text-red-500 text-center mt-2">{couponError}</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {user.plan === 'PRO' && (
-            <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-              <h3 className="text-lg font-semibold mb-2 text-gray-900">Plano PRO ativo</h3>
-              <p className="text-gray-700 mb-4">
-                Se quiser, voce pode voltar ao plano FREE a qualquer momento.
-              </p>
-              <button
-                onClick={handleDowngradePlan}
-                disabled={downgrading}
-                className="bg-white text-gray-800 px-6 py-3 rounded-lg font-semibold border border-gray-300 hover:bg-gray-100 transition disabled:opacity-50 cursor-pointer"
-              >
-                {downgrading ? 'Atualizando...' : 'Voltar ao plano FREE'}
-              </button>
-            </div>
-          )}
 
           <div className="border-t pt-6">
             <h2 className="text-xl font-semibold mb-4 text-gray-900">Privacidade</h2>

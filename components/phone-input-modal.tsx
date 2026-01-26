@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Phone, X, CheckCircle2 } from 'lucide-react'
+import { Phone, X, CheckCircle2, Sparkles, Shield, MessageCircle } from 'lucide-react'
 
 type PhoneInputModalProps = {
   isOpen: boolean
@@ -70,61 +70,85 @@ export function PhoneInputModal({ isOpen, onClose, onSave, userName }: PhoneInpu
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-      <Card className="bg-gray-800 border-gray-700 p-6 w-full max-w-md">
-        <div className="flex justify-between items-start mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-purple-600/20 rounded-full">
-              <Phone className="w-6 h-6 text-purple-400" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <Card className="bg-white border-gray-200 p-0 w-full max-w-md overflow-hidden shadow-2xl">
+        {/* Header com gradiente */}
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 text-white">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-white/20 rounded-full">
+              <Sparkles className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">Seu telefone</h2>
-              <p className="text-gray-400 text-sm">Para conectar você com um especialista</p>
+              <h2 className="text-xl font-bold">
+                {userName ? `Olá, ${userName.split(' ')[0]}!` : 'Só mais um passo!'}
+              </h2>
+              <p className="text-white/80 text-sm">Complete seu cadastro</p>
             </div>
           </div>
-          <Button onClick={onClose} variant="ghost" size="sm">
-            <X className="w-5 h-5 text-gray-400" />
-          </Button>
         </div>
 
-        <div className="space-y-4">
+        <div className="p-6 space-y-5">
+          {/* Benefícios */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 text-sm">
+              <div className="p-1.5 bg-purple-100 rounded-full">
+                <MessageCircle className="w-4 h-4 text-purple-600" />
+              </div>
+              <span className="text-gray-700">Conecte-se com especialistas em relacionamentos</span>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <div className="p-1.5 bg-green-100 rounded-full">
+                <Shield className="w-4 h-4 text-green-600" />
+              </div>
+              <span className="text-gray-700">Seus dados são protegidos e privados</span>
+            </div>
+          </div>
+
+          {/* Input */}
           <div>
-            <Label htmlFor="phone" className="text-gray-300">WhatsApp</Label>
+            <Label htmlFor="phone" className="text-gray-700 font-medium">Seu WhatsApp</Label>
             <Input
               id="phone"
               type="tel"
               value={phone}
               onChange={handleChange}
               placeholder="(11) 99999-9999"
-              className="bg-gray-700 border-gray-600 text-white text-lg mt-1"
+              className="bg-gray-50 border-gray-300 text-gray-900 text-lg mt-2 h-14 text-center font-medium"
               autoFocus
             />
-            <p className="text-gray-500 text-xs mt-1">
-              Usado apenas para conectar você com especialistas
+            <p className="text-gray-500 text-xs mt-2 text-center">
+              Usamos apenas para conectar você com especialistas
             </p>
           </div>
 
           {error && (
-            <p className="text-red-400 text-sm">{error}</p>
+            <p className="text-red-500 text-sm text-center">{error}</p>
           )}
 
           <Button
             onClick={handleSubmit}
             disabled={loading || phone.replace(/\D/g, '').length < 10}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-5"
+            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white py-6 text-lg font-semibold rounded-xl shadow-lg"
           >
             {loading ? (
               <span className="flex items-center gap-2">
-                <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
                 Salvando...
               </span>
             ) : (
               <span className="flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5" />
-                Continuar
+                Continuar para análises
               </span>
             )}
           </Button>
+
+          <button
+            onClick={onClose}
+            className="w-full text-gray-500 text-sm hover:text-gray-700 transition py-2"
+          >
+            Pular por agora
+          </button>
         </div>
       </Card>
     </div>

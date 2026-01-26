@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/logo'
+import { PhoneInputModal } from '@/components/phone-input-modal'
 import { BarChart3, TrendingUp, Brain, Shield, ArrowRight, Sparkles, Compass, Lock, Zap, X, Info, AlertTriangle, CheckCircle2 } from 'lucide-react'
 
 type Analysis = {
@@ -47,6 +48,8 @@ export default function DashboardPage() {
   const [showRoutePaywallModal, setShowRoutePaywallModal] = useState(false)
   const [showRouteCorrectionTooltip, setShowRouteCorrectionTooltip] = useState(false)
   const [unlockingRoute, setUnlockingRoute] = useState(false)
+  const [showPhoneModal, setShowPhoneModal] = useState(false)
+  const [userName, setUserName] = useState<string | null>(null)
 
   const stageLabels: Record<string, string> = {
     FIRST_CHAT: 'Primeira conversa',
@@ -109,6 +112,7 @@ export default function DashboardPage() {
       if (meRes.ok) {
         const meData = await meRes.json()
         setPlan(meData.plan)
+        setUserName(meData.name)
         
         // Set route correction info
         if (meData.routeCorrection) {
@@ -118,6 +122,11 @@ export default function DashboardPage() {
           if (meData.routeCorrection.available) {
             setShowRouteCorrectionTooltip(true)
           }
+        }
+        
+        // Mostrar modal de telefone se usuário não tem telefone cadastrado
+        if (!meData.phone) {
+          setShowPhoneModal(true)
         }
       }
 
@@ -583,6 +592,17 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+
+        {/* Modal de telefone para novos usuários */}
+        <PhoneInputModal
+          isOpen={showPhoneModal}
+          onClose={() => setShowPhoneModal(false)}
+          onSave={(phone) => {
+            setShowPhoneModal(false)
+            // Lead SIGNUP é gerado automaticamente pelo endpoint /api/me PATCH
+          }}
+          userName={userName}
+        />
       </div>
     </div>
   )

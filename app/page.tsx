@@ -129,16 +129,25 @@ export default function LandingPage() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50">
       {/* Header com Logo */}
       <nav className="container mx-auto px-4 py-6">
-        <div className="flex items-center gap-3">
-          <Logo size="lg" />
-          <div className="flex flex-col">
-            <span className="text-sm md:text-base font-semibold text-purple-700">
-              Coach de Relacionamentos
-            </span>
-            <span className="text-xs text-gray-500 hidden md:block">
-              Análise objetiva do seu match
-            </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Logo size="lg" />
+            <div className="flex flex-col">
+              <span className="text-sm md:text-base font-semibold text-purple-700">
+                Coach de Relacionamentos
+              </span>
+              <span className="text-xs text-gray-500 hidden md:block">
+                Análise objetiva do seu match
+              </span>
+            </div>
           </div>
+          <Link 
+            href="/terapeuta" 
+            className="text-sm font-medium text-purple-600 hover:text-purple-800 transition flex items-center gap-1"
+          >
+            Para Profissionais
+            <ChevronRight className="w-4 h-4" />
+          </Link>
         </div>
       </nav>
       

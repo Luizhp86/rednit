@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { analyze, type AnalysisInput } from '@/lib/rules/engine'
 import { analysisInputSchema } from '@/lib/validations/analysis'
 import { startOfDay } from 'date-fns'
+import { generateLead } from '@/lib/lead-rotation'
+import { sendLeadAnalysisNotification } from '@/lib/email'
 
 // Simple in-memory rate limiting (for MVP)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -170,6 +172,80 @@ export async function POST(request: NextRequest) {
     // #region agent log
     console.log('[ANALYZE] POST_CREATE analysisId:', analysis.id, 'hasId:', !!analysis.id, 'type:', typeof analysis.id)
     // #endregion
+
+    // Gerar lead ANALYSIS se usuário tem telefone e feature está habilitada
+    if (dbUser.phone) {
+      try {
+        // Verificar se geração de lead na análise está habilitada
+        const config = await prisma.systemConfig.findUnique({
+          where: { id: 'default' },
+          select: { enableLeadAnalysis: true }
+        })
+        
+        if (config?.enableLeadAnalysis === false) {
+          console.log('[ANALYZE] Lead ANALYSIS desabilitado nas configurações')
+        } else {
+          // Extrair dados resumidos da análise para o lead
+          const analysisData = {
+            matchName: validatedInput.nome_match,
+            redFlags: result.red_flags || [],
+            greenFlags: result.green_flags || [],
+            scores: result.scores || {},
+            hypothesis: result.hypotheses_top3?.[0]?.key,
+          }
+
+          const leadResult = await generateLead({
+            type: 'ANALYSIS',
+            userId: dbUser.id,
+            userName: dbUser.name || undefined,
+            userEmail: dbUser.email,
+            userPhone: dbUser.phone,
+            analysisId: analysis.id,
+            matchName: validatedInput.nome_match,
+            analysisData,
+          })
+
+          // Verificar se o lead foi ignorado pela regra de cooldown
+          if (leadResult.skipped) {
+            console.log('[ANALYZE] Lead ANALYSIS ignorado (regra cooldown)')
+          } else {
+            console.log('[ANALYZE] Lead ANALYSIS gerado:', leadResult.leadId)
+          }
+          
+          // Enviar email apenas se lead foi criado e tiver terapeuta atribuído
+          if (!leadResult.skipped && leadResult.therapistId) {
+            const therapist = await prisma.therapist.findUnique({
+              where: { id: leadResult.therapistId },
+              select: { email: true, name: true, plan: true }
+            })
+
+            if (therapist) {
+              await sendLeadAnalysisNotification({
+                therapist: { email: therapist.email, name: therapist.name, plan: therapist.plan },
+                lead: {
+                  userName: dbUser.name,
+                  userEmail: dbUser.email,
+                  userPhone: dbUser.phone,
+                  matchName: validatedInput.nome_match,
+                  analysisData,
+                }
+              }).catch(err => console.error('[ANALYZE] Erro ao enviar email de lead:', err))
+
+              // Marcar email como enviado
+              await prisma.lead.update({
+                where: { id: leadResult.leadId },
+                data: { emailSentAt: new Date() }
+              }).catch(err => console.error('[ANALYZE] Erro ao atualizar lead:', err))
+            }
+          } else if (!leadResult.skipped) {
+            console.log('[ANALYZE] Lead criado sem terapeuta - aguardando atribuição manual')
+          }
+        }
+      } catch (leadError) {
+        console.error('[ANALYZE] Erro ao gerar lead ANALYSIS:', leadError)
+        // Não falhar a requisição se o lead falhar
+      }
+    }
 
     // Deduct credit for free users
     if (dbUser.plan === 'FREE') {

@@ -171,6 +171,116 @@ export async function sendLeadSignupNotification(params: {
 }
 
 /**
+ * Email de notificação de lead ANALYSIS (morno - completou análise)
+ */
+export async function sendLeadAnalysisNotification(params: {
+  therapist: { email: string; name: string; plan: string }
+  lead: {
+    userName?: string | null
+    userEmail: string
+    userPhone: string
+    matchName?: string | null
+    analysisData?: any
+  }
+}) {
+  const { therapist, lead } = params
+  
+  // Extrair dados relevantes da análise
+  const redFlags = lead.analysisData?.redFlags || []
+  const greenFlags = lead.analysisData?.greenFlags || []
+  const scores = lead.analysisData?.scores || {}
+  
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: therapist.email,
+      subject: '📊 Novo lead - Usuário completou análise! - Radar Match',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); padding: 20px; border-radius: 12px 12px 0 0; text-align: center;">
+            <h1 style="color: white; margin: 0;">📊 Lead de Análise</h1>
+            <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0;">Este usuário completou uma análise de match</p>
+          </div>
+          
+          <div style="background: #f3f4f6; padding: 20px; border-radius: 0 0 12px 12px;">
+            <h3 style="color: #333; margin-top: 0;">Dados do Lead:</h3>
+            <table style="width: 100%; font-size: 14px; margin-bottom: 20px;">
+              <tr>
+                <td style="padding: 8px 0; color: #666;">Nome:</td>
+                <td style="padding: 8px 0; color: #333; font-weight: bold;">${lead.userName || 'Não informado'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;">Email:</td>
+                <td style="padding: 8px 0; color: #333;">${lead.userEmail}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;">Telefone:</td>
+                <td style="padding: 8px 0; color: #333;">
+                  <a href="https://wa.me/55${lead.userPhone.replace(/\D/g, '')}" style="color: #22c55e; font-weight: bold;">
+                    ${lead.userPhone}
+                  </a>
+                </td>
+              </tr>
+              ${lead.matchName ? `
+              <tr>
+                <td style="padding: 8px 0; color: #666;">Match analisado:</td>
+                <td style="padding: 8px 0; color: #333; font-weight: bold;">${lead.matchName}</td>
+              </tr>
+              ` : ''}
+            </table>
+            
+            <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 15px;">
+              <h4 style="color: #333; margin: 0 0 10px;">📋 Resumo da Análise:</h4>
+              <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                ${redFlags.length > 0 ? `
+                <div>
+                  <span style="color: #dc2626; font-weight: bold;">🚩 ${redFlags.length} red flag${redFlags.length > 1 ? 's' : ''}</span>
+                </div>
+                ` : ''}
+                ${greenFlags.length > 0 ? `
+                <div>
+                  <span style="color: #22c55e; font-weight: bold;">✅ ${greenFlags.length} green flag${greenFlags.length > 1 ? 's' : ''}</span>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+            
+            ${Object.keys(scores).length > 0 ? `
+            <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb;">
+              <h4 style="color: #333; margin: 0 0 10px;">📊 Scores:</h4>
+              <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                ${Object.entries(scores).slice(0, 4).map(([key, value]) => `
+                  <span style="background: #f3f4f6; padding: 5px 10px; border-radius: 20px; font-size: 12px;">
+                    ${key}: <strong>${value}</strong>
+                  </span>
+                `).join('')}
+              </div>
+            </div>
+            ` : ''}
+          </div>
+          
+          <div style="margin-top: 20px; text-align: center;">
+            <a href="https://wa.me/55${lead.userPhone.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Vi que você fez uma análise no Radar Match. Se precisar de ajuda para entender melhor sua situação, estou à disposição!')}" 
+               style="display: inline-block; background: #7c3aed; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+              💬 Entrar em contato via WhatsApp
+            </a>
+          </div>
+          
+          <p style="font-size: 12px; color: #888; margin-top: 30px; text-align: center;">
+            Este usuário completou uma análise e pode estar precisando de orientação.<br>
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://radarmatch.com.br'}/terapeuta/dashboard">Acessar Dashboard</a>
+          </p>
+        </div>
+      `,
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Erro ao enviar notificação de lead ANALYSIS:', error)
+    return { success: false, error }
+  }
+}
+
+/**
  * Email de notificação de lead CTA (quente - com dados da análise)
  */
 export async function sendLeadCtaNotification(params: {

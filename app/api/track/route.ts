@@ -9,13 +9,13 @@ function getSessionId(request: NextRequest): string {
     return sessionCookie.value
   }
   // Gerar novo sessionId
-  return `${Date.now()}-${Math.random().toString(36).substring(7)}`
+  return `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { eventType, eventData, page, duration } = body
+    const { eventType, eventData, page, duration, journeyType } = body
 
     if (!eventType) {
       return NextResponse.json({ error: 'eventType é obrigatório' }, { status: 400 })
@@ -42,14 +42,25 @@ export async function POST(request: NextRequest) {
 
     const sessionId = getSessionId(request)
 
-    // Registrar evento
+    // Extrair informações do request
+    const userAgent = request.headers.get('user-agent') || undefined
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+                      request.headers.get('x-real-ip') || 
+                      undefined
+    const referrer = request.headers.get('referer') || undefined
+
+    // Registrar evento com o novo modelo
     await prisma.userActivityLog.create({
       data: {
+        journeyType: journeyType || 'LEAD', // Default para LEAD se não especificado
         userId,
         sessionId,
         eventType,
         eventData: eventData || null,
         page: page || null,
+        referrer,
+        userAgent,
+        ipAddress,
         duration: duration || null,
       },
     })

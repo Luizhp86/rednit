@@ -171,8 +171,10 @@ export async function PATCH(request: NextRequest) {
           userPhone: phone,
         })
 
-        if (leadResult) {
-          // Buscar terapeuta para enviar email
+        console.log(`[API/ME] Lead SIGNUP gerado: ${leadResult.leadId}`)
+        
+        // Enviar email apenas se tiver terapeuta atribuído
+        if (leadResult.therapistId) {
           const therapist = await prisma.therapist.findUnique({
             where: { id: leadResult.therapistId },
             select: { email: true, name: true }
@@ -188,6 +190,8 @@ export async function PATCH(request: NextRequest) {
               }
             })
           }
+        } else {
+          console.log('[API/ME] Lead criado sem terapeuta - aguardando atribuição manual')
         }
       } catch (leadError) {
         console.error('Erro ao gerar lead SIGNUP:', leadError)

@@ -155,8 +155,27 @@ model SystemConfig {
   therapistLeadsPerDay        Int @default(10)     // Limite de leads por terapeuta/dia
   
   // Feature flags B2B
-  enableLeadSignup            Boolean @default(true)  // Gerar lead no cadastro
+  enableLeadSignup            Boolean @default(true)  // Gerar lead no cadastro (telefone)
+  enableLeadAnalysis          Boolean @default(true)  // Gerar lead na análise (formulário)
   enableLeadCta               Boolean @default(true)  // Gerar lead no CTA
+  
+  // ============================================
+  // REGRAS DE GERAÇÃO DE LEADS (configuráveis)
+  // ============================================
+  
+  // Quais planos recebem cada tipo de lead (JSON array de strings)
+  // Ex: ["BASIC", "INTERMEDIATE", "PRO"]
+  leadSignupPlans             String  @default("[\"BASIC\",\"INTERMEDIATE\",\"PRO\"]") // Leads de cadastro
+  leadAnalysisPlans           String  @default("[\"INTERMEDIATE\",\"PRO\"]")           // Leads de análise
+  leadCtaPlans                String  @default("[\"PRO\"]")                            // Leads de CTA (quentes)
+  
+  // Regra de cooldown entre leads do mesmo tipo (em horas)
+  leadCooldownHours           Int     @default(24)  // Padrão: 24h entre leads do mesmo tipo
+  
+  // Limites de leads por dia (por terapeuta)
+  leadMaxSignupPerDay         Int     @default(20)  // Máx leads SIGNUP por dia
+  leadMaxAnalysisPerDay       Int     @default(10)  // Máx leads ANALYSIS por dia
+  leadMaxCtaPerDay            Int     @default(5)   // Máx leads CTA por dia
   
   // Feature flags
   maintenanceMode          Boolean @default(false)
@@ -166,6 +185,23 @@ model SystemConfig {
   updatedAt DateTime @updatedAt
 
   @@map("system_config")
+}
+
+// ============================================
+// ADMINISTRADORES DO SISTEMA
+// ============================================
+
+model Admin {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  name        String?
+  role        String   @default("ADMIN") // ADMIN, SUPER_ADMIN
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?  // Email do admin que criou
+
+  @@map("admins")
 }
 
 // Log de uso do Gemini para controle de gastos
@@ -205,19 +241,98 @@ model AdminLog {
   @@map("admin_logs")
 }
 
+// Tipo de usuário na jornada
+enum UserJourneyType {
+  LEAD              // Usuário comum fazendo análise
+  THERAPIST         // Terapeuta usando a plataforma
+  ADMIN             // Administrador
+}
+
+// Eventos da jornada do lead
+enum LeadJourneyEvent {
+  // Aquisição
+  LANDING_VIEW           // Visualizou landing page
+  LOGIN_START            // Iniciou login
+  LOGIN_SUCCESS          // Login com sucesso
+  SIGNUP_COMPLETE        // Cadastro completo (com telefone)
+  
+  // Engajamento
+  FORM_START             // Iniciou formulário de análise
+  FORM_STEP              // Avançou step do formulário
+  FORM_COMPLETE          // Completou formulário
+  ANALYSIS_VIEW          // Visualizou resultado da análise
+  
+  // Conversão
+  CTA_CLICK              // Clicou em "Falar com especialista"
+  PHONE_SUBMIT           // Enviou telefone
+  WHATSAPP_OPEN          // Abriu WhatsApp do terapeuta
+  
+  // Retenção
+  DASHBOARD_VIEW         // Visualizou dashboard
+  ANALYSIS_HISTORY       // Visualizou histórico
+  ROUTE_CORRECTION       // Usou correção de rota
+  
+  // Outros
+  LOGOUT                 // Fez logout
+  ACCOUNT_DELETE         // Deletou conta
+}
+
+// Eventos da jornada do terapeuta
+enum TherapistJourneyEvent {
+  // Aquisição
+  LANDING_VIEW           // Visualizou landing page de terapeutas
+  REGISTER_START         // Iniciou cadastro
+  REGISTER_COMPLETE      // Completou cadastro
+  LOGIN_SUCCESS          // Login com sucesso
+  
+  // Ativação
+  PROFILE_UPDATE         // Atualizou perfil
+  SUBSCRIPTION_START     // Iniciou assinatura
+  SUBSCRIPTION_ACTIVE    // Assinatura ativada
+  
+  // Engajamento
+  DASHBOARD_VIEW         // Visualizou dashboard
+  LEAD_VIEW              // Visualizou lead
+  LEAD_CONTACT           // Marcou lead como contatado
+  LEAD_CONVERT           // Marcou lead como convertido
+  
+  // Receita
+  PLAN_UPGRADE           // Fez upgrade de plano
+  PLAN_DOWNGRADE         // Fez downgrade de plano
+  
+  // Outros
+  LOGOUT                 // Fez logout
+}
+
 // Log de jornada do usuário (analytics)
 model UserActivityLog {
-  id          String   @id @default(uuid())
-  userId      String?
-  sessionId   String   // Para agrupar eventos da mesma sessão
-  eventType   String   // PAGE_VIEW, CLICK, ANALYSIS_CREATED, LOGIN, etc
-  eventData   Json?    // Dados específicos do evento
-  page        String?  // URL/rota da página
-  duration    Int?     // Tempo em ms (para PAGE_VIEW)
-  createdAt   DateTime @default(now())
+  id            String           @id @default(uuid())
+  
+  // Identificação
+  journeyType   UserJourneyType  // LEAD, THERAPIST, ADMIN
+  userId        String?          // ID do usuário (se logado)
+  therapistId   String?          // ID do terapeuta (se for terapeuta)
+  sessionId     String           // Para agrupar eventos da mesma sessão
+  
+  // Evento
+  eventType     String           // Evento específico (LeadJourneyEvent ou TherapistJourneyEvent)
+  eventData     Json?            // Dados específicos do evento
+  
+  // Contexto
+  page          String?          // URL/rota da página
+  referrer      String?          // Página anterior
+  userAgent     String?          // Browser/dispositivo
+  ipAddress     String?          // IP (anonimizado)
+  
+  // Métricas
+  duration      Int?             // Tempo em ms (para PAGE_VIEW)
+  
+  createdAt     DateTime         @default(now())
 
   @@index([createdAt])
+  @@index([journeyType])
   @@index([userId])
+  @@index([therapistId])
   @@index([sessionId])
   @@index([eventType])
   @@map("user_activity_logs")
@@ -246,9 +361,9 @@ enum TherapistStatus {
 }
 
 enum TherapistPlan {
-  BASIC          // R$ 79/mes - so leads SIGNUP
-  INTERMEDIATE   // R$ 149/mes - leads SIGNUP + CTA (email)
-  PRO            // R$ 249/mes - todos + WhatsApp direto
+  BASIC          // R$ 79/mes - so leads SIGNUP (frios)
+  INTERMEDIATE   // R$ 149/mes - leads SIGNUP + ANALYSIS (frios + mornos)
+  PRO            // R$ 249/mes - todos os leads + WhatsApp direto
 }
 
 model Therapist {
@@ -277,6 +392,7 @@ model Therapist {
   leadsReceived      Int              @default(0)
   leadsThisMonth     Int              @default(0)
   leadsSignup        Int              @default(0)
+  leadsAnalysis      Int              @default(0)
   leadsCta           Int              @default(0)
   lastLeadAt         DateTime?        // Ultimo lead recebido (para rotacao)
   
@@ -296,8 +412,9 @@ model Therapist {
 }
 
 enum LeadType {
-  SIGNUP     // Lead de cadastro (frio)
-  CTA        // Lead de CTA (quente)
+  SIGNUP     // Lead de cadastro (frio) - só preencheu telefone
+  ANALYSIS   // Lead de análise (morno) - completou uma análise
+  CTA        // Lead de CTA (quente) - clicou para falar com especialista
 }
 
 enum LeadStatus {
@@ -325,9 +442,9 @@ model Lead {
   matchName    String?     // Nome do match analisado
   analysisData Json?       // Dados da analise (red flags, hipoteses, etc)
   
-  // Terapeuta que recebeu
-  therapistId  String
-  therapist    Therapist   @relation(fields: [therapistId], references: [id], onDelete: Cascade)
+  // Terapeuta que recebeu (opcional - pode ser atribuído depois)
+  therapistId  String?
+  therapist    Therapist?  @relation(fields: [therapistId], references: [id], onDelete: SetNull)
   
   // Notificacoes
   emailSentAt    DateTime?

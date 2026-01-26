@@ -1,11 +1,14 @@
+'use client'
+
 import React from 'react'
 
 interface LogoProps {
   className?: string
   size?: 'sm' | 'md' | 'lg'
+  variant?: 'light' | 'dark'
 }
 
-export function Logo({ className = '', size = 'md' }: LogoProps) {
+export function Logo({ className = '', size = 'md', variant = 'light' }: LogoProps) {
   const sizeClasses = {
     sm: 'h-6 w-6',
     md: 'h-8 w-8',
@@ -18,8 +21,11 @@ export function Logo({ className = '', size = 'md' }: LogoProps) {
     lg: 'text-4xl',
   }
 
+  // Cor do texto: dark = fundo escuro (texto branco), light = fundo claro (texto escuro)
+  const textColor = variant === 'dark' ? 'text-white' : 'text-gray-800'
+
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={`relative flex items-center gap-2 overflow-hidden ${className}`}>
       {/* Chama do Tinder invertida (de ponta cabeça) */}
       <svg
         className={sizeClasses[size]}
@@ -52,9 +58,29 @@ export function Logo({ className = '', size = 'md' }: LogoProps) {
       </svg>
       
       {/* Texto "rednit" em lowercase */}
-      <span className={`font-semibold text-gray-800 ${textSizes[size]}`}>
+      <span className={`font-semibold ${textColor} ${textSizes[size]}`}>
         rednit
       </span>
+      
+      {/* Efeito de luz/reflexo passando do logo ao final do nome */}
+      <div 
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.5) 25%, rgba(255,255,255,0.8) 30%, rgba(255,255,255,0.5) 35%, transparent 40%)',
+          animation: 'shine 2.2s ease-in-out infinite',
+        }}
+      />
+      
+      <style jsx>{`
+        @keyframes shine {
+          0% {
+            transform: translateX(-100%);
+          }
+          68%, 100% {
+            transform: translateX(200%);
+          }
+        }
+      `}</style>
     </div>
   )
 }

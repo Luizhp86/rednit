@@ -206,9 +206,13 @@ export default function CadastroTerapeutaPage() {
                       <SelectTrigger className="bg-gray-700 border-gray-600 text-white mt-1">
                         <SelectValue placeholder="Selecione..." />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-gray-800 border-gray-600 text-white">
                         {therapistTypes.map(type => (
-                          <SelectItem key={type.value} value={type.value}>
+                          <SelectItem 
+                            key={type.value} 
+                            value={type.value}
+                            className="text-white hover:bg-gray-700 focus:bg-gray-700 focus:text-white cursor-pointer"
+                          >
                             {type.label}
                           </SelectItem>
                         ))}

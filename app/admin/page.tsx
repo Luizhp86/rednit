@@ -31,7 +31,12 @@ import {
   UserCheck,
   MessageCircle,
   Phone,
-  Crown
+  Crown,
+  Plus,
+  Trash2,
+  Edit,
+  UserCog,
+  Sliders
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 
@@ -41,20 +46,43 @@ type SystemConfig = {
   freeCreditsDaily: number
   geminiDailyLimit: number
   geminiMonthlyBudgetCents: number
-  proPriceMonthly: number
-  proPriceQuarterly: number
-  proPriceYearly: number
-  creditPriceSingle: number
-  creditPricePack3: number
-  creditPricePack5: number
+  // B2B - Preços de terapeutas
+  therapistPriceBasic: number
+  therapistPriceIntermediate: number
+  therapistPricePro: number
+  therapistLeadsPerDay: number
+  // Feature flags B2B
+  enableLeadSignup: boolean
+  enableLeadAnalysis: boolean
+  enableLeadCta: boolean
+  // Regras de geração de leads
+  leadSignupPlans: string
+  leadAnalysisPlans: string
+  leadCtaPlans: string
+  leadCooldownHours: number
+  leadMaxSignupPerDay: number
+  leadMaxAnalysisPerDay: number
+  leadMaxCtaPerDay: number
+  // Feature flags gerais
   maintenanceMode: boolean
   allowNewRegistrations: boolean
 }
 
+type Admin = {
+  id: string
+  email: string
+  name: string | null
+  role: string
+  active: boolean
+  createdAt: string
+  createdBy: string | null
+}
+
 type Stats = {
-  users: { total: number; pro: number; free: number }
+  users: { total: number; withPhone: number }
   analyses: { total: number; today: number; thisMonth: number }
-  revenue: { total: number; thisMonth: number }
+  therapists: { total: number; approved: number; pending: number }
+  leads: { total: number; today: number; thisMonth: number; converted: number }
   gemini: { callsToday: number; callsThisMonth: number; estimatedCostThisMonth: number }
 }
 
@@ -62,20 +90,16 @@ type User = {
   id: string
   email: string
   name: string | null
-  plan: 'FREE' | 'PRO'
-  creditsFreeDaily: number
-  creditsPaid: number
-  proUntil: string | null
+  phone: string | null
   createdAt: string
   analysesCount: number
-  paymentsCount: number
 }
 
 export default function AdminPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'config' | 'users' | 'logs' | 'apikeys' | 'therapists' | 'leads'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'config' | 'users' | 'logs' | 'apikeys' | 'therapists' | 'leads' | 'admins'>('dashboard')
   
   // Dashboard data
   const [stats, setStats] = useState<Stats | null>(null)
@@ -86,11 +110,11 @@ export default function AdminPage() {
   const [configDraft, setConfigDraft] = useState<SystemConfig | null>(null)
   const [savingConfig, setSavingConfig] = useState(false)
   
-  // Price input states (for free text input)
+  // Price input states (for free text input) - B2B Terapeutas
   const [priceInputs, setPriceInputs] = useState({
-    proPriceMonthly: '',
-    proPriceQuarterly: '',
-    proPriceYearly: '',
+    therapistPriceBasic: '',
+    therapistPriceIntermediate: '',
+    therapistPricePro: '',
   })
   
   // Users
@@ -101,10 +125,26 @@ export default function AdminPage() {
   const [userTotalPages, setUserTotalPages] = useState(1)
   const [loadingUsers, setLoadingUsers] = useState(false)
   
-  // Edit user modal
+  // User modals
   const [editingUser, setEditingUser] = useState<User | null>(null)
-  const [editUserPlan, setEditUserPlan] = useState<'FREE' | 'PRO'>('FREE')
   const [editUserCredits, setEditUserCredits] = useState(0)
+  const [editUserMode, setEditUserMode] = useState<'view' | 'edit'>('view')
+  const [editUserForm, setEditUserForm] = useState({ name: '', email: '', phone: '' })
+  const [savingUser, setSavingUser] = useState(false)
+  const [deletingUser, setDeletingUser] = useState<string | null>(null)
+  
+  // Create user modal
+  const [showCreateUser, setShowCreateUser] = useState(false)
+  const [newUserForm, setNewUserForm] = useState({ email: '', name: '', phone: '' })
+  const [creatingUser, setCreatingUser] = useState(false)
+  
+  // Admins tab
+  const [admins, setAdmins] = useState<Admin[]>([])
+  const [loadingAdmins, setLoadingAdmins] = useState(false)
+  const [showCreateAdmin, setShowCreateAdmin] = useState(false)
+  const [newAdminForm, setNewAdminForm] = useState({ email: '', name: '', role: 'ADMIN' })
+  const [creatingAdmin, setCreatingAdmin] = useState(false)
+  const [deletingAdmin, setDeletingAdmin] = useState<string | null>(null)
   
   // Logs tab
   const [logsType, setLogsType] = useState<'admin' | 'activity'>('admin')
@@ -145,11 +185,16 @@ export default function AdminPage() {
   const [adminLeads, setAdminLeads] = useState<any[]>([])
   const [leadTypeFilter, setLeadTypeFilter] = useState('')
   const [leadStatusFilter, setLeadStatusFilter] = useState('')
+  const [leadTherapistFilter, setLeadTherapistFilter] = useState('')
   const [leadPage, setLeadPage] = useState(1)
   const [leadTotal, setLeadTotal] = useState(0)
   const [leadTotalPages, setLeadTotalPages] = useState(1)
   const [loadingLeads, setLoadingLeads] = useState(false)
   const [leadStats, setLeadStats] = useState<any>(null)
+  const [allTherapists, setAllTherapists] = useState<any[]>([])
+  const [assigningLead, setAssigningLead] = useState<string | null>(null)
+  const [selectedTherapistForAssign, setSelectedTherapistForAssign] = useState('')
+  const [sendNotificationOnAssign, setSendNotificationOnAssign] = useState(true)
 
   useEffect(() => {
     checkAdmin()
@@ -177,26 +222,34 @@ export default function AdminPage() {
       const res = await fetch('/api/admin')
       if (res.ok) {
         const data = await res.json()
-        // #region agent log
-        const logDataLoad = {location:"admin/page.tsx:loadDashboard:received",message:"Config recebido no loadDashboard",data:{proPriceMonthly:data.config?.proPriceMonthly,creditPriceSingle:data.config?.creditPriceSingle},timestamp:Date.now(),sessionId:"debug-session",hypothesisId:"E"};
-        fetch("http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(logDataLoad)}).catch(function(){});
-        // #endregion
         setStats(data.stats)
         setTopUsers(data.topUsers || [])
         setConfig(data.config)
-        // Initialize price inputs with fallback defaults
+        // Initialize price inputs with fallback defaults - B2B
         const cfg = data.config
         setPriceInputs({
-          proPriceMonthly: String((cfg.proPriceMonthly ?? 2990) / 100),
-          proPriceQuarterly: String((cfg.proPriceQuarterly ?? 7990) / 100),
-          proPriceYearly: String((cfg.proPriceYearly ?? 29900) / 100),
+          therapistPriceBasic: String((cfg.therapistPriceBasic ?? 7900) / 100),
+          therapistPriceIntermediate: String((cfg.therapistPriceIntermediate ?? 14900) / 100),
+          therapistPricePro: String((cfg.therapistPricePro ?? 24900) / 100),
         })
         // Also ensure configDraft has all required fields with defaults
         setConfigDraft({
           ...data.config,
-          proPriceMonthly: cfg.proPriceMonthly ?? 2990,
-          proPriceQuarterly: cfg.proPriceQuarterly ?? 7990,
-          proPriceYearly: cfg.proPriceYearly ?? 29900,
+          therapistPriceBasic: cfg.therapistPriceBasic ?? 7900,
+          therapistPriceIntermediate: cfg.therapistPriceIntermediate ?? 14900,
+          therapistPricePro: cfg.therapistPricePro ?? 24900,
+          therapistLeadsPerDay: cfg.therapistLeadsPerDay ?? 10,
+          enableLeadSignup: cfg.enableLeadSignup ?? true,
+          enableLeadAnalysis: cfg.enableLeadAnalysis ?? true,
+          enableLeadCta: cfg.enableLeadCta ?? true,
+          // Regras de geração de leads
+          leadSignupPlans: cfg.leadSignupPlans ?? '["BASIC","INTERMEDIATE","PRO"]',
+          leadAnalysisPlans: cfg.leadAnalysisPlans ?? '["INTERMEDIATE","PRO"]',
+          leadCtaPlans: cfg.leadCtaPlans ?? '["PRO"]',
+          leadCooldownHours: cfg.leadCooldownHours ?? 24,
+          leadMaxSignupPerDay: cfg.leadMaxSignupPerDay ?? 20,
+          leadMaxAnalysisPerDay: cfg.leadMaxAnalysisPerDay ?? 10,
+          leadMaxCtaPerDay: cfg.leadMaxCtaPerDay ?? 5,
         })
       } else {
         const errorData = await res.json()
@@ -229,6 +282,178 @@ export default function AdminPage() {
       console.error('Error loading users:', error)
     } finally {
       setLoadingUsers(false)
+    }
+  }
+
+  const createUser = async () => {
+    if (!newUserForm.email) {
+      alert('Email é obrigatório')
+      return
+    }
+    setCreatingUser(true)
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUserForm)
+      })
+      if (res.ok) {
+        setShowCreateUser(false)
+        setNewUserForm({ email: '', name: '', phone: '' })
+        loadUsers(1, userSearch)
+        alert('Usuário criado com sucesso!')
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Erro ao criar usuário')
+      }
+    } catch (error) {
+      console.error('Error creating user:', error)
+      alert('Erro ao criar usuário')
+    } finally {
+      setCreatingUser(false)
+    }
+  }
+
+  const updateUser = async () => {
+    if (!editingUser) return
+    setSavingUser(true)
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: editingUser.id,
+          name: editUserForm.name,
+          email: editUserForm.email,
+          phone: editUserForm.phone
+        })
+      })
+      if (res.ok) {
+        setEditUserMode('view')
+        loadUsers(userPage, userSearch)
+        const data = await res.json()
+        setEditingUser({ ...editingUser, ...data.user })
+        alert('Usuário atualizado com sucesso!')
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Erro ao atualizar usuário')
+      }
+    } catch (error) {
+      console.error('Error updating user:', error)
+      alert('Erro ao atualizar usuário')
+    } finally {
+      setSavingUser(false)
+    }
+  }
+
+  const deleteUser = async (userId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) {
+      return
+    }
+    setDeletingUser(userId)
+    try {
+      const res = await fetch(`/api/admin/users?userId=${userId}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        setEditingUser(null)
+        loadUsers(userPage, userSearch)
+        alert('Usuário excluído com sucesso!')
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Erro ao excluir usuário')
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      alert('Erro ao excluir usuário')
+    } finally {
+      setDeletingUser(null)
+    }
+  }
+
+  const loadAdmins = async () => {
+    setLoadingAdmins(true)
+    try {
+      const res = await fetch('/api/admin/admins')
+      if (res.ok) {
+        const data = await res.json()
+        setAdmins(data.admins || [])
+      }
+    } catch (error) {
+      console.error('Error loading admins:', error)
+    } finally {
+      setLoadingAdmins(false)
+    }
+  }
+
+  const createAdmin = async () => {
+    if (!newAdminForm.email) {
+      alert('Email é obrigatório')
+      return
+    }
+    setCreatingAdmin(true)
+    try {
+      const res = await fetch('/api/admin/admins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAdminForm)
+      })
+      if (res.ok) {
+        setShowCreateAdmin(false)
+        setNewAdminForm({ email: '', name: '', role: 'ADMIN' })
+        loadAdmins()
+        alert('Administrador criado com sucesso!')
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Erro ao criar administrador')
+      }
+    } catch (error) {
+      console.error('Error creating admin:', error)
+      alert('Erro ao criar administrador')
+    } finally {
+      setCreatingAdmin(false)
+    }
+  }
+
+  const toggleAdminActive = async (adminId: string, active: boolean) => {
+    try {
+      const res = await fetch('/api/admin/admins', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminId, active: !active })
+      })
+      if (res.ok) {
+        loadAdmins()
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Erro ao atualizar admin')
+      }
+    } catch (error) {
+      console.error('Error toggling admin:', error)
+    }
+  }
+
+  const deleteAdmin = async (adminId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este administrador?')) {
+      return
+    }
+    setDeletingAdmin(adminId)
+    try {
+      const res = await fetch(`/api/admin/admins?adminId=${adminId}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        loadAdmins()
+        alert('Administrador excluído com sucesso!')
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Erro ao excluir administrador')
+      }
+    } catch (error) {
+      console.error('Error deleting admin:', error)
+      alert('Erro ao excluir administrador')
+    } finally {
+      setDeletingAdmin(null)
     }
   }
 
@@ -327,12 +552,13 @@ export default function AdminPage() {
     }
   }
 
-  const loadAdminLeads = async (page = 1, type = '', status = '') => {
+  const loadAdminLeads = async (page = 1, type = '', status = '', therapistId = '') => {
     setLoadingLeads(true)
     try {
       const params = new URLSearchParams({ page: page.toString(), limit: '50' })
       if (type) params.set('type', type)
       if (status) params.set('status', status)
+      if (therapistId) params.set('therapistId', therapistId)
       
       const res = await fetch(`/api/admin/leads?${params}`)
       if (res.ok) {
@@ -347,6 +573,57 @@ export default function AdminPage() {
       console.error('Error loading leads:', error)
     } finally {
       setLoadingLeads(false)
+    }
+  }
+  
+  const loadAllTherapists = async () => {
+    try {
+      const res = await fetch('/api/admin/therapists?limit=100&status=APPROVED')
+      if (res.ok) {
+        const data = await res.json()
+        setAllTherapists(data.therapists || [])
+      }
+    } catch (error) {
+      console.error('Error loading therapists for assign:', error)
+    }
+  }
+  
+  const assignTherapistToLead = async (leadId: string, therapistId: string, sendNotification: boolean) => {
+    try {
+      const res = await fetch('/api/admin/leads', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId, therapistId, sendNotification })
+      })
+      
+      if (res.ok) {
+        // Recarregar leads
+        loadAdminLeads(leadPage, leadTypeFilter, leadStatusFilter, leadTherapistFilter)
+        setAssigningLead(null)
+        setSelectedTherapistForAssign('')
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Erro ao atribuir terapeuta')
+      }
+    } catch (error) {
+      console.error('Error assigning therapist:', error)
+      alert('Erro ao atribuir terapeuta')
+    }
+  }
+  
+  const updateLeadStatus = async (leadId: string, newStatus: string) => {
+    try {
+      const res = await fetch('/api/admin/leads', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId, status: newStatus })
+      })
+      
+      if (res.ok) {
+        loadAdminLeads(leadPage, leadTypeFilter, leadStatusFilter, leadTherapistFilter)
+      }
+    } catch (error) {
+      console.error('Error updating lead status:', error)
     }
   }
 
@@ -390,23 +667,12 @@ export default function AdminPage() {
       return !isNaN(num) && num >= 0 ? Math.round(num * 100) : 0
     }
     
-    // #region agent log
-    const logData1 = {location:"admin/page.tsx:saveConfig:priceInputs",message:"priceInputs antes de parsePrice",data:{priceInputs:priceInputs,configDraftPrices:{proPriceMonthly:configDraft.proPriceMonthly,creditPriceSingle:configDraft.creditPriceSingle}},timestamp:Date.now(),sessionId:"debug-session",hypothesisId:"A-B"};
-    fetch("http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(logData1)}).catch(function(){});
-    // #endregion
-    
     const updatedConfig = {
       ...configDraft,
-      proPriceMonthly: parsePrice(priceInputs.proPriceMonthly) || configDraft.proPriceMonthly,
-      proPriceQuarterly: parsePrice(priceInputs.proPriceQuarterly) || configDraft.proPriceQuarterly,
-      proPriceYearly: parsePrice(priceInputs.proPriceYearly) || configDraft.proPriceYearly,
+      therapistPriceBasic: parsePrice(priceInputs.therapistPriceBasic) || configDraft.therapistPriceBasic,
+      therapistPriceIntermediate: parsePrice(priceInputs.therapistPriceIntermediate) || configDraft.therapistPriceIntermediate,
+      therapistPricePro: parsePrice(priceInputs.therapistPricePro) || configDraft.therapistPricePro,
     }
-    
-    // #region agent log
-    const parsedMonthly = parsePrice(priceInputs.proPriceMonthly);
-    const logData2 = {location:"admin/page.tsx:saveConfig:updatedConfig",message:"updatedConfig a ser enviado",data:{updatedPrices:{proPriceMonthly:updatedConfig.proPriceMonthly,creditPriceSingle:updatedConfig.creditPriceSingle},parsedMonthly:parsedMonthly},timestamp:Date.now(),sessionId:"debug-session",hypothesisId:"A"};
-    fetch("http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(logData2)}).catch(function(){});
-    // #endregion
     
     try {
       const res = await fetch('/api/admin', {
@@ -414,40 +680,37 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedConfig)
       })
-      // #region agent log
-      const resClone = res.clone();
-      const resBody = await resClone.text();
-      const logData3 = {location:"admin/page.tsx:saveConfig:response",message:"Resposta do PATCH",data:{status:res.status,ok:res.ok,bodyPreview:resBody.substring(0,500)},timestamp:Date.now(),sessionId:"debug-session",hypothesisId:"C-D"};
-      fetch("http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(logData3)}).catch(function(){});
-      // #endregion
       
       if (res.ok) {
         const data = await res.json()
         const cfg = data.config
-        // #region agent log
-        const logData4 = {location:"admin/page.tsx:saveConfig:cfgReceived",message:"Config recebido do backend",data:{proPriceMonthly:cfg?.proPriceMonthly,creditPriceSingle:cfg?.creditPriceSingle},timestamp:Date.now(),sessionId:"debug-session",hypothesisId:"D"};
-        fetch("http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(logData4)}).catch(function(){});
-        // #endregion
         setConfig(cfg)
-        // Update configDraft with fallback defaults
+        // Update configDraft with fallback defaults - B2B
         setConfigDraft({
           ...cfg,
-          proPriceMonthly: cfg.proPriceMonthly ?? 2990,
-          proPriceQuarterly: cfg.proPriceQuarterly ?? 7990,
-          proPriceYearly: cfg.proPriceYearly ?? 29900,
+          therapistPriceBasic: cfg.therapistPriceBasic ?? 7900,
+          therapistPriceIntermediate: cfg.therapistPriceIntermediate ?? 14900,
+          therapistPricePro: cfg.therapistPricePro ?? 24900,
+          therapistLeadsPerDay: cfg.therapistLeadsPerDay ?? 10,
+          enableLeadSignup: cfg.enableLeadSignup ?? true,
+          enableLeadAnalysis: cfg.enableLeadAnalysis ?? true,
+          enableLeadCta: cfg.enableLeadCta ?? true,
+          leadSignupPlans: cfg.leadSignupPlans ?? '["BASIC","INTERMEDIATE","PRO"]',
+          leadAnalysisPlans: cfg.leadAnalysisPlans ?? '["INTERMEDIATE","PRO"]',
+          leadCtaPlans: cfg.leadCtaPlans ?? '["PRO"]',
+          leadCooldownHours: cfg.leadCooldownHours ?? 24,
+          leadMaxSignupPerDay: cfg.leadMaxSignupPerDay ?? 20,
+          leadMaxAnalysisPerDay: cfg.leadMaxAnalysisPerDay ?? 10,
+          leadMaxCtaPerDay: cfg.leadMaxCtaPerDay ?? 5,
         })
-        // Update price inputs after save
+        // Update price inputs after save - B2B
         setPriceInputs({
-          proPriceMonthly: String((cfg.proPriceMonthly ?? 2990) / 100),
-          proPriceQuarterly: String((cfg.proPriceQuarterly ?? 7990) / 100),
-          proPriceYearly: String((cfg.proPriceYearly ?? 29900) / 100),
+          therapistPriceBasic: String((cfg.therapistPriceBasic ?? 7900) / 100),
+          therapistPriceIntermediate: String((cfg.therapistPriceIntermediate ?? 14900) / 100),
+          therapistPricePro: String((cfg.therapistPricePro ?? 24900) / 100),
         })
         alert('Configurações salvas!')
       } else {
-        // #region agent log
-        const logData5 = {location:"admin/page.tsx:saveConfig:error",message:"Erro ao salvar - resposta não OK",data:{status:res.status},timestamp:Date.now(),sessionId:"debug-session",hypothesisId:"D"};
-        fetch("http://127.0.0.1:7242/ingest/13116cc7-c227-4dc6-9969-94d8eab22f3c",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(logData5)}).catch(function(){});
-        // #endregion
         alert('Erro ao salvar configurações')
       }
     } catch (error) {
@@ -457,29 +720,7 @@ export default function AdminPage() {
     }
   }
 
-  const updateUser = async () => {
-    if (!editingUser) return
-    try {
-      const res = await fetch('/api/admin/users', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: editingUser.id,
-          plan: editUserPlan,
-          creditsPaid: editUserCredits
-        })
-      })
-      if (res.ok) {
-        alert('Usuário atualizado!')
-        setEditingUser(null)
-        loadUsers(userPage, userSearch)
-      } else {
-        alert('Erro ao atualizar usuário')
-      }
-    } catch (error) {
-      alert('Erro ao atualizar usuário')
-    }
-  }
+  // Função updateUser removida - modelo B2B não usa mais planos de usuário
 
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -507,9 +748,9 @@ export default function AdminPage() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <Link href="/dashboard" className="flex items-center gap-3">
-              <Logo size="lg" />
+              <Logo size="lg" variant="dark" />
               <div className="flex flex-col">
-                <span className="text-sm md:text-base font-semibold text-purple-700">
+                <span className="text-sm md:text-base font-semibold text-purple-400">
                   Coach de Relacionamentos
                 </span>
                 <span className="text-xs text-gray-400 hidden md:block">
@@ -595,7 +836,7 @@ export default function AdminPage() {
             Terapeutas
           </button>
           <button
-            onClick={() => { setActiveTab('leads'); loadAdminLeads(1, '', ''); }}
+            onClick={() => { setActiveTab('leads'); loadAdminLeads(1, '', '', ''); loadAllTherapists(); }}
             className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
               activeTab === 'leads' 
                 ? 'bg-purple-600 text-white' 
@@ -604,6 +845,17 @@ export default function AdminPage() {
           >
             <MessageCircle className="w-5 h-5" />
             Leads
+          </button>
+          <button
+            onClick={() => { setActiveTab('admins'); loadAdmins(); }}
+            className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
+              activeTab === 'admins' 
+                ? 'bg-purple-600 text-white' 
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            }`}
+          >
+            <UserCog className="w-5 h-5" />
+            Admins
           </button>
           
           {/* Botão Refresh */}
@@ -654,10 +906,10 @@ export default function AdminPage() {
                     <Users className="w-6 h-6 text-blue-500" />
                   </div>
                   <div>
-                    <p className="text-gray-400 text-sm">Total Usuários</p>
+                    <p className="text-gray-400 text-sm">Usuários</p>
                     <p className="text-2xl font-bold text-white">{stats.users.total}</p>
                     <p className="text-xs text-gray-500">
-                      {stats.users.pro} PRO / {stats.users.free} FREE
+                      {stats.users.withPhone || 0} com telefone
                     </p>
                   </div>
                 </div>
@@ -681,18 +933,37 @@ export default function AdminPage() {
               <Card className="bg-gray-800 border-gray-700 p-6">
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-green-600/20 rounded-lg">
-                    <DollarSign className="w-6 h-6 text-green-500" />
+                    <UserCheck className="w-6 h-6 text-green-500" />
                   </div>
                   <div>
-                    <p className="text-gray-400 text-sm">Receita Total</p>
-                    <p className="text-2xl font-bold text-white">{formatCurrency(stats.revenue.total)}</p>
+                    <p className="text-gray-400 text-sm">Terapeutas</p>
+                    <p className="text-2xl font-bold text-white">{stats.therapists?.total || 0}</p>
                     <p className="text-xs text-gray-500">
-                      {formatCurrency(stats.revenue.thisMonth)} este mês
+                      {stats.therapists?.approved || 0} aprovados / {stats.therapists?.pending || 0} pendentes
                     </p>
                   </div>
                 </div>
               </Card>
 
+              <Card className="bg-gray-800 border-gray-700 p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-pink-600/20 rounded-lg">
+                    <MessageCircle className="w-6 h-6 text-pink-500" />
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-sm">Leads Gerados</p>
+                    <p className="text-2xl font-bold text-white">{stats.leads?.total || 0}</p>
+                    <p className="text-xs text-gray-500">
+                      {stats.leads?.today || 0} hoje / {stats.leads?.converted || 0} convertidos
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+            </div>
+
+            {/* Segunda linha de cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card className="bg-gray-800 border-gray-700 p-6">
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-orange-600/20 rounded-lg">
@@ -721,7 +992,7 @@ export default function AdminPage() {
                     <tr className="text-left text-gray-400 text-sm border-b border-gray-700">
                       <th className="pb-3">Email</th>
                       <th className="pb-3">Nome</th>
-                      <th className="pb-3">Plano</th>
+                      <th className="pb-3">Telefone</th>
                       <th className="pb-3">Análises</th>
                     </tr>
                   </thead>
@@ -731,11 +1002,13 @@ export default function AdminPage() {
                         <td className="py-3 text-white">{user.email}</td>
                         <td className="py-3 text-gray-400">{user.name || '-'}</td>
                         <td className="py-3">
-                          <span className={`px-2 py-1 rounded text-xs font-bold ${
-                            user.plan === 'PRO' ? 'bg-purple-600 text-white' : 'bg-gray-600 text-gray-300'
-                          }`}>
-                            {user.plan}
-                          </span>
+                          {user.phone ? (
+                            <span className="px-2 py-1 rounded text-xs font-bold bg-green-600/20 text-green-400">
+                              {user.phone}
+                            </span>
+                          ) : (
+                            <span className="text-gray-500 text-xs">-</span>
+                          )}
                         </td>
                         <td className="py-3 text-white font-semibold">{user.analysesCount}</td>
                       </tr>
@@ -848,90 +1121,259 @@ export default function AdminPage() {
             <Card className="bg-gray-800 border-gray-700 p-6">
               <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-green-500" />
-                Preços de Assinatura PRO
+                Preços de Planos de Terapeutas (B2B)
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-gray-400 text-sm mb-2">
-                    Preço mensal (R$)
+                    Plano Básico (R$/mês)
                   </label>
                   <Input
                     type="text"
-                    placeholder="29.90"
-                    value={priceInputs.proPriceMonthly}
+                    placeholder="79.00"
+                    value={priceInputs.therapistPriceBasic}
                     onChange={(e) => {
                       const value = e.target.value
-                      // Allow digits, comma and dot
                       if (/^[0-9]*[,.]?[0-9]*$/.test(value)) {
-                        setPriceInputs({...priceInputs, proPriceMonthly: value})
+                        setPriceInputs({...priceInputs, therapistPriceBasic: value})
                       }
                     }}
                     onBlur={() => {
-                      const value = priceInputs.proPriceMonthly.replace(',', '.')
+                      const value = priceInputs.therapistPriceBasic.replace(',', '.')
                       const num = parseFloat(value)
                       if (!isNaN(num) && num >= 0) {
-                        setConfigDraft({...configDraft, proPriceMonthly: Math.round(num * 100)})
-                        setPriceInputs({...priceInputs, proPriceMonthly: num.toFixed(2)})
+                        setConfigDraft({...configDraft!, therapistPriceBasic: Math.round(num * 100)})
+                        setPriceInputs({...priceInputs, therapistPriceBasic: num.toFixed(2)})
                       } else {
-                        setPriceInputs({...priceInputs, proPriceMonthly: String(configDraft.proPriceMonthly / 100)})
+                        setPriceInputs({...priceInputs, therapistPriceBasic: String((configDraft?.therapistPriceBasic || 7900) / 100)})
                       }
                     }}
                     className="bg-gray-700 border-gray-600 text-white"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Leads de cadastro apenas</p>
                 </div>
                 <div>
                   <label className="block text-gray-400 text-sm mb-2">
-                    Preço trimestral (R$)
+                    Plano Intermediário (R$/mês)
                   </label>
                   <Input
                     type="text"
-                    placeholder="79.90"
-                    value={priceInputs.proPriceQuarterly}
+                    placeholder="149.00"
+                    value={priceInputs.therapistPriceIntermediate}
                     onChange={(e) => {
                       const value = e.target.value
                       if (/^[0-9]*[,.]?[0-9]*$/.test(value)) {
-                        setPriceInputs({...priceInputs, proPriceQuarterly: value})
+                        setPriceInputs({...priceInputs, therapistPriceIntermediate: value})
                       }
                     }}
                     onBlur={() => {
-                      const value = priceInputs.proPriceQuarterly.replace(',', '.')
+                      const value = priceInputs.therapistPriceIntermediate.replace(',', '.')
                       const num = parseFloat(value)
                       if (!isNaN(num) && num >= 0) {
-                        setConfigDraft({...configDraft, proPriceQuarterly: Math.round(num * 100)})
-                        setPriceInputs({...priceInputs, proPriceQuarterly: num.toFixed(2)})
+                        setConfigDraft({...configDraft!, therapistPriceIntermediate: Math.round(num * 100)})
+                        setPriceInputs({...priceInputs, therapistPriceIntermediate: num.toFixed(2)})
                       } else {
-                        setPriceInputs({...priceInputs, proPriceQuarterly: String(configDraft.proPriceQuarterly / 100)})
+                        setPriceInputs({...priceInputs, therapistPriceIntermediate: String((configDraft?.therapistPriceIntermediate || 14900) / 100)})
                       }
                     }}
                     className="bg-gray-700 border-gray-600 text-white"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Leads cadastro + CTA (email)</p>
                 </div>
                 <div>
                   <label className="block text-gray-400 text-sm mb-2">
-                    Preço anual (R$)
+                    Plano PRO (R$/mês)
                   </label>
                   <Input
                     type="text"
-                    placeholder="299.00"
-                    value={priceInputs.proPriceYearly}
+                    placeholder="249.00"
+                    value={priceInputs.therapistPricePro}
                     onChange={(e) => {
                       const value = e.target.value
                       if (/^[0-9]*[,.]?[0-9]*$/.test(value)) {
-                        setPriceInputs({...priceInputs, proPriceYearly: value})
+                        setPriceInputs({...priceInputs, therapistPricePro: value})
                       }
                     }}
                     onBlur={() => {
-                      const value = priceInputs.proPriceYearly.replace(',', '.')
+                      const value = priceInputs.therapistPricePro.replace(',', '.')
                       const num = parseFloat(value)
                       if (!isNaN(num) && num >= 0) {
-                        setConfigDraft({...configDraft, proPriceYearly: Math.round(num * 100)})
-                        setPriceInputs({...priceInputs, proPriceYearly: num.toFixed(2)})
+                        setConfigDraft({...configDraft!, therapistPricePro: Math.round(num * 100)})
+                        setPriceInputs({...priceInputs, therapistPricePro: num.toFixed(2)})
                       } else {
-                        setPriceInputs({...priceInputs, proPriceYearly: String(configDraft.proPriceYearly / 100)})
+                        setPriceInputs({...priceInputs, therapistPricePro: String((configDraft?.therapistPricePro || 24900) / 100)})
                       }
                     }}
                     className="bg-gray-700 border-gray-600 text-white"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Todos os leads + WhatsApp direto</p>
+                </div>
+              </div>
+              
+              {/* Limite de leads por dia */}
+              <div className="mt-6 pt-6 border-t border-gray-700">
+                <div className="max-w-xs">
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Limite de leads por terapeuta/dia
+                  </label>
+                  <Input
+                    type="number"
+                    value={configDraft?.therapistLeadsPerDay || 10}
+                    onChange={(e) => setConfigDraft({...configDraft!, therapistLeadsPerDay: parseInt(e.target.value) || 10})}
+                    className="bg-gray-700 border-gray-600 text-white"
+                  />
+                </div>
+              </div>
+            </Card>
+
+            {/* Regras de Geração de Leads */}
+            <Card className="bg-gray-800 border-gray-700 p-6">
+              <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                <Sliders className="w-5 h-5 text-pink-500" />
+                Regras de Geração de Leads
+              </h3>
+              
+              {/* Quais planos recebem cada tipo de lead */}
+              <div className="space-y-6">
+                <div>
+                  <p className="text-sm text-gray-400 font-semibold mb-3">Quais planos recebem cada tipo de lead:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* SIGNUP leads */}
+                    <div className="bg-gray-700/50 p-4 rounded-lg">
+                      <p className="text-sm text-blue-400 font-semibold mb-2">📝 Leads SIGNUP (frios)</p>
+                      <p className="text-xs text-gray-500 mb-3">Usuários que cadastraram telefone</p>
+                      <div className="space-y-2">
+                        {['BASIC', 'INTERMEDIATE', 'PRO'].map(plan => {
+                          const plans = JSON.parse(configDraft?.leadSignupPlans || '[]')
+                          const checked = plans.includes(plan)
+                          return (
+                            <label key={plan} className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  const newPlans = e.target.checked 
+                                    ? [...plans, plan]
+                                    : plans.filter((p: string) => p !== plan)
+                                  setConfigDraft({...configDraft!, leadSignupPlans: JSON.stringify(newPlans)})
+                                }}
+                                className="w-4 h-4 rounded bg-gray-600"
+                              />
+                              <span className="text-white text-sm">{plan}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    
+                    {/* ANALYSIS leads */}
+                    <div className="bg-gray-700/50 p-4 rounded-lg">
+                      <p className="text-sm text-purple-400 font-semibold mb-2">📊 Leads ANALYSIS (mornos)</p>
+                      <p className="text-xs text-gray-500 mb-3">Usuários que fizeram análise</p>
+                      <div className="space-y-2">
+                        {['BASIC', 'INTERMEDIATE', 'PRO'].map(plan => {
+                          const plans = JSON.parse(configDraft?.leadAnalysisPlans || '[]')
+                          const checked = plans.includes(plan)
+                          return (
+                            <label key={plan} className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  const newPlans = e.target.checked 
+                                    ? [...plans, plan]
+                                    : plans.filter((p: string) => p !== plan)
+                                  setConfigDraft({...configDraft!, leadAnalysisPlans: JSON.stringify(newPlans)})
+                                }}
+                                className="w-4 h-4 rounded bg-gray-600"
+                              />
+                              <span className="text-white text-sm">{plan}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    
+                    {/* CTA leads */}
+                    <div className="bg-gray-700/50 p-4 rounded-lg">
+                      <p className="text-sm text-green-400 font-semibold mb-2">🔥 Leads CTA (quentes)</p>
+                      <p className="text-xs text-gray-500 mb-3">Clicaram em "Falar com especialista"</p>
+                      <div className="space-y-2">
+                        {['BASIC', 'INTERMEDIATE', 'PRO'].map(plan => {
+                          const plans = JSON.parse(configDraft?.leadCtaPlans || '[]')
+                          const checked = plans.includes(plan)
+                          return (
+                            <label key={plan} className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  const newPlans = e.target.checked 
+                                    ? [...plans, plan]
+                                    : plans.filter((p: string) => p !== plan)
+                                  setConfigDraft({...configDraft!, leadCtaPlans: JSON.stringify(newPlans)})
+                                }}
+                                className="w-4 h-4 rounded bg-gray-600"
+                              />
+                              <span className="text-white text-sm">{plan}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Cooldown e limites */}
+                <div className="pt-4 border-t border-gray-700">
+                  <p className="text-sm text-gray-400 font-semibold mb-3">Cooldown e limites diários:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-gray-400 text-xs mb-1">
+                        Cooldown entre leads (horas)
+                      </label>
+                      <Input
+                        type="number"
+                        value={configDraft?.leadCooldownHours || 24}
+                        onChange={(e) => setConfigDraft({...configDraft!, leadCooldownHours: parseInt(e.target.value) || 24})}
+                        className="bg-gray-700 border-gray-600 text-white"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Mesmo usuário, mesmo tipo</p>
+                    </div>
+                    <div>
+                      <label className="block text-gray-400 text-xs mb-1">
+                        Máx SIGNUP/dia/terapeuta
+                      </label>
+                      <Input
+                        type="number"
+                        value={configDraft?.leadMaxSignupPerDay || 20}
+                        onChange={(e) => setConfigDraft({...configDraft!, leadMaxSignupPerDay: parseInt(e.target.value) || 20})}
+                        className="bg-gray-700 border-gray-600 text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-400 text-xs mb-1">
+                        Máx ANALYSIS/dia/terapeuta
+                      </label>
+                      <Input
+                        type="number"
+                        value={configDraft?.leadMaxAnalysisPerDay || 10}
+                        onChange={(e) => setConfigDraft({...configDraft!, leadMaxAnalysisPerDay: parseInt(e.target.value) || 10})}
+                        className="bg-gray-700 border-gray-600 text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-400 text-xs mb-1">
+                        Máx CTA/dia/terapeuta
+                      </label>
+                      <Input
+                        type="number"
+                        value={configDraft?.leadMaxCtaPerDay || 5}
+                        onChange={(e) => setConfigDraft({...configDraft!, leadMaxCtaPerDay: parseInt(e.target.value) || 5})}
+                        className="bg-gray-700 border-gray-600 text-white"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </Card>
@@ -942,30 +1384,79 @@ export default function AdminPage() {
                 Feature Flags
               </h3>
               <div className="space-y-4">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={configDraft.maintenanceMode}
-                    onChange={(e) => setConfigDraft({...configDraft, maintenanceMode: e.target.checked})}
-                    className="w-5 h-5 rounded bg-gray-700 border-gray-600"
-                  />
-                  <div>
-                    <span className="text-white font-medium">Modo Manutenção</span>
-                    <p className="text-xs text-gray-500">Bloqueia o acesso ao sistema para todos os usuários</p>
+                {/* Flags B2B */}
+                <div className="pb-4 border-b border-gray-700">
+                  <p className="text-sm text-purple-400 font-semibold mb-3">🎯 Geração de Leads (B2B)</p>
+                  <div className="space-y-3 ml-2">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={configDraft?.enableLeadSignup ?? true}
+                        onChange={(e) => setConfigDraft({...configDraft!, enableLeadSignup: e.target.checked})}
+                        className="w-5 h-5 rounded bg-gray-700 border-gray-600"
+                      />
+                      <div>
+                        <span className="text-white font-medium">Gerar Lead no Cadastro</span>
+                        <p className="text-xs text-gray-500">Gera lead quando usuário informa telefone</p>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={configDraft?.enableLeadAnalysis ?? true}
+                        onChange={(e) => setConfigDraft({...configDraft!, enableLeadAnalysis: e.target.checked})}
+                        className="w-5 h-5 rounded bg-gray-700 border-gray-600"
+                      />
+                      <div>
+                        <span className="text-white font-medium">Gerar Lead na Análise</span>
+                        <p className="text-xs text-gray-500">Gera lead quando usuário preenche o formulário de análise</p>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={configDraft?.enableLeadCta ?? true}
+                        onChange={(e) => setConfigDraft({...configDraft!, enableLeadCta: e.target.checked})}
+                        className="w-5 h-5 rounded bg-gray-700 border-gray-600"
+                      />
+                      <div>
+                        <span className="text-white font-medium">Gerar Lead no CTA</span>
+                        <p className="text-xs text-gray-500">Gera lead quando usuário clica em "Falar com especialista"</p>
+                      </div>
+                    </label>
                   </div>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={configDraft.allowNewRegistrations}
-                    onChange={(e) => setConfigDraft({...configDraft, allowNewRegistrations: e.target.checked})}
-                    className="w-5 h-5 rounded bg-gray-700 border-gray-600"
-                  />
-                  <div>
-                    <span className="text-white font-medium">Permitir Novos Cadastros</span>
-                    <p className="text-xs text-gray-500">Permite que novos usuários se cadastrem</p>
+                </div>
+                
+                {/* Flags Gerais */}
+                <div>
+                  <p className="text-sm text-gray-400 font-semibold mb-3">⚙️ Sistema</p>
+                  <div className="space-y-3 ml-2">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={configDraft?.maintenanceMode ?? false}
+                        onChange={(e) => setConfigDraft({...configDraft!, maintenanceMode: e.target.checked})}
+                        className="w-5 h-5 rounded bg-gray-700 border-gray-600"
+                      />
+                      <div>
+                        <span className="text-white font-medium">Modo Manutenção</span>
+                        <p className="text-xs text-gray-500">Bloqueia o acesso ao sistema para todos os usuários</p>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={configDraft?.allowNewRegistrations ?? true}
+                        onChange={(e) => setConfigDraft({...configDraft!, allowNewRegistrations: e.target.checked})}
+                        className="w-5 h-5 rounded bg-gray-700 border-gray-600"
+                      />
+                      <div>
+                        <span className="text-white font-medium">Permitir Novos Cadastros</span>
+                        <p className="text-xs text-gray-500">Permite que novos usuários se cadastrem</p>
+                      </div>
+                    </label>
                   </div>
-                </label>
+                </div>
               </div>
             </Card>
 
@@ -989,8 +1480,8 @@ export default function AdminPage() {
         {/* Users Tab */}
         {activeTab === 'users' && (
           <div className="space-y-6">
-            {/* Search */}
-            <div className="flex gap-4">
+            {/* Search + Create */}
+            <div className="flex gap-4 items-center">
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500" />
                 <Input
@@ -1008,6 +1499,13 @@ export default function AdminPage() {
               >
                 Buscar
               </Button>
+              <Button
+                onClick={() => setShowCreateUser(true)}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Usuário
+              </Button>
             </div>
 
             {/* Users Table */}
@@ -1024,7 +1522,7 @@ export default function AdminPage() {
                         <tr className="text-left text-gray-400 text-sm border-b border-gray-700">
                           <th className="pb-3">Email</th>
                           <th className="pb-3">Nome</th>
-                          <th className="pb-3">Plano</th>
+                          <th className="pb-3">Telefone</th>
                           <th className="pb-3">Análises</th>
                           <th className="pb-3">Criado em</th>
                           <th className="pb-3">Ações</th>
@@ -1036,27 +1534,48 @@ export default function AdminPage() {
                             <td className="py-3 text-white">{user.email}</td>
                             <td className="py-3 text-gray-400">{user.name || '-'}</td>
                             <td className="py-3">
-                              <span className={`px-2 py-1 rounded text-xs font-bold ${
-                                user.plan === 'PRO' ? 'bg-purple-600 text-white' : 'bg-gray-600 text-gray-300'
-                              }`}>
-                                {user.plan}
-                              </span>
+                              {user.phone ? (
+                                <span className="px-2 py-1 rounded text-xs font-bold bg-green-600/20 text-green-400">
+                                  {user.phone}
+                                </span>
+                              ) : (
+                                <span className="text-gray-500 text-xs">-</span>
+                              )}
                             </td>
                             <td className="py-3 text-white">{user.analysesCount}</td>
                             <td className="py-3 text-gray-400">
                               {new Date(user.createdAt).toLocaleDateString('pt-BR')}
                             </td>
                             <td className="py-3">
-                              <button
-                                onClick={() => {
-                                  setEditingUser(user)
-                                  setEditUserPlan(user.plan)
-                                  setEditUserCredits(user.creditsPaid)
-                                }}
-                                className="text-purple-400 hover:text-purple-300 text-sm"
-                              >
-                                Editar
-                              </button>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    setEditingUser(user)
+                                    setEditUserMode('view')
+                                    setEditUserForm({ name: user.name || '', email: user.email, phone: user.phone || '' })
+                                  }}
+                                  className="text-purple-400 hover:text-purple-300 text-sm"
+                                >
+                                  Ver
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingUser(user)
+                                    setEditUserMode('edit')
+                                    setEditUserForm({ name: user.name || '', email: user.email, phone: user.phone || '' })
+                                  }}
+                                  className="text-blue-400 hover:text-blue-300 text-sm"
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => deleteUser(user.id)}
+                                  disabled={deletingUser === user.id}
+                                  className="text-red-400 hover:text-red-300 text-sm disabled:opacity-50"
+                                >
+                                  {deletingUser === user.id ? '...' : 'Excluir'}
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -1998,20 +2517,47 @@ export default function AdminPage() {
               </div>
             )}
 
+            {/* Alerta de leads sem terapeuta */}
+            {leadStats?.unassigned > 0 && (
+              <Card className="bg-orange-900/30 border-orange-600 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="w-6 h-6 text-orange-400" />
+                    <div>
+                      <p className="text-orange-200 font-semibold">
+                        {leadStats.unassigned} lead{leadStats.unassigned > 1 ? 's' : ''} sem terapeuta atribuído
+                      </p>
+                      <p className="text-orange-300/70 text-sm">Clique para filtrar e atribuir terapeutas</p>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => { 
+                      setLeadTherapistFilter('unassigned'); 
+                      loadAdminLeads(1, leadTypeFilter, leadStatusFilter, 'unassigned'); 
+                    }}
+                    className="bg-orange-600 hover:bg-orange-700"
+                  >
+                    Ver leads sem terapeuta
+                  </Button>
+                </div>
+              </Card>
+            )}
+
             {/* Filters */}
             <div className="flex gap-4 flex-wrap">
               <select
                 value={leadTypeFilter}
-                onChange={(e) => { setLeadTypeFilter(e.target.value); loadAdminLeads(1, e.target.value, leadStatusFilter); }}
+                onChange={(e) => { setLeadTypeFilter(e.target.value); loadAdminLeads(1, e.target.value, leadStatusFilter, leadTherapistFilter); }}
                 className="bg-gray-800 border-gray-700 text-white rounded-lg px-3 py-2"
               >
                 <option value="">Todos os tipos</option>
-                <option value="SIGNUP">Cadastro</option>
+                <option value="SIGNUP">Cadastro (Frio)</option>
+                <option value="ANALYSIS">Análise (Morno)</option>
                 <option value="CTA">CTA (Quente)</option>
               </select>
               <select
                 value={leadStatusFilter}
-                onChange={(e) => { setLeadStatusFilter(e.target.value); loadAdminLeads(1, leadTypeFilter, e.target.value); }}
+                onChange={(e) => { setLeadStatusFilter(e.target.value); loadAdminLeads(1, leadTypeFilter, e.target.value, leadTherapistFilter); }}
                 className="bg-gray-800 border-gray-700 text-white rounded-lg px-3 py-2"
               >
                 <option value="">Todos os status</option>
@@ -2020,10 +2566,35 @@ export default function AdminPage() {
                 <option value="CONVERTED">Convertidos</option>
                 <option value="LOST">Perdidos</option>
               </select>
-              <Button onClick={() => loadAdminLeads(1, leadTypeFilter, leadStatusFilter)} variant="outline" className="border-gray-700">
+              <select
+                value={leadTherapistFilter}
+                onChange={(e) => { setLeadTherapistFilter(e.target.value); loadAdminLeads(1, leadTypeFilter, leadStatusFilter, e.target.value); }}
+                className="bg-gray-800 border-gray-700 text-white rounded-lg px-3 py-2"
+              >
+                <option value="">Todos os terapeutas</option>
+                <option value="unassigned">⚠️ Sem terapeuta</option>
+                {allTherapists.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <Button onClick={() => loadAdminLeads(1, leadTypeFilter, leadStatusFilter, leadTherapistFilter)} variant="outline" className="border-gray-700">
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Atualizar
               </Button>
+              {(leadTypeFilter || leadStatusFilter || leadTherapistFilter) && (
+                <Button 
+                  onClick={() => { 
+                    setLeadTypeFilter(''); 
+                    setLeadStatusFilter(''); 
+                    setLeadTherapistFilter('');
+                    loadAdminLeads(1, '', '', ''); 
+                  }} 
+                  variant="outline" 
+                  className="border-gray-700 text-gray-400"
+                >
+                  Limpar filtros
+                </Button>
+              )}
             </div>
 
             {/* Table */}
@@ -2045,17 +2616,18 @@ export default function AdminPage() {
                           <th className="pb-3">Match</th>
                           <th className="pb-3">Terapeuta</th>
                           <th className="pb-3">Status</th>
+                          <th className="pb-3">Ações</th>
                         </tr>
                       </thead>
                       <tbody>
                         {adminLeads.length === 0 ? (
                           <tr>
-                            <td colSpan={7} className="py-8 text-center text-gray-500">
+                            <td colSpan={8} className="py-8 text-center text-gray-500">
                               Nenhum lead encontrado
                             </td>
                           </tr>
                         ) : adminLeads.map((lead) => (
-                          <tr key={lead.id} className="border-b border-gray-700/50">
+                          <tr key={lead.id} className={`border-b border-gray-700/50 ${!lead.therapist ? 'bg-orange-900/10' : ''}`}>
                             <td className="py-3 text-white text-sm">
                               {new Date(lead.createdAt).toLocaleDateString('pt-BR')}
                               <br />
@@ -2064,8 +2636,12 @@ export default function AdminPage() {
                               </span>
                             </td>
                             <td className="py-3">
-                              <Badge className={lead.type === 'CTA' ? 'bg-green-600' : 'bg-blue-600'}>
-                                {lead.type === 'CTA' ? 'Quente' : 'Cadastro'}
+                              <Badge className={
+                                lead.type === 'CTA' ? 'bg-green-600' : 
+                                lead.type === 'ANALYSIS' ? 'bg-purple-600' : 'bg-blue-600'
+                              }>
+                                {lead.type === 'CTA' ? 'Quente' : 
+                                 lead.type === 'ANALYSIS' ? 'Análise' : 'Cadastro'}
                               </Badge>
                             </td>
                             <td className="py-3">
@@ -2085,13 +2661,21 @@ export default function AdminPage() {
                             </td>
                             <td className="py-3 text-gray-300">{lead.matchName || '-'}</td>
                             <td className="py-3">
-                              <p className="text-white text-sm">{lead.therapist?.name}</p>
-                              <Badge className={
-                                lead.therapist?.plan === 'PRO' ? 'bg-purple-600' :
-                                lead.therapist?.plan === 'INTERMEDIATE' ? 'bg-orange-600' : 'bg-gray-600'
-                              } style={{ fontSize: '10px' }}>
-                                {lead.therapist?.plan}
-                              </Badge>
+                              {lead.therapist ? (
+                                <>
+                                  <p className="text-white text-sm">{lead.therapist.name}</p>
+                                  <Badge className={
+                                    lead.therapist.plan === 'PRO' ? 'bg-purple-600' :
+                                    lead.therapist.plan === 'INTERMEDIATE' ? 'bg-orange-600' : 'bg-gray-600'
+                                  } style={{ fontSize: '10px' }}>
+                                    {lead.therapist.plan}
+                                  </Badge>
+                                </>
+                              ) : (
+                                <Badge className="bg-orange-600 animate-pulse">
+                                  ⚠️ Sem terapeuta
+                                </Badge>
+                              )}
                             </td>
                             <td className="py-3">
                               <Badge className={
@@ -2104,6 +2688,72 @@ export default function AdminPage() {
                                  lead.status === 'CONVERTED' ? 'Convertido' : 'Perdido'}
                               </Badge>
                             </td>
+                            <td className="py-3">
+                              <div className="flex flex-col gap-1">
+                                {assigningLead === lead.id ? (
+                                  <div className="flex flex-col gap-2 min-w-[200px]">
+                                    <select
+                                      value={selectedTherapistForAssign}
+                                      onChange={(e) => setSelectedTherapistForAssign(e.target.value)}
+                                      className="bg-gray-700 border-gray-600 text-white rounded px-2 py-1 text-sm"
+                                    >
+                                      <option value="">Selecione...</option>
+                                      {allTherapists.map(t => (
+                                        <option key={t.id} value={t.id}>
+                                          {t.name} ({t.plan})
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <label className="flex items-center gap-2 text-xs text-gray-400">
+                                      <input 
+                                        type="checkbox" 
+                                        checked={sendNotificationOnAssign}
+                                        onChange={(e) => setSendNotificationOnAssign(e.target.checked)}
+                                        className="rounded"
+                                      />
+                                      Enviar notificação
+                                    </label>
+                                    <div className="flex gap-1">
+                                      <Button 
+                                        size="sm" 
+                                        className="bg-green-600 hover:bg-green-700 text-xs px-2 py-1"
+                                        onClick={() => {
+                                          if (selectedTherapistForAssign) {
+                                            assignTherapistToLead(lead.id, selectedTherapistForAssign, sendNotificationOnAssign)
+                                          }
+                                        }}
+                                        disabled={!selectedTherapistForAssign}
+                                      >
+                                        <Check className="w-3 h-3" />
+                                      </Button>
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline"
+                                        className="border-gray-600 text-xs px-2 py-1"
+                                        onClick={() => {
+                                          setAssigningLead(null)
+                                          setSelectedTherapistForAssign('')
+                                        }}
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    className={`text-xs ${!lead.therapist ? 'border-orange-500 text-orange-400 hover:bg-orange-600 hover:text-white' : 'border-gray-600'}`}
+                                    onClick={() => {
+                                      setAssigningLead(lead.id)
+                                      setSelectedTherapistForAssign(lead.therapist?.id || '')
+                                    }}
+                                  >
+                                    {lead.therapist ? 'Trocar' : 'Atribuir'}
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -2114,10 +2764,15 @@ export default function AdminPage() {
                   <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
                     <p className="text-sm text-gray-400">
                       Mostrando {adminLeads.length} de {leadTotal}
+                      {leadStats?.unassigned > 0 && (
+                        <span className="text-orange-400 ml-2">
+                          ({leadStats.unassigned} sem terapeuta)
+                        </span>
+                      )}
                     </p>
                     <div className="flex gap-2">
                       <Button
-                        onClick={() => loadAdminLeads(leadPage - 1, leadTypeFilter, leadStatusFilter)}
+                        onClick={() => loadAdminLeads(leadPage - 1, leadTypeFilter, leadStatusFilter, leadTherapistFilter)}
                         disabled={leadPage === 1}
                         variant="outline"
                         size="sm"
@@ -2127,7 +2782,7 @@ export default function AdminPage() {
                       </Button>
                       <span className="px-3 py-1 text-gray-400">{leadPage} / {leadTotalPages}</span>
                       <Button
-                        onClick={() => loadAdminLeads(leadPage + 1, leadTypeFilter, leadStatusFilter)}
+                        onClick={() => loadAdminLeads(leadPage + 1, leadTypeFilter, leadStatusFilter, leadTherapistFilter)}
                         disabled={leadPage === leadTotalPages}
                         variant="outline"
                         size="sm"
@@ -2164,49 +2819,340 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Edit User Modal */}
-        {editingUser && (
+        {/* Admins Tab */}
+        {activeTab === 'admins' && (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <UserCog className="w-6 h-6 text-purple-500" />
+                Administradores do Sistema
+              </h2>
+              <Button
+                onClick={() => setShowCreateAdmin(true)}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Admin
+              </Button>
+            </div>
+
+            <Card className="bg-gray-800 border-gray-700 p-6">
+              {loadingAdmins ? (
+                <div className="flex justify-center py-8">
+                  <RefreshCw className="w-8 h-8 animate-spin text-purple-500" />
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-left text-gray-400 text-sm border-b border-gray-700">
+                        <th className="pb-3">Email</th>
+                        <th className="pb-3">Nome</th>
+                        <th className="pb-3">Cargo</th>
+                        <th className="pb-3">Status</th>
+                        <th className="pb-3">Criado em</th>
+                        <th className="pb-3">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {admins.map((adm) => (
+                        <tr key={adm.id} className="border-b border-gray-700/50">
+                          <td className="py-3 text-white">{adm.email}</td>
+                          <td className="py-3 text-gray-400">{adm.name || '-'}</td>
+                          <td className="py-3">
+                            <Badge className={adm.role === 'SUPER_ADMIN' ? 'bg-purple-600' : 'bg-blue-600'}>
+                              {adm.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin'}
+                            </Badge>
+                          </td>
+                          <td className="py-3">
+                            <Badge className={adm.active ? 'bg-green-600' : 'bg-gray-600'}>
+                              {adm.active ? 'Ativo' : 'Inativo'}
+                            </Badge>
+                          </td>
+                          <td className="py-3 text-gray-400">
+                            {new Date(adm.createdAt).toLocaleDateString('pt-BR')}
+                          </td>
+                          <td className="py-3">
+                            {adm.id !== 'super-admin' && adm.role !== 'SUPER_ADMIN' ? (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => toggleAdminActive(adm.id, adm.active)}
+                                  className={`text-sm ${adm.active ? 'text-yellow-400 hover:text-yellow-300' : 'text-green-400 hover:text-green-300'}`}
+                                >
+                                  {adm.active ? 'Desativar' : 'Ativar'}
+                                </button>
+                                <button
+                                  onClick={() => deleteAdmin(adm.id)}
+                                  disabled={deletingAdmin === adm.id}
+                                  className="text-red-400 hover:text-red-300 text-sm disabled:opacity-50"
+                                >
+                                  {deletingAdmin === adm.id ? '...' : 'Excluir'}
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-gray-500 text-sm">Protegido</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+
+            {/* Info */}
+            <Card className="bg-blue-900/30 border-blue-600 p-4">
+              <div className="flex items-start gap-3">
+                <Shield className="w-5 h-5 text-blue-400 mt-0.5" />
+                <div>
+                  <p className="text-blue-200 font-semibold">Sobre os Administradores</p>
+                  <p className="text-blue-300/70 text-sm mt-1">
+                    Administradores têm acesso total ao painel de controle. 
+                    Apenas o Super Admin pode adicionar ou remover outros administradores.
+                    O Super Admin principal não pode ser editado ou removido.
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Create Admin Modal */}
+        {showCreateAdmin && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
             <Card className="bg-gray-800 border-gray-700 p-6 w-full max-w-md">
-              <h3 className="text-lg font-bold text-white mb-4">Editar Usuário</h3>
-              <p className="text-gray-400 text-sm mb-4">{editingUser.email}</p>
+              <h3 className="text-lg font-bold text-white mb-4">Adicionar Administrador</h3>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-gray-400 text-sm mb-2">Plano</label>
-                  <select
-                    value={editUserPlan}
-                    onChange={(e) => setEditUserPlan(e.target.value as 'FREE' | 'PRO')}
-                    className="w-full bg-gray-700 border-gray-600 text-white rounded-lg px-3 py-2"
-                  >
-                    <option value="FREE">FREE</option>
-                    <option value="PRO">PRO</option>
-                  </select>
+                  <label className="block text-gray-400 text-sm mb-1">Email *</label>
+                  <Input
+                    type="email"
+                    value={newAdminForm.email}
+                    onChange={(e) => setNewAdminForm({...newAdminForm, email: e.target.value})}
+                    className="bg-gray-700 border-gray-600 text-white"
+                    placeholder="email@exemplo.com"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    O email deve corresponder a um usuário que pode fazer login no sistema
+                  </p>
                 </div>
                 <div>
-                  <label className="block text-gray-400 text-sm mb-2">Créditos Pagos</label>
+                  <label className="block text-gray-400 text-sm mb-1">Nome</label>
                   <Input
-                    type="number"
-                    value={editUserCredits}
-                    onChange={(e) => setEditUserCredits(parseInt(e.target.value) || 0)}
+                    type="text"
+                    value={newAdminForm.name}
+                    onChange={(e) => setNewAdminForm({...newAdminForm, name: e.target.value})}
                     className="bg-gray-700 border-gray-600 text-white"
+                    placeholder="Nome do administrador"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-1">Cargo</label>
+                  <select
+                    value={newAdminForm.role}
+                    onChange={(e) => setNewAdminForm({...newAdminForm, role: e.target.value})}
+                    className="w-full bg-gray-700 border-gray-600 text-white rounded-md px-3 py-2"
+                  >
+                    <option value="ADMIN">Admin</option>
+                    <option value="SUPER_ADMIN">Super Admin</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <Button
+                  onClick={() => {
+                    setShowCreateAdmin(false)
+                    setNewAdminForm({ email: '', name: '', role: 'ADMIN' })
+                  }}
+                  className="flex-1 bg-gray-700 hover:bg-gray-600"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={createAdmin}
+                  disabled={creatingAdmin || !newAdminForm.email}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                >
+                  {creatingAdmin ? 'Adicionando...' : 'Adicionar Admin'}
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* User Details/Edit Modal */}
+        {editingUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+            <Card className="bg-gray-800 border-gray-700 p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-white">
+                  {editUserMode === 'edit' ? 'Editar Usuário' : 'Detalhes do Usuário'}
+                </h3>
+                {editUserMode === 'view' && (
+                  <button
+                    onClick={() => setEditUserMode('edit')}
+                    className="text-blue-400 hover:text-blue-300"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              
+              {editUserMode === 'view' ? (
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Email:</span>
+                    <span className="text-white">{editingUser.email}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Nome:</span>
+                    <span className="text-white">{editingUser.name || '-'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Telefone:</span>
+                    <span className="text-white">{editingUser.phone || '-'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Análises:</span>
+                    <span className="text-white">{editingUser.analysesCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Criado em:</span>
+                    <span className="text-white">{new Date(editingUser.createdAt).toLocaleDateString('pt-BR')}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Email</label>
+                    <Input
+                      type="email"
+                      value={editUserForm.email}
+                      onChange={(e) => setEditUserForm({...editUserForm, email: e.target.value})}
+                      className="bg-gray-700 border-gray-600 text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Nome</label>
+                    <Input
+                      type="text"
+                      value={editUserForm.name}
+                      onChange={(e) => setEditUserForm({...editUserForm, name: e.target.value})}
+                      className="bg-gray-700 border-gray-600 text-white"
+                      placeholder="Nome do usuário"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Telefone</label>
+                    <Input
+                      type="text"
+                      value={editUserForm.phone}
+                      onChange={(e) => setEditUserForm({...editUserForm, phone: e.target.value})}
+                      className="bg-gray-700 border-gray-600 text-white"
+                      placeholder="(11) 99999-9999"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3 mt-6">
+                {editUserMode === 'edit' ? (
+                  <>
+                    <Button
+                      onClick={() => setEditUserMode('view')}
+                      className="flex-1 bg-gray-700 hover:bg-gray-600"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={updateUser}
+                      disabled={savingUser}
+                      className="flex-1 bg-purple-600 hover:bg-purple-700"
+                    >
+                      {savingUser ? 'Salvando...' : 'Salvar'}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      onClick={() => deleteUser(editingUser.id)}
+                      disabled={deletingUser === editingUser.id}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      onClick={() => setEditingUser(null)}
+                      className="flex-1 bg-gray-700 hover:bg-gray-600"
+                    >
+                      Fechar
+                    </Button>
+                  </>
+                )}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Create User Modal */}
+        {showCreateUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+            <Card className="bg-gray-800 border-gray-700 p-6 w-full max-w-md">
+              <h3 className="text-lg font-bold text-white mb-4">Criar Novo Usuário</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-gray-400 text-sm mb-1">Email *</label>
+                  <Input
+                    type="email"
+                    value={newUserForm.email}
+                    onChange={(e) => setNewUserForm({...newUserForm, email: e.target.value})}
+                    className="bg-gray-700 border-gray-600 text-white"
+                    placeholder="email@exemplo.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-1">Nome</label>
+                  <Input
+                    type="text"
+                    value={newUserForm.name}
+                    onChange={(e) => setNewUserForm({...newUserForm, name: e.target.value})}
+                    className="bg-gray-700 border-gray-600 text-white"
+                    placeholder="Nome do usuário"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-1">Telefone</label>
+                  <Input
+                    type="text"
+                    value={newUserForm.phone}
+                    onChange={(e) => setNewUserForm({...newUserForm, phone: e.target.value})}
+                    className="bg-gray-700 border-gray-600 text-white"
+                    placeholder="(11) 99999-9999"
                   />
                 </div>
               </div>
 
               <div className="flex gap-3 mt-6">
                 <Button
-                  onClick={() => setEditingUser(null)}
-                  variant="outline"
-                  className="flex-1 border-gray-600 text-gray-400"
+                  onClick={() => {
+                    setShowCreateUser(false)
+                    setNewUserForm({ email: '', name: '', phone: '' })
+                  }}
+                  className="flex-1 bg-gray-700 hover:bg-gray-600"
                 >
                   Cancelar
                 </Button>
                 <Button
-                  onClick={updateUser}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700"
+                  onClick={createUser}
+                  disabled={creatingUser || !newUserForm.email}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
                 >
-                  Salvar
+                  {creatingUser ? 'Criando...' : 'Criar Usuário'}
                 </Button>
               </div>
             </Card>

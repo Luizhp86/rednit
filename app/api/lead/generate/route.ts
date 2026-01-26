@@ -75,75 +75,106 @@ export async function POST(request: NextRequest) {
       analysisData: analysisData,
     })
     
-    if (!result) {
-      return NextResponse.json({
-        success: false,
-        message: 'Nenhum terapeuta disponível no momento',
-      })
-    }
-    
-    // Buscar dados do terapeuta
-    const therapist = await getTherapistForLead(result.therapistId)
-    
-    if (!therapist) {
-      return NextResponse.json({
-        success: false,
-        message: 'Erro ao buscar terapeuta',
-      })
-    }
-    
-    // Enviar email para terapeuta
-    try {
-      if (validatedData.type === 'SIGNUP') {
-        await sendLeadSignupNotification({
+    // Se o lead foi ignorado pela regra de 24h, buscar o lead existente para retornar o terapeuta
+    if (result.skipped) {
+      console.log(`[LEAD/GENERATE] Lead ignorado (regra 24h)`)
+      
+      // Buscar lead recente para pegar o terapeuta
+      const existingLead = await prisma.lead.findFirst({
+        where: {
+          type: validatedData.type,
+          userEmail: validatedData.userEmail,
+        },
+        orderBy: { createdAt: 'desc' },
+        include: {
           therapist: {
-            email: therapist.email,
-            name: therapist.name,
-          },
-          lead: {
-            userName: validatedData.userName,
-            userEmail: validatedData.userEmail,
-            userPhone: validatedData.userPhone,
-          },
-        })
-      } else {
-        await sendLeadCtaNotification({
-          therapist: {
-            email: therapist.email,
-            name: therapist.name,
-            plan: therapist.plan,
-          },
-          lead: {
-            userName: validatedData.userName,
-            userEmail: validatedData.userEmail,
-            userPhone: validatedData.userPhone,
-            matchName: validatedData.matchName,
-            analysisData: analysisData,
-          },
-        })
+            select: { id: true, whatsapp: true, plan: true }
+          }
+        }
+      })
+      
+      const response: any = {
+        success: true,
+        skipped: true,
+        message: 'Lead recente já existe (regra 24h)',
+        leadId: existingLead?.id,
+        therapistId: existingLead?.therapistId,
+        hasTherapist: !!existingLead?.therapistId,
       }
       
-      // Marcar email como enviado
-      await prisma.lead.update({
-        where: { id: result.leadId },
-        data: { emailSentAt: new Date() }
-      })
-    } catch (emailError) {
-      console.error('Erro ao enviar email de notificação:', emailError)
-      // Não falhar a requisição se o email falhar
+      // Se for CTA e terapeuta é PRO, incluir WhatsApp
+      if (existingLead?.therapist && validatedData.type === 'CTA' && canReceiveWhatsappDirect(existingLead.therapist.plan)) {
+        response.whatsapp = existingLead.therapist.whatsapp
+        response.whatsappUrl = `https://wa.me/55${existingLead.therapist.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Vim do Radar Match e gostaria de conversar sobre minha análise.')}`
+      }
+      
+      return NextResponse.json(response)
     }
     
-    // Preparar resposta
+    console.log(`[LEAD/GENERATE] Lead criado: ${result.leadId}`)
+    
+    // Preparar resposta base
     const response: any = {
       success: true,
       leadId: result.leadId,
       therapistId: result.therapistId,
+      hasTherapist: !!result.therapistId,
     }
     
-    // Se for CTA e terapeuta é PRO, incluir WhatsApp para redirect
-    if (validatedData.type === 'CTA' && canReceiveWhatsappDirect(therapist.plan)) {
-      response.whatsapp = therapist.whatsapp
-      response.whatsappUrl = `https://wa.me/55${therapist.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Vim do Radar Match e gostaria de conversar sobre minha análise.')}`
+    // Se tiver terapeuta, enviar notificação
+    if (result.therapistId) {
+      const therapist = await getTherapistForLead(result.therapistId)
+      
+      if (therapist) {
+        // Enviar email para terapeuta
+        try {
+          if (validatedData.type === 'SIGNUP') {
+            await sendLeadSignupNotification({
+              therapist: {
+                email: therapist.email,
+                name: therapist.name,
+              },
+              lead: {
+                userName: validatedData.userName,
+                userEmail: validatedData.userEmail,
+                userPhone: validatedData.userPhone,
+              },
+            })
+          } else {
+            await sendLeadCtaNotification({
+              therapist: {
+                email: therapist.email,
+                name: therapist.name,
+                plan: therapist.plan,
+              },
+              lead: {
+                userName: validatedData.userName,
+                userEmail: validatedData.userEmail,
+                userPhone: validatedData.userPhone,
+                matchName: validatedData.matchName,
+                analysisData: analysisData,
+              },
+            })
+          }
+          
+          // Marcar email como enviado
+          await prisma.lead.update({
+            where: { id: result.leadId },
+            data: { emailSentAt: new Date() }
+          })
+        } catch (emailError) {
+          console.error('Erro ao enviar email de notificação:', emailError)
+        }
+        
+        // Se for CTA e terapeuta é PRO, incluir WhatsApp para redirect
+        if (validatedData.type === 'CTA' && canReceiveWhatsappDirect(therapist.plan)) {
+          response.whatsapp = therapist.whatsapp
+          response.whatsappUrl = `https://wa.me/55${therapist.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Vim do Radar Match e gostaria de conversar sobre minha análise.')}`
+        }
+      }
+    } else {
+      console.log('[LEAD/GENERATE] Lead criado sem terapeuta - aguardando atribuição manual')
+      response.message = 'Lead criado, aguardando atribuição de terapeuta'
     }
     
     return NextResponse.json(response)
