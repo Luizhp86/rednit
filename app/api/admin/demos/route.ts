@@ -41,11 +41,17 @@ export async function GET(request: NextRequest) {
     }
     
     stats.forEach(stat => {
-      const key = stat.status.toLowerCase().replace('_', '') as keyof typeof statsMap
-      if (key === 'no_show' || key === 'noshow') {
+      const status = stat.status.toLowerCase()
+      if (status === 'no_show' || status === 'noshow') {
         statsMap.noShow = stat._count
-      } else if (key in statsMap) {
-        (statsMap as any)[key] = stat._count
+      } else if (status === 'pending') {
+        statsMap.pending = stat._count
+      } else if (status === 'confirmed') {
+        statsMap.confirmed = stat._count
+      } else if (status === 'completed') {
+        statsMap.completed = stat._count
+      } else if (status === 'cancelled') {
+        statsMap.cancelled = stat._count
       }
     })
     
