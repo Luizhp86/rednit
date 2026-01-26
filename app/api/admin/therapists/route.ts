@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { sendTherapistApprovalEmail } from '@/lib/email'
@@ -308,7 +309,7 @@ export async function DELETE(request: NextRequest) {
           status: therapist.status,
           leadsCount: therapist.leads.length
         },
-        newValue: null,
+        newValue: Prisma.JsonNull,
       }
     })
     
