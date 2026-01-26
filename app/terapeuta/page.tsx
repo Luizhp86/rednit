@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { 
   ArrowRight, 
@@ -14,12 +15,17 @@ import {
   Phone,
   BarChart3,
   Target,
-  Heart
+  Heart,
+  Calendar,
+  Play
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/logo'
+import { DemoScheduler } from '@/components/demo-scheduler'
 
 export default function TerapeutaLandingPage() {
+  const [showDemoScheduler, setShowDemoScheduler] = useState(false)
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
       {/* Header */}
@@ -37,6 +43,14 @@ export default function TerapeutaLandingPage() {
             </div>
           </Link>
           <div className="flex gap-3">
+            <Button 
+              onClick={() => setShowDemoScheduler(true)}
+              variant="outline" 
+              className="border-purple-600 text-purple-600 hover:bg-purple-50 hidden sm:flex items-center gap-2"
+            >
+              <Calendar className="w-4 h-4" />
+              Agendar Demo
+            </Button>
             <Link href="/terapeuta/login">
               <Button variant="ghost" className="text-emerald-700 hover:text-emerald-800">
                 Entrar
@@ -90,6 +104,36 @@ export default function TerapeutaLandingPage() {
           <p className="text-gray-500 mt-4 text-sm">
             Cadastro gratuito • Aprovação em até 24h
           </p>
+        </div>
+      </div>
+
+      {/* Seção Destacada - Agendar Demonstração */}
+      <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 py-12">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="text-center md:text-left text-white">
+              <div className="flex items-center gap-2 justify-center md:justify-start mb-2">
+                <Play className="w-5 h-5" />
+                <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full">
+                  Demonstração Gratuita
+                </span>
+              </div>
+              <h2 className="text-2xl md:text-3xl font-bold mb-2">
+                Quer ver como funciona na prática?
+              </h2>
+              <p className="text-white/90">
+                Agende uma demonstração gratuita de 15 minutos e veja como o Radar Match pode ajudar seu negócio.
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowDemoScheduler(true)}
+              size="lg"
+              className="bg-white text-purple-700 hover:bg-gray-100 px-8 py-6 text-lg font-bold rounded-xl shadow-xl hover:shadow-2xl transition-all flex items-center gap-2 whitespace-nowrap"
+            >
+              <Calendar className="w-5 h-5" />
+              Agendar Demonstração
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -508,6 +552,12 @@ export default function TerapeutaLandingPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal de Agendamento de Demonstração */}
+      <DemoScheduler 
+        isOpen={showDemoScheduler} 
+        onClose={() => setShowDemoScheduler(false)} 
+      />
     </div>
   )
 }

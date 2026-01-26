@@ -370,11 +370,12 @@ model Therapist {
   id                 String           @id @default(uuid())
   email              String           @unique
   password           String?          // Hash da senha (se nao usar social login)
+  googleId           String?          @unique // ID do Google para OAuth
   name               String
   type               TherapistType    @default(OUTRO)
   plan               TherapistPlan    @default(BASIC)
   crp                String?          // Opcional (apenas psicologos)
-  whatsapp           String
+  whatsapp           String?          // Obrigatório apenas após completar cadastro
   bio                String?
   photoUrl           String?
   instagram          String?
@@ -382,6 +383,7 @@ model Therapist {
   specialties        String[]         @default(["relacionamentos"])
   status             TherapistStatus  @default(PENDING)
   active             Boolean          @default(false) // Ativo no pool de rotacao
+  profileCompleted   Boolean          @default(false) // Se completou o cadastro
   
   // Stripe
   stripeCustomerId   String?          @unique
@@ -422,6 +424,47 @@ enum LeadStatus {
   CONTACTED     // Terapeuta entrou em contato
   CONVERTED     // Virou cliente
   LOST          // Nao converteu
+}
+
+// ============================================
+// AGENDAMENTO DE DEMONSTRAÇÕES
+// ============================================
+
+enum DemoStatus {
+  PENDING       // Agendada, aguardando
+  CONFIRMED     // Confirmada
+  COMPLETED     // Realizada
+  CANCELLED     // Cancelada
+  NO_SHOW       // Não compareceu
+}
+
+model Demo {
+  id            String      @id @default(uuid())
+  
+  // Dados do interessado
+  name          String
+  email         String
+  phone         String
+  company       String?     // Nome da empresa/consultório
+  
+  // Agendamento
+  scheduledAt   DateTime    // Data e hora agendada
+  status        DemoStatus  @default(PENDING)
+  
+  // Notas
+  notes         String?     // Notas do admin
+  
+  // Timestamps
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  confirmedAt   DateTime?
+  completedAt   DateTime?
+  cancelledAt   DateTime?
+  
+  @@index([scheduledAt])
+  @@index([status])
+  @@index([email])
+  @@map("demos")
 }
 
 model Lead {

@@ -419,6 +419,126 @@ export async function sendLeadCtaNotification(params: {
 }
 
 // ============================================
+// EMAILS PARA ADMINS
+// ============================================
+
+/**
+ * Email de notificação de nova demonstração agendada para admins
+ */
+export async function sendDemoScheduledEmailToAdmins(params: {
+  demo: {
+    name: string
+    email: string
+    phone: string
+    company?: string | null
+    scheduledAt: Date
+  }
+}) {
+  const resend = getResend()
+  if (!resend) return { success: false, error: 'Email service not configured' }
+  
+  const { demo } = params
+  
+  // Buscar todos os admins ativos para enviar email
+  const { prisma } = await import('./prisma')
+  const admins = await prisma.admin.findMany({
+    where: { active: true },
+    select: { email: true, name: true }
+  })
+  
+  if (admins.length === 0) {
+    console.warn('[EMAIL] Nenhum admin encontrado para notificar sobre demonstração')
+    return { success: false, error: 'No admins found' }
+  }
+  
+  const adminEmails = admins.map(a => a.email)
+  
+  // Formatar data
+  const scheduledDate = new Date(demo.scheduledAt)
+  const dateStr = scheduledDate.toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  })
+  const timeStr = scheduledDate.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+  
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: adminEmails,
+      subject: '📅 Nova demonstração agendada! - Radar Match',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #7c3aed 0%, #ec4899 100%); padding: 20px; border-radius: 12px 12px 0 0; text-align: center;">
+            <h1 style="color: white; margin: 0;">📅 Nova Demonstração Agendada</h1>
+          </div>
+          
+          <div style="background: #f3f4f6; padding: 20px; border-radius: 0 0 12px 12px;">
+            <h3 style="color: #333; margin-top: 0;">Dados do Interessado:</h3>
+            <table style="width: 100%; font-size: 14px; margin-bottom: 20px;">
+              <tr>
+                <td style="padding: 8px 0; color: #666;">Nome:</td>
+                <td style="padding: 8px 0; color: #333; font-weight: bold;">${demo.name}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;">Email:</td>
+                <td style="padding: 8px 0; color: #333;">
+                  <a href="mailto:${demo.email}" style="color: #7c3aed;">${demo.email}</a>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;">Telefone:</td>
+                <td style="padding: 8px 0; color: #333;">
+                  <a href="https://wa.me/55${demo.phone.replace(/\D/g, '')}" style="color: #22c55e; font-weight: bold;">
+                    ${demo.phone}
+                  </a>
+                </td>
+              </tr>
+              ${demo.company ? `
+              <tr>
+                <td style="padding: 8px 0; color: #666;">Empresa/Consultório:</td>
+                <td style="padding: 8px 0; color: #333;">${demo.company}</td>
+              </tr>
+              ` : ''}
+            </table>
+            
+            <div style="background: #fff; padding: 15px; border-radius: 8px; border-left: 4px solid #7c3aed; margin-bottom: 15px;">
+              <h4 style="color: #7c3aed; margin: 0 0 10px;">📆 Data e Horário:</h4>
+              <p style="margin: 0; font-size: 18px; font-weight: bold; color: #333;">
+                ${dateStr}
+              </p>
+              <p style="margin: 5px 0 0; font-size: 24px; font-weight: bold; color: #7c3aed;">
+                ${timeStr}
+              </p>
+            </div>
+          </div>
+          
+          <div style="margin-top: 20px; text-align: center;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://radarmatch.com.br'}/admin" 
+               style="display: inline-block; background: #7c3aed; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+              Ver no Painel Admin
+            </a>
+          </div>
+          
+          <p style="font-size: 12px; color: #888; margin-top: 30px; text-align: center;">
+            Esta demonstração foi agendada automaticamente pelo site.<br>
+            Você pode confirmar ou cancelar pelo painel admin.
+          </p>
+        </div>
+      `,
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Erro ao enviar email de demonstração para admins:', error)
+    return { success: false, error }
+  }
+}
+
+// ============================================
 // EMAILS PARA USUÁRIOS
 // ============================================
 

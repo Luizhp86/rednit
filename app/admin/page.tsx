@@ -99,7 +99,7 @@ export default function AdminPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'config' | 'users' | 'logs' | 'apikeys' | 'therapists' | 'leads' | 'admins'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'config' | 'users' | 'logs' | 'apikeys' | 'therapists' | 'leads' | 'admins' | 'demos'>('dashboard')
   
   // Dashboard data
   const [stats, setStats] = useState<Stats | null>(null)
@@ -195,6 +195,17 @@ export default function AdminPage() {
   const [assigningLead, setAssigningLead] = useState<string | null>(null)
   const [selectedTherapistForAssign, setSelectedTherapistForAssign] = useState('')
   const [sendNotificationOnAssign, setSendNotificationOnAssign] = useState(true)
+  
+  // Demos tab
+  const [demos, setDemos] = useState<any[]>([])
+  const [demoStatusFilter, setDemoStatusFilter] = useState('')
+  const [demoPage, setDemoPage] = useState(1)
+  const [demoTotal, setDemoTotal] = useState(0)
+  const [demoTotalPages, setDemoTotalPages] = useState(1)
+  const [loadingDemos, setLoadingDemos] = useState(false)
+  const [demoStats, setDemoStats] = useState<any>(null)
+  const [upcomingDemos, setUpcomingDemos] = useState<any[]>([])
+  const [updatingDemoId, setUpdatingDemoId] = useState<string | null>(null)
 
   useEffect(() => {
     checkAdmin()
@@ -627,6 +638,56 @@ export default function AdminPage() {
     }
   }
 
+  // ============================================
+  // DEMONSTRAÇÕES
+  // ============================================
+  
+  const loadDemos = async (page = 1, status = '') => {
+    setLoadingDemos(true)
+    try {
+      const params = new URLSearchParams({ page: page.toString(), limit: '20' })
+      if (status) params.set('status', status)
+      
+      const res = await fetch(`/api/admin/demos?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setDemos(data.demos)
+        setDemoPage(data.page)
+        setDemoTotal(data.total)
+        setDemoTotalPages(data.totalPages)
+        setDemoStats(data.stats)
+        setUpcomingDemos(data.upcomingDemos || [])
+      }
+    } catch (error) {
+      console.error('Error loading demos:', error)
+    } finally {
+      setLoadingDemos(false)
+    }
+  }
+  
+  const updateDemoStatus = async (demoId: string, newStatus: string, notes?: string) => {
+    setUpdatingDemoId(demoId)
+    try {
+      const res = await fetch('/api/admin/demos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: demoId, status: newStatus, notes })
+      })
+      
+      if (res.ok) {
+        loadDemos(demoPage, demoStatusFilter)
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Erro ao atualizar demonstração')
+      }
+    } catch (error) {
+      console.error('Error updating demo status:', error)
+      alert('Erro ao atualizar demonstração')
+    } finally {
+      setUpdatingDemoId(null)
+    }
+  }
+
   const updateTherapist = async (therapistId: string, action: string) => {
     try {
       const res = await fetch('/api/admin/therapists', {
@@ -845,6 +906,19 @@ export default function AdminPage() {
           >
             <MessageCircle className="w-5 h-5" />
             Leads
+          </button>
+          <button
+            onClick={() => { setActiveTab('demos'); loadDemos(1, ''); }}
+            className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
+              activeTab === 'demos' 
+                ? 'bg-purple-600 text-white' 
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            }`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Demos
           </button>
           <button
             onClick={() => { setActiveTab('admins'); loadAdmins(); }}
@@ -3156,6 +3230,270 @@ export default function AdminPage() {
                 </Button>
               </div>
             </Card>
+          </div>
+        )}
+
+        {/* Demos Tab */}
+        {activeTab === 'demos' && (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Demonstrações Agendadas
+              </h2>
+              <Button
+                onClick={() => loadDemos(1, demoStatusFilter)}
+                className="bg-gray-700 hover:bg-gray-600"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Atualizar
+              </Button>
+            </div>
+
+            {/* Stats */}
+            {demoStats && (
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                <Card className="bg-gray-800 border-gray-700 p-4">
+                  <p className="text-gray-400 text-xs">Total</p>
+                  <p className="text-2xl font-bold text-white">{demoStats.total}</p>
+                </Card>
+                <Card className="bg-gray-800 border-gray-700 p-4">
+                  <p className="text-gray-400 text-xs">Pendentes</p>
+                  <p className="text-2xl font-bold text-yellow-400">{demoStats.pending}</p>
+                </Card>
+                <Card className="bg-gray-800 border-gray-700 p-4">
+                  <p className="text-gray-400 text-xs">Confirmadas</p>
+                  <p className="text-2xl font-bold text-blue-400">{demoStats.confirmed}</p>
+                </Card>
+                <Card className="bg-gray-800 border-gray-700 p-4">
+                  <p className="text-gray-400 text-xs">Realizadas</p>
+                  <p className="text-2xl font-bold text-green-400">{demoStats.completed}</p>
+                </Card>
+                <Card className="bg-gray-800 border-gray-700 p-4">
+                  <p className="text-gray-400 text-xs">Canceladas</p>
+                  <p className="text-2xl font-bold text-red-400">{demoStats.cancelled}</p>
+                </Card>
+                <Card className="bg-gray-800 border-gray-700 p-4">
+                  <p className="text-gray-400 text-xs">No-show</p>
+                  <p className="text-2xl font-bold text-gray-400">{demoStats.noShow}</p>
+                </Card>
+              </div>
+            )}
+
+            {/* Próximas demonstrações */}
+            {upcomingDemos.length > 0 && (
+              <Card className="bg-purple-900/30 border-purple-700 p-4">
+                <h3 className="text-purple-400 font-semibold mb-3 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Próximos 7 dias ({upcomingDemos.length})
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {upcomingDemos.slice(0, 6).map((demo: any) => (
+                    <div key={demo.id} className="bg-gray-800 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-white text-sm">{demo.name}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          demo.status === 'CONFIRMED' ? 'bg-blue-600 text-white' : 'bg-yellow-600 text-white'
+                        }`}>
+                          {demo.status === 'CONFIRMED' ? 'Confirmada' : 'Pendente'}
+                        </span>
+                      </div>
+                      <p className="text-purple-400 text-sm font-semibold">
+                        {new Date(demo.scheduledAt).toLocaleDateString('pt-BR', { 
+                          weekday: 'short', 
+                          day: '2-digit', 
+                          month: '2-digit' 
+                        })} às {new Date(demo.scheduledAt).toLocaleTimeString('pt-BR', { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </p>
+                      <p className="text-gray-400 text-xs">{demo.email}</p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            {/* Filtros */}
+            <div className="flex gap-4 items-center">
+              <select
+                value={demoStatusFilter}
+                onChange={(e) => {
+                  setDemoStatusFilter(e.target.value)
+                  loadDemos(1, e.target.value)
+                }}
+                className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white"
+              >
+                <option value="">Todos os status</option>
+                <option value="PENDING">Pendentes</option>
+                <option value="CONFIRMED">Confirmadas</option>
+                <option value="COMPLETED">Realizadas</option>
+                <option value="CANCELLED">Canceladas</option>
+                <option value="NO_SHOW">No-show</option>
+              </select>
+            </div>
+
+            {/* Lista */}
+            {loadingDemos ? (
+              <div className="flex justify-center py-8">
+                <RefreshCw className="w-6 h-6 animate-spin text-purple-500" />
+              </div>
+            ) : demos.length === 0 ? (
+              <Card className="bg-gray-800 border-gray-700 p-8 text-center">
+                <p className="text-gray-400">Nenhuma demonstração encontrada</p>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {demos.map((demo: any) => {
+                  const statusColors: Record<string, string> = {
+                    PENDING: 'bg-yellow-600',
+                    CONFIRMED: 'bg-blue-600',
+                    COMPLETED: 'bg-green-600',
+                    CANCELLED: 'bg-red-600',
+                    NO_SHOW: 'bg-gray-600',
+                  }
+                  const statusLabels: Record<string, string> = {
+                    PENDING: 'Pendente',
+                    CONFIRMED: 'Confirmada',
+                    COMPLETED: 'Realizada',
+                    CANCELLED: 'Cancelada',
+                    NO_SHOW: 'No-show',
+                  }
+                  
+                  return (
+                    <Card key={demo.id} className="bg-gray-800 border-gray-700 p-4">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="font-semibold text-white">{demo.name}</span>
+                            <span className={`text-xs px-2 py-0.5 rounded text-white ${statusColors[demo.status]}`}>
+                              {statusLabels[demo.status]}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <span className="text-gray-500">Data:</span>{' '}
+                              <span className="text-purple-400 font-medium">
+                                {new Date(demo.scheduledAt).toLocaleDateString('pt-BR', { 
+                                  weekday: 'short', 
+                                  day: '2-digit', 
+                                  month: '2-digit',
+                                  year: 'numeric'
+                                })} às {new Date(demo.scheduledAt).toLocaleTimeString('pt-BR', { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                })}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Email:</span>{' '}
+                              <a href={`mailto:${demo.email}`} className="text-blue-400 hover:underline">{demo.email}</a>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">Telefone:</span>{' '}
+                              <a href={`https://wa.me/55${demo.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:underline">
+                                {demo.phone}
+                              </a>
+                            </div>
+                            {demo.company && (
+                              <div>
+                                <span className="text-gray-500">Empresa:</span>{' '}
+                                <span className="text-white">{demo.company}</span>
+                              </div>
+                            )}
+                          </div>
+                          {demo.notes && (
+                            <div className="mt-2 text-sm text-gray-400 bg-gray-700 rounded p-2">
+                              <span className="font-medium">Notas:</span> {demo.notes}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-2">
+                          {demo.status === 'PENDING' && (
+                            <>
+                              <Button
+                                onClick={() => updateDemoStatus(demo.id, 'CONFIRMED')}
+                                disabled={updatingDemoId === demo.id}
+                                className="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1"
+                              >
+                                Confirmar
+                              </Button>
+                              <Button
+                                onClick={() => updateDemoStatus(demo.id, 'CANCELLED')}
+                                disabled={updatingDemoId === demo.id}
+                                className="bg-red-600 hover:bg-red-700 text-xs px-3 py-1"
+                              >
+                                Cancelar
+                              </Button>
+                            </>
+                          )}
+                          {demo.status === 'CONFIRMED' && (
+                            <>
+                              <Button
+                                onClick={() => updateDemoStatus(demo.id, 'COMPLETED')}
+                                disabled={updatingDemoId === demo.id}
+                                className="bg-green-600 hover:bg-green-700 text-xs px-3 py-1"
+                              >
+                                Marcar Realizada
+                              </Button>
+                              <Button
+                                onClick={() => updateDemoStatus(demo.id, 'NO_SHOW')}
+                                disabled={updatingDemoId === demo.id}
+                                className="bg-gray-600 hover:bg-gray-500 text-xs px-3 py-1"
+                              >
+                                No-show
+                              </Button>
+                              <Button
+                                onClick={() => updateDemoStatus(demo.id, 'CANCELLED')}
+                                disabled={updatingDemoId === demo.id}
+                                className="bg-red-600 hover:bg-red-700 text-xs px-3 py-1"
+                              >
+                                Cancelar
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Paginação */}
+            {demoTotalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <p className="text-gray-400 text-sm">
+                  Mostrando {demos.length} de {demoTotal} demonstrações
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => loadDemos(demoPage - 1, demoStatusFilter)}
+                    disabled={demoPage <= 1}
+                    className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="bg-gray-800 px-4 py-2 rounded-lg text-white">
+                    {demoPage} / {demoTotalPages}
+                  </span>
+                  <Button
+                    onClick={() => loadDemos(demoPage + 1, demoStatusFilter)}
+                    disabled={demoPage >= demoTotalPages}
+                    className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
