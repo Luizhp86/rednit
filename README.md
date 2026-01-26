@@ -1,231 +1,179 @@
-# rednit
+# Radar Match 🎯
 
-Micro-SaaS web que fornece insights inteligentes sobre relacionamentos, identificando red flags, green flags e hipóteses probabilísticas baseadas em evidências.
+Plataforma de análise comportamental para relacionamentos em apps de namoro, usando IA para identificar padrões e sinais de alerta.
 
-## 🚀 Características
+## 🚀 Status do Projeto
 
-- **Análises baseadas em regras**: Motor determinístico que avalia padrões comportamentais
-- **Hipóteses probabilísticas**: Identifica possíveis momentos de vida e comportamentos com nível de confiança
-- **Red Flags e Green Flags**: Sinais de alerta e positivos com evidências
-- **Scores quantitativos**: Métricas de consistência, reciprocidade, disponibilidade, respeito, intenção e riscos
-- **Gating FREE vs PRO**: Versão gratuita com prévia + paywall para relatório completo
-- **Pagamentos BR**: Integração com Asaas (Pix + cartão)
-- **Privacidade**: Exclusão de dados e conta
+**Versão:** 0.8  
+**Status:** Pronto para deploy em produção
 
-## 🛠️ Stack
+## 📋 Sobre o Projeto
 
-- **Frontend/Fullstack**: Next.js 14+ (App Router) + TypeScript + Tailwind CSS
-- **Hospedagem**: Vercel
-- **Database/Auth**: Supabase (Postgres + Google OAuth)
-- **ORM**: Prisma
-- **Pagamentos**: Asaas (Pix + cartão)
-- **Validação**: Zod
+Radar Match é uma aplicação Next.js que utiliza IA (Google Gemini) para analisar comportamentos em relacionamentos iniciados em apps de namoro. A plataforma:
 
-## 📋 Pré-requisitos
+- ✅ Analisa padrões de comportamento com base em 14+ critérios
+- ✅ Identifica sinais de alerta (red flags) e pontos positivos (green flags)
+- ✅ Gera análises de compatibilidade personalizadas
+- ✅ Oferece análise de evolução comportamental (PRO)
+- ✅ Sistema de créditos e assinaturas via Stripe
+- ✅ Painel admin completo
+
+## 🛠️ Tecnologias
+
+- **Framework:** Next.js 16 (App Router)
+- **Linguagem:** TypeScript
+- **Banco de Dados:** PostgreSQL (Supabase)
+- **ORM:** Prisma
+- **Autenticação:** Supabase Auth
+- **Pagamentos:** Stripe (produção)
+- **IA:** Google Gemini API
+- **Hospedagem:** Vercel
+- **UI:** TailwindCSS + shadcn/ui + Framer Motion
+
+## 📦 Estrutura do Projeto
+
+```
+radar-match/
+├── app/                    # Next.js App Router
+│   ├── api/               # API Routes
+│   ├── dashboard/         # Dashboard do usuário
+│   ├── admin/             # Painel administrativo
+│   └── login/             # Autenticação
+├── components/            # Componentes React
+├── lib/                   # Bibliotecas e utils
+│   ├── ai/               # Integração com Gemini
+│   ├── rules/            # Motor de análise
+│   └── supabase/         # Cliente Supabase
+├── prisma/               # Schema e migrations
+└── docs/                 # Documentação
+```
+
+## 🚀 Deploy em Produção
+
+### Guias Disponíveis
+
+1. **[PROXIMOS_PASSOS.md](./PROXIMOS_PASSOS.md)** - Guia rápido de ações manuais
+2. **[CHECKLIST_DEPLOY.md](./CHECKLIST_DEPLOY.md)** - Checklist interativo completo
+3. **[DEPLOY_PRODUCAO.md](./DEPLOY_PRODUCAO.md)** - Guia detalhado com troubleshooting
+4. **[README.VERCEL.md](./README.VERCEL.md)** - Referência rápida Vercel
+
+### Requisitos
+
+- Conta Vercel
+- Projeto Supabase (PostgreSQL)
+- Conta Stripe (modo produção)
+- API Key do Google Gemini
+
+### Deploy Rápido
+
+```bash
+# 1. Clone o repositório
+git clone https://github.com/Luizhp86/rednit.git
+cd rednit
+
+# 2. Configure as variáveis de ambiente na Vercel
+# Ver PROXIMOS_PASSOS.md para valores
+
+# 3. Deploy
+# Conecte o repositório na Vercel e faça deploy
+```
+
+## 🔧 Desenvolvimento Local
+
+### Pré-requisitos
 
 - Node.js 18+
-- Conta no Supabase
-- Conta no Asaas (para pagamentos)
+- PostgreSQL (ou conta Supabase)
+- Chaves de API (Gemini, Stripe, Supabase)
 
-## 🔧 Configuração
-
-### 1. Clone o repositório
+### Instalação
 
 ```bash
-git clone <repo-url>
-cd rednit
-```
-
-### 2. Instale as dependências
-
-```bash
+# 1. Instalar dependências
 npm install
-```
 
-### 3. Configure as variáveis de ambiente
-
-Copie o arquivo `.env.example` para `.env` e preencha com suas credenciais:
-
-```bash
+# 2. Configurar variáveis de ambiente
 cp .env.example .env
-```
+# Edite .env com suas chaves
 
-Variáveis necessárias:
+# 3. Setup do banco de dados
+npx prisma generate
+npx prisma db push
 
-- `NEXT_PUBLIC_SUPABASE_URL`: URL do seu projeto Supabase
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Chave anônima do Supabase
-- `DATABASE_URL`: String de conexão do Postgres (do Supabase)
-- `ASAAS_API_URL`: URL da API Asaas (padrão: https://api.asaas.com/v3)
-- `ASAAS_API_KEY`: Chave da API Asaas
-- `ASAAS_WEBHOOK_TOKEN`: Token para validar webhooks do Asaas
-
-### 4. Configure o Supabase
-
-#### 4.1. Criar projeto no Supabase
-
-1. Acesse [supabase.com](https://supabase.com)
-2. Crie um novo projeto
-3. Anote a URL e a chave anônima
-
-#### 4.2. Configurar Google OAuth
-
-1. No painel do Supabase, vá em **Authentication > Providers**
-2. Ative o provider **Google**
-3. Configure as credenciais OAuth do Google:
-   - Crie um projeto no [Google Cloud Console](https://console.cloud.google.com)
-   - Configure a tela de consentimento OAuth
-   - Crie credenciais OAuth 2.0
-   - Adicione a URL de callback: `https://<seu-projeto>.supabase.co/auth/v1/callback`
-   - Adicione também: `http://localhost:3000/auth/callback` para desenvolvimento
-4. Cole o Client ID e Client Secret no Supabase
-
-#### 4.3. Obter string de conexão do Postgres
-
-1. No painel do Supabase, vá em **Settings > Database**
-2. Copie a **Connection string** (URI)
-3. Use no `DATABASE_URL` (substitua `[YOUR-PASSWORD]` pela senha do banco)
-
-### 5. Configure o Prisma
-
-Execute as migrações do banco de dados:
-
-```bash
-npx prisma migrate dev --name init
-```
-
-Isso criará todas as tabelas necessárias no banco.
-
-### 6. Configure o Asaas
-
-1. Crie uma conta em [asaas.com](https://asaas.com)
-2. Obtenha sua API Key no painel
-3. Configure o webhook:
-   - URL: `https://seu-dominio.com/api/webhooks/asaas`
-   - Eventos: `PAYMENT_CONFIRMED`, `PAYMENT_RECEIVED`, `PAYMENT_OVERDUE`, `PAYMENT_REFUNDED`
-   - Token: Gere um token seguro e use no `ASAAS_WEBHOOK_TOKEN`
-
-## 🚀 Executando localmente
-
-```bash
+# 4. Rodar em desenvolvimento
 npm run dev
 ```
 
-Acesse [http://localhost:3000](http://localhost:3000)
+Acesse: `http://localhost:3000`
 
-## 📦 Deploy na Vercel
+## 📊 Features
 
-### 1. Conecte o repositório
+### Para Usuários
 
-1. Acesse [vercel.com](https://vercel.com)
-2. Importe o repositório do GitHub/GitLab
+- 📝 **Formulário de Análise:** 14 perguntas sobre o comportamento do match
+- 🎯 **Análise Gratuita:** Teaser com principais insights
+- 💎 **Análise Premium:** Relatório completo desbloqueável
+- 📈 **Análise de Comportamento:** Evolução ao longo do tempo (PRO)
+- 💳 **Compra de Créditos:** Pacotes avulsos
+- ⭐ **Assinatura PRO:** Análises ilimitadas
 
-### 2. Configure as variáveis de ambiente
+### Para Administradores
 
-No painel da Vercel, adicione todas as variáveis do `.env`:
+- 📊 **Dashboard:** Estatísticas de usuários, análises e receita
+- 👥 **Gestão de Usuários:** Visualizar, editar planos e créditos
+- ⚙️ **Configurações:** Preços dinâmicos, limites, feature flags
+- 📝 **Logs:** Audit trail de alterações do sistema
+- 📈 **Atividade:** Tracking de eventos de usuários
+- 🔑 **API Keys:** Visualização do status das chaves
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `DATABASE_URL`
-- `ASAAS_API_URL`
-- `ASAAS_API_KEY`
-- `ASAAS_WEBHOOK_TOKEN`
+## 💳 Sistema de Pagamentos
 
-### 3. Configure o build
+### Planos
 
-A Vercel detecta automaticamente Next.js. Certifique-se de que o comando de build está correto:
+- **FREE:** 10 análises gratuitas por dia (teaser)
+- **PRO:** Análises ilimitadas + Análise de Comportamento
 
-```json
-{
-  "scripts": {
-    "build": "prisma generate && next build"
-  }
-}
-```
+### Preços (configuráveis)
 
-### 4. Atualize o callback do Google OAuth
+- PRO: R$ 29,90/mês | R$ 79,90/trimestre | R$ 299,00/ano
+- Créditos: R$ 7,99 (1x) | R$ 24,90 (3x) | R$ 39,90 (5x)
 
-No Google Cloud Console, adicione a URL de produção:
-`https://seu-dominio.vercel.app/auth/callback`
+## 🔐 Segurança
 
-### 5. Atualize o webhook do Asaas
+- ✅ Autenticação via Supabase
+- ✅ Row Level Security (RLS) no banco
+- ✅ Validação de inputs (Zod)
+- ✅ Rate limiting
+- ✅ Webhooks verificados (Stripe)
+- ✅ Variáveis de ambiente seguras
 
-Configure o webhook do Asaas para apontar para:
-`https://seu-dominio.vercel.app/api/webhooks/asaas`
+## 📈 Roadmap
 
-## 📁 Estrutura do Projeto
+- [ ] Integração com Asaas (PIX)
+- [ ] Sistema de emails transacionais (Resend)
+- [ ] Analytics avançado
+- [ ] Modo escuro
+- [ ] PWA (Progressive Web App)
+- [ ] API pública
 
-```
-rednit/
-├── app/
-│   ├── api/
-│   │   ├── analyze/          # Endpoint de análise
-│   │   ├── checkout/         # Criação de checkout Asaas
-│   │   ├── webhooks/asaas/   # Webhook de pagamentos
-│   │   ├── me/               # Dados do usuário
-│   │   ├── analyses/         # CRUD de análises
-│   │   └── delete-account/   # Exclusão de conta
-│   ├── auth/callback/        # Callback OAuth
-│   ├── login/                # Página de login
-│   ├── dashboard/            # Dashboard principal
-│   │   ├── new/              # Formulário de análise
-│   │   └── analysis/[id]/    # Resultado da análise
-│   ├── account/              # Página de conta
-│   └── layout.tsx
-├── lib/
-│   ├── prisma.ts             # Cliente Prisma
-│   ├── supabase/             # Clientes Supabase
-│   ├── rules/                # Rule engine
-│   │   ├── engine.ts
-│   │   └── ruleset.json
-│   └── validations/           # Schemas Zod
-├── prisma/
-│   └── schema.prisma         # Schema do banco
-└── middleware.ts              # Middleware de autenticação
-```
+## 📄 Licença
 
-## 🔐 Segurança e Privacidade
+Proprietário - Todos os direitos reservados
 
-- **Minimização de dados**: Apenas dados necessários são armazenados
-- **Criptografia**: Supabase gerencia criptografia em repouso
-- **Rate limiting**: Implementado em `/api/analyze` e `/api/checkout`
-- **Validação**: Todos os inputs são validados com Zod
-- **Exclusão de dados**: Usuários podem excluir análises e conta
+## 👨‍💻 Autor
 
-## 📊 Modelo de Dados
+Luiz Henrique Pinotti  
+GitHub: [@Luizhp86](https://github.com/Luizhp86)
 
-### Tabelas principais:
+## 🆘 Suporte
 
-- **users**: Usuários e planos
-- **analyses**: Análises realizadas
-- **payments**: Registro de pagamentos
-- **entitlements**: Direitos de acesso PRO
+Para dúvidas sobre deploy ou desenvolvimento:
+1. Consulte os guias em `docs/`
+2. Verifique `DEPLOY_PRODUCAO.md` para troubleshooting
+3. Abra uma issue no repositório
 
-## 🎯 Funcionalidades
+---
 
-### Versão Gratuita (FREE)
-- 1 análise por dia
-- Prévia com 1 hipótese, 3 flags e 2 scores
-- Histórico de análises
+**🚀 Pronto para colocar em produção!**
 
-### Versão PRO
-- Análises ilimitadas (com rate limit)
-- Acesso completo a todos os scores, hipóteses e flags
-- Próximas ações sugeridas
-
-### Pagamentos
-- **Desbloqueio único**: R$ 9,90 por análise
-- **Assinatura mensal**: R$ 29,90/mês
-
-## 🧪 Rule Engine
-
-O motor de análise está em `lib/rules/engine.ts` e usa regras definidas em `lib/rules/ruleset.json`.
-
-As regras podem ser ajustadas sem re-deploy, carregando o JSON do servidor (futuro).
-
-## 📝 Licença
-
-Este projeto é privado e proprietário.
-
-## 🤝 Suporte
-
-Para dúvidas ou problemas, abra uma issue no repositório.
+Siga o guia `PROXIMOS_PASSOS.md` para fazer deploy na Vercel em menos de 1 hora.
