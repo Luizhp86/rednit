@@ -12,8 +12,8 @@ As chaves do Stripe de produção foram compartilhadas no chat. Considere regene
 
 1. Acesse [vercel.com](https://vercel.com) e faça login
 2. Clique em **"Add New"** → **"Project"**
-3. Se for a primeira vez, conecte sua conta do GitLab
-4. Selecione o repositório: `luizhenrique.pinotti/rednit`
+3. Se for a primeira vez, conecte sua conta do GitHub
+4. Selecione o repositório: `Luizhp86/rednit`
 5. Selecione o branch: `dev` (ou `main` se preferir)
 6. **NÃO FAÇA DEPLOY AINDA** - primeiro configure as variáveis de ambiente
 

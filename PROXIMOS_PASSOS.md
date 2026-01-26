@@ -22,8 +22,8 @@
 
 1. Faça login na Vercel
 2. Clique em **"Add New"** → **"Project"**
-3. Conecte sua conta do GitLab (se primeira vez)
-4. Selecione: `luizhenrique.pinotti/rednit`
+3. Conecte sua conta do GitHub (se primeira vez)
+4. Selecione: `Luizhp86/rednit`
 5. Branch: `dev`
 6. ⚠️ **NÃO CLIQUE EM DEPLOY AINDA!**
 
