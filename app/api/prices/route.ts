@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSystemConfig } from '@/lib/config'
 
 // Endpoint público para buscar preços do sistema
+// Nota: Monetização agora é somente por assinaturas (mensal, trimestral, anual)
 export async function GET() {
   try {
     const config = await getSystemConfig()
@@ -11,11 +12,6 @@ export async function GET() {
         monthly: config.proPriceMonthly,
         quarterly: config.proPriceQuarterly,
         yearly: config.proPriceYearly,
-      },
-      credits: {
-        single: config.creditPriceSingle,
-        pack3: config.creditPricePack3,
-        pack5: config.creditPricePack5,
       },
     })
   } catch (error) {

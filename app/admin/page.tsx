@@ -39,9 +39,6 @@ type SystemConfig = {
   proPriceMonthly: number
   proPriceQuarterly: number
   proPriceYearly: number
-  creditPriceSingle: number
-  creditPricePack3: number
-  creditPricePack5: number
   maintenanceMode: boolean
   allowNewRegistrations: boolean
 }
@@ -86,9 +83,6 @@ export default function AdminPage() {
     proPriceMonthly: '',
     proPriceQuarterly: '',
     proPriceYearly: '',
-    creditPriceSingle: '',
-    creditPricePack3: '',
-    creditPricePack5: '',
   })
   
   // Users
@@ -168,9 +162,6 @@ export default function AdminPage() {
           proPriceMonthly: String((cfg.proPriceMonthly ?? 2990) / 100),
           proPriceQuarterly: String((cfg.proPriceQuarterly ?? 7990) / 100),
           proPriceYearly: String((cfg.proPriceYearly ?? 29900) / 100),
-          creditPriceSingle: String((cfg.creditPriceSingle ?? 799) / 100),
-          creditPricePack3: String((cfg.creditPricePack3 ?? 2490) / 100),
-          creditPricePack5: String((cfg.creditPricePack5 ?? 3990) / 100),
         })
         // Also ensure configDraft has all required fields with defaults
         setConfigDraft({
@@ -178,9 +169,6 @@ export default function AdminPage() {
           proPriceMonthly: cfg.proPriceMonthly ?? 2990,
           proPriceQuarterly: cfg.proPriceQuarterly ?? 7990,
           proPriceYearly: cfg.proPriceYearly ?? 29900,
-          creditPriceSingle: cfg.creditPriceSingle ?? 799,
-          creditPricePack3: cfg.creditPricePack3 ?? 2490,
-          creditPricePack5: cfg.creditPricePack5 ?? 3990,
         })
       } else {
         const errorData = await res.json()
@@ -323,9 +311,6 @@ export default function AdminPage() {
       proPriceMonthly: parsePrice(priceInputs.proPriceMonthly) || configDraft.proPriceMonthly,
       proPriceQuarterly: parsePrice(priceInputs.proPriceQuarterly) || configDraft.proPriceQuarterly,
       proPriceYearly: parsePrice(priceInputs.proPriceYearly) || configDraft.proPriceYearly,
-      creditPriceSingle: parsePrice(priceInputs.creditPriceSingle) || configDraft.creditPriceSingle,
-      creditPricePack3: parsePrice(priceInputs.creditPricePack3) || configDraft.creditPricePack3,
-      creditPricePack5: parsePrice(priceInputs.creditPricePack5) || configDraft.creditPricePack5,
     }
     
     // #region agent log
@@ -361,18 +346,12 @@ export default function AdminPage() {
           proPriceMonthly: cfg.proPriceMonthly ?? 2990,
           proPriceQuarterly: cfg.proPriceQuarterly ?? 7990,
           proPriceYearly: cfg.proPriceYearly ?? 29900,
-          creditPriceSingle: cfg.creditPriceSingle ?? 799,
-          creditPricePack3: cfg.creditPricePack3 ?? 2490,
-          creditPricePack5: cfg.creditPricePack5 ?? 3990,
         })
         // Update price inputs after save
         setPriceInputs({
           proPriceMonthly: String((cfg.proPriceMonthly ?? 2990) / 100),
           proPriceQuarterly: String((cfg.proPriceQuarterly ?? 7990) / 100),
           proPriceYearly: String((cfg.proPriceYearly ?? 29900) / 100),
-          creditPriceSingle: String((cfg.creditPriceSingle ?? 799) / 100),
-          creditPricePack3: String((cfg.creditPricePack3 ?? 2490) / 100),
-          creditPricePack5: String((cfg.creditPricePack5 ?? 3990) / 100),
         })
         alert('Configurações salvas!')
       } else {
@@ -438,8 +417,16 @@ export default function AdminPage() {
       <nav className="bg-gray-800 border-b border-gray-700">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard">
+            <Link href="/dashboard" className="flex items-center gap-3">
               <Logo size="lg" />
+              <div className="flex flex-col">
+                <span className="text-sm md:text-base font-semibold text-purple-700">
+                  Coach de Relacionamentos
+                </span>
+                <span className="text-xs text-gray-400 hidden md:block">
+                  Análise objetiva do seu match
+                </span>
+              </div>
             </Link>
             <span className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">ADMIN</span>
           </div>
@@ -830,96 +817,6 @@ export default function AdminPage() {
                         setPriceInputs({...priceInputs, proPriceYearly: num.toFixed(2)})
                       } else {
                         setPriceInputs({...priceInputs, proPriceYearly: String(configDraft.proPriceYearly / 100)})
-                      }
-                    }}
-                    className="bg-gray-700 border-gray-600 text-white"
-                  />
-                </div>
-              </div>
-            </Card>
-
-            <Card className="bg-gray-800 border-gray-700 p-6">
-              <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                <Zap className="w-5 h-5 text-yellow-500" />
-                Preços de Pacotes de Créditos
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">
-                    1 Crédito (R$)
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="7.99"
-                    value={priceInputs.creditPriceSingle}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      if (/^[0-9]*[,.]?[0-9]*$/.test(value)) {
-                        setPriceInputs({...priceInputs, creditPriceSingle: value})
-                      }
-                    }}
-                    onBlur={() => {
-                      const value = priceInputs.creditPriceSingle.replace(',', '.')
-                      const num = parseFloat(value)
-                      if (!isNaN(num) && num >= 0) {
-                        setConfigDraft({...configDraft, creditPriceSingle: Math.round(num * 100)})
-                        setPriceInputs({...priceInputs, creditPriceSingle: num.toFixed(2)})
-                      } else {
-                        setPriceInputs({...priceInputs, creditPriceSingle: String(configDraft.creditPriceSingle / 100)})
-                      }
-                    }}
-                    className="bg-gray-700 border-gray-600 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">
-                    Pacote 3 Créditos (R$)
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="24.90"
-                    value={priceInputs.creditPricePack3}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      if (/^[0-9]*[,.]?[0-9]*$/.test(value)) {
-                        setPriceInputs({...priceInputs, creditPricePack3: value})
-                      }
-                    }}
-                    onBlur={() => {
-                      const value = priceInputs.creditPricePack3.replace(',', '.')
-                      const num = parseFloat(value)
-                      if (!isNaN(num) && num >= 0) {
-                        setConfigDraft({...configDraft, creditPricePack3: Math.round(num * 100)})
-                        setPriceInputs({...priceInputs, creditPricePack3: num.toFixed(2)})
-                      } else {
-                        setPriceInputs({...priceInputs, creditPricePack3: String(configDraft.creditPricePack3 / 100)})
-                      }
-                    }}
-                    className="bg-gray-700 border-gray-600 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">
-                    Pacote 5 Créditos (R$)
-                  </label>
-                  <Input
-                    type="text"
-                    placeholder="39.90"
-                    value={priceInputs.creditPricePack5}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      if (/^[0-9]*[,.]?[0-9]*$/.test(value)) {
-                        setPriceInputs({...priceInputs, creditPricePack5: value})
-                      }
-                    }}
-                    onBlur={() => {
-                      const value = priceInputs.creditPricePack5.replace(',', '.')
-                      const num = parseFloat(value)
-                      if (!isNaN(num) && num >= 0) {
-                        setConfigDraft({...configDraft, creditPricePack5: Math.round(num * 100)})
-                        setPriceInputs({...priceInputs, creditPricePack5: num.toFixed(2)})
-                      } else {
-                        setPriceInputs({...priceInputs, creditPricePack5: String(configDraft.creditPricePack5 / 100)})
                       }
                     }}
                     className="bg-gray-700 border-gray-600 text-white"

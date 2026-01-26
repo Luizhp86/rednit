@@ -185,8 +185,16 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/dashboard">
+          <Link href="/dashboard" className="flex items-center gap-3">
             <Logo size="lg" />
+            <div className="flex flex-col">
+              <span className="text-sm md:text-base font-semibold text-purple-700">
+                Coach de Relacionamentos
+              </span>
+              <span className="text-xs text-gray-500 hidden md:block">
+                Análise objetiva do seu match
+              </span>
+            </div>
           </Link>
           <div className="flex gap-4 items-center">
             <Link
@@ -286,9 +294,11 @@ export default function DashboardPage() {
             )}
             <Link
               href="/dashboard/new"
-              className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition"
+              className="group relative overflow-hidden bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition inline-flex items-center gap-2"
             >
-              Nova Análise
+              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out animate-shimmer"></span>
+              <Sparkles className="w-5 h-5 relative z-10" />
+              <span className="relative z-10">Nova Análise</span>
             </Link>
           </div>
         </div>
@@ -481,8 +491,10 @@ export default function DashboardPage() {
                   </p>
                 )}
                 <Link href="/dashboard/new">
-                  <button className="bg-purple-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-purple-700 transition">
-                    Fazer nova análise
+                  <button className="group relative overflow-hidden bg-purple-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-purple-700 transition inline-flex items-center gap-2">
+                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out animate-shimmer"></span>
+                    <Sparkles className="w-5 h-5 relative z-10" />
+                    <span className="relative z-10">Fazer nova análise</span>
                   </button>
                 </Link>
               </div>

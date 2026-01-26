@@ -2,9 +2,7 @@
 
 import { useState } from 'react'
 import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { SubscriptionPlans } from '@/components/subscription-plans'
-import { CreditPackages } from '@/components/credit-packages'
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react'
 
 export default function TestCheckoutPage() {
@@ -22,14 +20,9 @@ export default function TestCheckoutPage() {
       quarterly: 7990,
       yearly: 29900,
     },
-    credits: {
-      single: 799,
-      pack3: 2490,
-      pack5: 3990,
-    },
   }
 
-  const handleSubscription = async (period: 'MONTHLY' | 'QUARTERLY' | 'YEARLY') => {
+  const handleSubscription = async (period: 'MONTHLY' | 'QUARTERLY' | 'YEARLY', couponCode?: string) => {
     setLoading(true)
     setResult(null)
 
@@ -40,57 +33,6 @@ export default function TestCheckoutPage() {
         body: JSON.stringify({
           type: 'SUBSCRIPTION',
           subscriptionPeriod: period,
-        }),
-      })
-
-      const data = await res.json()
-
-      if (res.ok) {
-        if (data.success) {
-          // Modo desenvolvimento - sucesso imediato
-          setResult({
-            success: true,
-            message: data.message || 'Assinatura ativada com sucesso!',
-          })
-        } else if (data.checkoutUrl) {
-          // Modo produção - redirecionar para Stripe
-          setResult({
-            success: true,
-            message: 'Redirecionando para o checkout...',
-            checkoutUrl: data.checkoutUrl,
-          })
-          setTimeout(() => {
-            window.location.href = data.checkoutUrl
-          }, 1500)
-        }
-      } else {
-        setResult({
-          success: false,
-          message: data.error || 'Erro ao criar checkout',
-        })
-      }
-    } catch (error) {
-      console.error('Erro:', error)
-      setResult({
-        success: false,
-        message: 'Erro ao processar pagamento',
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleCredits = async (creditPackage: 'SINGLE' | 'PACK_3' | 'PACK_5', couponCode?: string) => {
-    setLoading(true)
-    setResult(null)
-
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'ONE_TIME',
-          creditPackage,
           couponCode,
         }),
       })
@@ -99,10 +41,10 @@ export default function TestCheckoutPage() {
 
       if (res.ok) {
         if (data.success) {
-          // Modo desenvolvimento - sucesso imediato
+          // Modo desenvolvimento ou cupom aplicado - sucesso imediato
           setResult({
             success: true,
-            message: data.message || 'Créditos adicionados com sucesso!',
+            message: data.message || 'Assinatura ativada com sucesso!',
           })
         } else if (data.checkoutUrl) {
           // Modo produção - redirecionar para Stripe
@@ -190,15 +132,6 @@ export default function TestCheckoutPage() {
             onSelect={handleSubscription}
             loading={loading}
             prices={prices.subscription}
-          />
-        </div>
-
-        {/* Créditos */}
-        <div className="mb-8">
-          <CreditPackages
-            onSelect={handleCredits}
-            loading={loading}
-            prices={prices.credits}
           />
         </div>
 

@@ -114,7 +114,17 @@ export default function RouteCorrectionPage() {
       <div className="min-h-screen bg-gray-50">
         <nav className="bg-white shadow-sm">
           <div className="container mx-auto px-4 py-4">
-            <Logo size="lg" />
+            <div className="flex items-center gap-3">
+              <Logo size="lg" />
+              <div className="flex flex-col">
+                <span className="text-sm md:text-base font-semibold text-purple-700">
+                  Coach de Relacionamentos
+                </span>
+                <span className="text-xs text-gray-500 hidden md:block">
+                  Análise objetiva do seu match
+                </span>
+              </div>
+            </div>
           </div>
         </nav>
         <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -137,8 +147,16 @@ export default function RouteCorrectionPage() {
       <div className="min-h-screen bg-gray-50">
         <nav className="bg-white shadow-sm">
           <div className="container mx-auto px-4 py-4">
-            <Link href="/dashboard">
+            <Link href="/dashboard" className="flex items-center gap-3">
               <Logo size="lg" />
+              <div className="flex flex-col">
+                <span className="text-sm md:text-base font-semibold text-purple-700">
+                  Coach de Relacionamentos
+                </span>
+                <span className="text-xs text-gray-500 hidden md:block">
+                  Análise objetiva do seu match
+                </span>
+              </div>
             </Link>
           </div>
         </nav>
@@ -536,8 +554,10 @@ export default function RouteCorrectionPage() {
         {/* CTA */}
         <div className="text-center">
           <Link href="/dashboard/new">
-            <Button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-4 text-lg font-bold rounded-xl shadow-lg hover:shadow-xl transition-all">
-              Fazer Nova Análise
+            <Button className="group relative overflow-hidden bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-4 text-lg font-bold rounded-xl shadow-lg hover:shadow-xl transition-all inline-flex items-center gap-2">
+              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out animate-shimmer"></span>
+              <Sparkles className="w-6 h-6 relative z-10" />
+              <span className="relative z-10">Fazer Nova Análise</span>
             </Button>
           </Link>
         </div>

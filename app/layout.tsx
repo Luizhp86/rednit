@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Rednit - Coach de tinder",
-  description: "Rednit - Coach de tinder",
+  title: "Rednit - seu coach de relacionamentos",
+  description: "Rednit - seu coach de relacionamentos",
   icons: {
     icon: [
       { url: '/icon.svg', type: 'image/svg+xml' },

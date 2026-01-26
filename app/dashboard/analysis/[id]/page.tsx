@@ -3,11 +3,10 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Logo } from '@/components/logo'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CreditPackages } from '@/components/credit-packages'
 import { SubscriptionPlans } from '@/components/subscription-plans'
 import { trackEvent } from '@/lib/tracking'
 import { X, Lock, Sparkles, TrendingUp, Shield, CheckCircle2, AlertTriangle, Eye, Zap, Heart, Crown } from 'lucide-react'
@@ -35,13 +34,7 @@ export default function AnalysisPage() {
   const [unlocking, setUnlocking] = useState(false)
   const [showUnlockModal, setShowUnlockModal] = useState(false)
   const [userCredits, setUserCredits] = useState<UserCredits | null>(null)
-  const [showCreditPackages, setShowCreditPackages] = useState(false)
   const [showSubscriptionPlans, setShowSubscriptionPlans] = useState(false)
-  const [prices, setPrices] = useState({
-    single: 799,
-    pack3: 2490,
-    pack5: 3990,
-  })
   const [subscriptionPrices, setSubscriptionPrices] = useState({
     monthly: 2990,
     quarterly: 7990,
@@ -87,12 +80,7 @@ export default function AnalysisPage() {
         setUserCredits({ creditsPaid: data.creditsPaid || 0 })
         
         // Atualizar preços do sistema
-        if (data.prices) {
-          setPrices({
-            single: data.prices.credits.single,
-            pack3: data.prices.credits.pack3,
-            pack5: data.prices.credits.pack5,
-          })
+        if (data.prices?.subscription) {
           setSubscriptionPrices({
             monthly: data.prices.subscription.monthly,
             quarterly: data.prices.subscription.quarterly,
@@ -161,54 +149,9 @@ export default function AnalysisPage() {
     }
   }
 
-  const handleBuyPackage = async (packageType: 'SINGLE' | 'PACK_3' | 'PACK_5', couponCode?: string) => {
+  const handleSubscribe = async (period: 'MONTHLY' | 'QUARTERLY' | 'YEARLY', couponCode?: string) => {
     setUnlocking(true)
-    trackEvent('CHECKOUT_STARTED', { type: 'ONE_TIME', package: packageType, coupon: couponCode })
-    
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          type: 'ONE_TIME',
-          creditPackage: packageType,
-          couponCode,
-        }),
-      })
-
-      if (!res.ok) {
-        const error = await res.json()
-        trackEvent('CHECKOUT_FAILED', { type: 'ONE_TIME', package: packageType, error: error.error })
-        alert(error.error || 'Erro ao criar checkout')
-        return
-      }
-
-      const data = await res.json()
-      
-      // Se cupom foi aplicado ou modo desenvolvimento
-      if (data.success) {
-        const isCoupon = !!data.couponApplied
-        trackEvent('CHECKOUT_COMPLETED', { type: 'ONE_TIME', package: packageType, coupon: data.couponApplied, dev: !isCoupon })
-        alert(data.message || 'Créditos adicionados!')
-        window.location.reload()
-        return
-      }
-      
-      // In production, redirect to payment
-      trackEvent('CHECKOUT_REDIRECT', { type: 'ONE_TIME', package: packageType })
-      window.location.href = data.checkoutUrl
-    } catch (error) {
-      console.error('Error:', error)
-      trackEvent('CHECKOUT_FAILED', { type: 'ONE_TIME', package: packageType, error: 'unknown' })
-      alert('Erro ao criar checkout')
-    } finally {
-      setUnlocking(false)
-    }
-  }
-
-  const handleSubscribe = async (period: 'MONTHLY' | 'QUARTERLY' | 'YEARLY') => {
-    setUnlocking(true)
-    trackEvent('CHECKOUT_STARTED', { type: 'SUBSCRIPTION', period })
+    trackEvent('CHECKOUT_STARTED', { type: 'SUBSCRIPTION', period, coupon: couponCode })
     
     try {
       const res = await fetch('/api/checkout', {
@@ -217,6 +160,7 @@ export default function AnalysisPage() {
         body: JSON.stringify({ 
           type: 'SUBSCRIPTION',
           subscriptionPeriod: period,
+          couponCode,
         }),
       })
 
@@ -229,10 +173,11 @@ export default function AnalysisPage() {
 
       const data = await res.json()
       
-      // In development, activate plan directly
+      // Se cupom foi aplicado ou modo desenvolvimento
       if (data.success || data.upgraded) {
-        trackEvent('CHECKOUT_COMPLETED', { type: 'SUBSCRIPTION', period, dev: true })
-        alert('Plano PRO ativado! (modo desenvolvimento)')
+        const isCoupon = !!data.couponApplied
+        trackEvent('CHECKOUT_COMPLETED', { type: 'SUBSCRIPTION', period, coupon: data.couponApplied, dev: !isCoupon })
+        alert(data.message || 'Plano PRO ativado!')
         window.location.reload()
         return
       }
@@ -286,8 +231,16 @@ export default function AnalysisPage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4">
-          <Link href="/dashboard">
+          <Link href="/dashboard" className="flex items-center gap-3">
             <Logo size="lg" />
+            <div className="flex flex-col">
+              <span className="text-sm md:text-base font-semibold text-purple-700">
+                Coach de Relacionamentos
+              </span>
+              <span className="text-xs text-gray-500 hidden md:block">
+                Análise objetiva do seu match
+              </span>
+            </div>
           </Link>
         </div>
       </nav>
@@ -334,27 +287,27 @@ export default function AnalysisPage() {
                     {unlocking ? 'Processando...' : `Usar 1 Crédito (${userCredits.creditsPaid} disponíveis)`}
                   </Button>
                   <button
-                    onClick={() => setShowCreditPackages(true)}
+                    onClick={() => setShowSubscriptionPlans(true)}
                     className="w-full text-white/90 text-sm underline hover:text-white transition-colors"
                   >
-                    Ou comprar mais créditos
+                    Ou assine PRO com análises ilimitadas
                   </button>
                 </div>
               ) : (
                 <Button
-                  onClick={() => setShowCreditPackages(true)}
+                  onClick={() => setShowSubscriptionPlans(true)}
                   disabled={unlocking}
                   className="w-full bg-white text-purple-700 hover:text-purple-800 font-extrabold py-5 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all"
                 >
-                  <Zap className="w-6 h-6 mr-2" />
-                  {unlocking ? 'Processando...' : 'Comprar Créditos para Desbloquear'}
+                  <Crown className="w-6 h-6 mr-2" />
+                  {unlocking ? 'Processando...' : 'Assinar PRO - Análises Ilimitadas'}
                 </Button>
               )}
               
               <p className="text-xs text-white/80 mt-3 text-center">
                 {userCredits && userCredits.creditsPaid > 0 
-                  ? 'Use seus créditos ou compre pacotes com desconto'
-                  : `A partir de R$ ${(prices.single / 100).toFixed(2).replace('.', ',')} • Pix e cartão • Acesso imediato`}
+                  ? 'Use seus créditos ou assine PRO para análises ilimitadas'
+                  : `A partir de R$ ${(subscriptionPrices.monthly / 100).toFixed(2).replace('.', ',')}/mês • Pix e cartão • Acesso imediato`}
               </p>
             </div>
           </div>
@@ -1011,27 +964,27 @@ export default function AnalysisPage() {
                     {unlocking ? 'Processando...' : `Usar 1 Crédito (${userCredits.creditsPaid} disponíveis)`}
                   </Button>
                   <button
-                    onClick={() => setShowCreditPackages(true)}
+                    onClick={() => setShowSubscriptionPlans(true)}
                     className="w-full text-white/90 text-sm underline hover:text-white transition-colors"
                   >
-                    Ou comprar mais créditos
+                    Ou assine PRO com análises ilimitadas
                   </button>
                 </div>
               ) : (
                 <Button
-                  onClick={() => setShowCreditPackages(true)}
+                  onClick={() => setShowSubscriptionPlans(true)}
                   disabled={unlocking}
                   className="w-full bg-white text-purple-700 hover:text-purple-800 font-extrabold py-5 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all"
                 >
-                  <Zap className="w-6 h-6 mr-2" />
-                  {unlocking ? 'Processando...' : 'Comprar Créditos para Desbloquear'}
+                  <Crown className="w-6 h-6 mr-2" />
+                  {unlocking ? 'Processando...' : 'Assinar PRO - Análises Ilimitadas'}
                 </Button>
               )}
               
               <p className="text-xs text-white/80 mt-3 text-center">
                 {userCredits && userCredits.creditsPaid > 0 
-                  ? 'Use seus créditos ou compre pacotes com desconto'
-                  : `A partir de R$ ${(prices.single / 100).toFixed(2).replace('.', ',')} • Pix e cartão • Acesso imediato`}
+                  ? 'Use seus créditos ou assine PRO para análises ilimitadas'
+                  : `A partir de R$ ${(subscriptionPrices.monthly / 100).toFixed(2).replace('.', ',')}/mês • Pix e cartão • Acesso imediato`}
               </p>
             </div>
           </div>
@@ -1097,13 +1050,13 @@ export default function AnalysisPage() {
                 <Button
                   onClick={() => {
                     setShowUnlockModal(false)
-                    setShowCreditPackages(true)
+                    setShowSubscriptionPlans(true)
                   }}
                   disabled={unlocking}
                   className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all mb-3"
                 >
-                  <Zap className="w-5 h-5 mr-2" />
-                  {unlocking ? 'Processando...' : `Comprar Créditos - A partir de R$ ${(prices.single / 100).toFixed(2).replace('.', ',')}`}
+                  <Crown className="w-5 h-5 mr-2" />
+                  {unlocking ? 'Processando...' : `Assinar PRO - A partir de R$ ${(subscriptionPrices.monthly / 100).toFixed(2).replace('.', ',')}/mês`}
                 </Button>
               )}
 
@@ -1116,89 +1069,25 @@ export default function AnalysisPage() {
           </div>
         )}
 
-        {/* Modal de Pacotes de Créditos */}
-        {showCreditPackages && !has_access && (
+        {/* Modal de Planos de Assinatura */}
+        {showSubscriptionPlans && !has_access && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity duration-300">
-            <div className="bg-white rounded-3xl shadow-2xl max-w-5xl w-full p-8 relative transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full p-8 relative transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto">
               <button
-                onClick={() => setShowCreditPackages(false)}
+                onClick={() => setShowSubscriptionPlans(false)}
                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors z-10"
               >
                 <X className="w-6 h-6" />
               </button>
 
-              <CreditPackages
-                onSelect={handleBuyPackage}
+              <SubscriptionPlans
+                onSelect={handleSubscribe}
                 loading={unlocking}
-                prices={prices}
+                prices={subscriptionPrices}
               />
 
-              {/* Divisor */}
-              <div className="relative my-8">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-gray-500 font-medium">OU ECONOMIZE MAIS</span>
-                </div>
-              </div>
-
-              {/* Destaque para Planos de Assinatura */}
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 border-2 border-purple-200">
-                <div className="text-center mb-4">
-                  <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-full font-bold text-sm mb-3">
-                    <Crown className="w-5 h-5" />
-                    MAIS VANTAJOSO
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                    Planos PRO com Análises Ilimitadas
-                  </h3>
-                  <p className="text-gray-600">
-                    Acesso completo a todas as análises sem limite + Economize até 17%
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                  <button
-                    onClick={() => handleSubscribe('MONTHLY')}
-                    disabled={unlocking}
-                    className="bg-white hover:bg-purple-50 border-2 border-purple-300 hover:border-purple-500 rounded-xl p-4 transition-all text-left"
-                  >
-                    <div className="font-bold text-lg text-gray-900">Mensal</div>
-                    <div className="text-3xl font-bold text-purple-600 my-2">R$ {(subscriptionPrices.monthly / 100).toFixed(2).replace('.', ',')}</div>
-                    <div className="text-sm text-gray-600">por mês</div>
-                  </button>
-
-                  <button
-                    onClick={() => handleSubscribe('QUARTERLY')}
-                    disabled={unlocking}
-                    className="bg-white hover:bg-purple-50 border-2 border-purple-400 hover:border-purple-600 rounded-xl p-4 transition-all text-left relative"
-                  >
-                    <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full font-bold">
-                      11% OFF
-                    </div>
-                    <div className="font-bold text-lg text-gray-900">Trimestral</div>
-                    <div className="text-3xl font-bold text-purple-600 my-2">R$ {(subscriptionPrices.quarterly / 100).toFixed(2).replace('.', ',')}</div>
-                    <div className="text-sm text-gray-600">R$ {(subscriptionPrices.quarterly / 300).toFixed(2).replace('.', ',')}/mês</div>
-                  </button>
-
-                  <button
-                    onClick={() => handleSubscribe('YEARLY')}
-                    disabled={unlocking}
-                    className="bg-gradient-to-br from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 border-2 border-purple-600 rounded-xl p-4 transition-all text-left relative"
-                  >
-                    <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-bold">
-                      17% OFF
-                    </div>
-                    <div className="font-bold text-lg text-white">Anual</div>
-                    <div className="text-3xl font-bold text-white my-2">R$ {(subscriptionPrices.yearly / 100).toFixed(2).replace('.', ',')}</div>
-                    <div className="text-sm text-white/90">R$ {(subscriptionPrices.yearly / 1200).toFixed(2).replace('.', ',')}/mês</div>
-                  </button>
-                </div>
-
-                <div className="mt-6 text-center text-sm text-gray-600">
-                  ✨ Análises ilimitadas • 🎯 Relatórios completos • 🔄 Cancele quando quiser
-                </div>
+              <div className="mt-6 text-center text-sm text-gray-600">
+                ✨ Análises ilimitadas • 🎯 Relatórios completos • 🔄 Cancele quando quiser
               </div>
             </div>
           </div>

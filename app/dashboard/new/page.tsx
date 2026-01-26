@@ -625,8 +625,16 @@ export default function NewAnalysisPage() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50">
       <nav className="bg-white/80 backdrop-blur-sm shadow-sm border-b">
         <div className="container mx-auto px-4 py-4">
-          <Link href="/dashboard">
+          <Link href="/dashboard" className="flex items-center gap-3">
             <Logo size="lg" />
+            <div className="flex flex-col">
+              <span className="text-sm md:text-base font-semibold text-purple-700">
+                Coach de Relacionamentos
+              </span>
+              <span className="text-xs text-gray-500 hidden md:block">
+                Análise objetiva do seu match
+              </span>
+            </div>
           </Link>
         </div>
       </nav>

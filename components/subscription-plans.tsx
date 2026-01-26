@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle2, Crown, Zap } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { CheckCircle2, Crown, Zap, Tag, Loader2 } from 'lucide-react'
 
 type SubscriptionPeriod = 'MONTHLY' | 'QUARTERLY' | 'YEARLY'
 
 interface SubscriptionPlansProps {
-  onSelect: (period: SubscriptionPeriod) => void
+  onSelect: (period: SubscriptionPeriod, couponCode?: string) => void
   loading?: boolean
   prices: {
     monthly: number // em centavos
@@ -19,6 +20,11 @@ interface SubscriptionPlansProps {
 
 export function SubscriptionPlans({ onSelect, loading = false, prices }: SubscriptionPlansProps) {
   const [selected, setSelected] = useState<SubscriptionPeriod | null>(null)
+  const [couponCode, setCouponCode] = useState('')
+  const [couponValid, setCouponValid] = useState<boolean | null>(null)
+  const [couponLoading, setCouponLoading] = useState(false)
+  const [couponError, setCouponError] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState<{ id: string; percentOff: number } | null>(null)
 
   const plans = [
     {
@@ -61,7 +67,55 @@ export function SubscriptionPlans({ onSelect, loading = false, prices }: Subscri
 
   const handleSelect = (period: SubscriptionPeriod) => {
     setSelected(period)
-    onSelect(period)
+  }
+
+  const handleSubscribe = () => {
+    if (selected) {
+      onSelect(selected, appliedCoupon ? appliedCoupon.id : undefined)
+    }
+  }
+
+  const validateCoupon = async () => {
+    if (!couponCode.trim()) return
+
+    setCouponLoading(true)
+    setCouponError('')
+    setCouponValid(null)
+
+    try {
+      const response = await fetch('/api/validate-coupon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ couponCode: couponCode.trim() }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.valid) {
+        setCouponValid(true)
+        setAppliedCoupon({
+          id: data.coupon.id,
+          percentOff: data.coupon.percentOff,
+        })
+      } else {
+        setCouponValid(false)
+        setCouponError(data.error || 'Cupom inválido')
+        setAppliedCoupon(null)
+      }
+    } catch {
+      setCouponValid(false)
+      setCouponError('Erro ao validar cupom')
+      setAppliedCoupon(null)
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  const removeCoupon = () => {
+    setCouponCode('')
+    setCouponValid(null)
+    setCouponError('')
+    setAppliedCoupon(null)
   }
 
   return (
@@ -161,14 +215,78 @@ export function SubscriptionPlans({ onSelect, loading = false, prices }: Subscri
         })}
       </div>
 
+      {/* Cupom de desconto - sempre visível de forma discreta */}
+      <div className="mt-6 flex flex-col items-center gap-2">
+        {!appliedCoupon ? (
+          <div className="flex items-center gap-2 opacity-70 hover:opacity-100 transition-opacity">
+            <Tag className="w-4 h-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Cupom de desconto"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === 'Enter' && validateCoupon()}
+              disabled={couponLoading}
+              className="w-44 h-9 text-sm border-gray-200 focus:border-purple-400"
+            />
+            <Button
+              onClick={validateCoupon}
+              disabled={couponLoading || !couponCode.trim()}
+              variant="ghost"
+              size="sm"
+              className="h-9 px-3 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+            >
+              {couponLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                'Aplicar'
+              )}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-lg">
+            <CheckCircle2 className="w-4 h-4 text-green-600" />
+            <span className="text-sm text-green-700 font-medium">
+              {appliedCoupon.percentOff === 100 ? '1 mês PRO grátis!' : `${appliedCoupon.percentOff}% de desconto aplicado`}
+            </span>
+            <button
+              onClick={removeCoupon}
+              className="text-xs text-gray-400 hover:text-red-500 underline ml-2 cursor-pointer"
+            >
+              remover
+            </button>
+          </div>
+        )}
+
+        {couponError && (
+          <p className="text-xs text-red-500">{couponError}</p>
+        )}
+      </div>
+
+      {/* Botão de assinar */}
       {selected && (
-        <div className="mt-6 text-center">
+        <div className="mt-4 text-center">
           <Button
-            onClick={() => handleSelect(selected)}
+            onClick={handleSubscribe}
             disabled={loading}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 text-lg font-semibold"
+            className="group relative overflow-hidden bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 text-lg font-semibold"
           >
-            {loading ? 'Processando...' : `Assinar ${plans.find((p) => p.id === selected)?.label}`}
+            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out animate-shimmer"></span>
+            <span className="relative flex items-center gap-2">
+              {loading ? (
+                'Processando...'
+              ) : appliedCoupon?.percentOff === 100 ? (
+                <>
+                  <Crown className="w-5 h-5" />
+                  Ativar PRO GRÁTIS
+                </>
+              ) : (
+                <>
+                  <Crown className="w-5 h-5" />
+                  {`Assinar ${plans.find((p) => p.id === selected)?.label}`}
+                </>
+              )}
+            </span>
           </Button>
         </div>
       )}

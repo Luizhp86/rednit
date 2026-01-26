@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/logo'
+import { Tag, CheckCircle2, Loader2 } from 'lucide-react'
 
 type UserData = {
   id: string
@@ -24,11 +25,6 @@ type UserData = {
       quarterly: number
       yearly: number
     }
-    credits: {
-      single: number
-      pack3: number
-      pack5: number
-    }
   }
 }
 
@@ -39,6 +35,14 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
   const [downgrading, setDowngrading] = useState(false)
+  const [subscribing, setSubscribing] = useState(false)
+  
+  // Estados do cupom
+  const [couponCode, setCouponCode] = useState('')
+  const [couponValid, setCouponValid] = useState<boolean | null>(null)
+  const [couponLoading, setCouponLoading] = useState(false)
+  const [couponError, setCouponError] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState<{ id: string; percentOff: number } | null>(null)
 
   useEffect(() => {
     async function loadUser() {
@@ -139,6 +143,78 @@ export default function AccountPage() {
     }
   }
 
+  const validateCoupon = async () => {
+    if (!couponCode.trim()) return
+
+    setCouponLoading(true)
+    setCouponError('')
+    setCouponValid(null)
+
+    try {
+      const response = await fetch('/api/validate-coupon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ couponCode: couponCode.trim() }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.valid) {
+        setCouponValid(true)
+        setAppliedCoupon({
+          id: data.coupon.id,
+          percentOff: data.coupon.percentOff,
+        })
+      } else {
+        setCouponValid(false)
+        setCouponError(data.error || 'Cupom inválido')
+        setAppliedCoupon(null)
+      }
+    } catch {
+      setCouponValid(false)
+      setCouponError('Erro ao validar cupom')
+      setAppliedCoupon(null)
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  const removeCoupon = () => {
+    setCouponCode('')
+    setCouponValid(null)
+    setCouponError('')
+    setAppliedCoupon(null)
+  }
+
+  const handleSubscribe = async (period: 'MONTHLY' | 'QUARTERLY' | 'YEARLY') => {
+    setSubscribing(true)
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          type: 'SUBSCRIPTION', 
+          subscriptionPeriod: period,
+          couponCode: appliedCoupon?.id 
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) {
+          alert(data.message || 'Assinatura ativada!')
+          window.location.reload()
+        } else {
+          window.location.href = data.checkoutUrl
+        }
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Erro ao processar assinatura')
+    } finally {
+      setSubscribing(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -155,8 +231,16 @@ export default function AccountPage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4">
-          <Link href="/dashboard">
+          <Link href="/dashboard" className="flex items-center gap-3">
             <Logo size="lg" />
+            <div className="flex flex-col">
+              <span className="text-sm md:text-base font-semibold text-purple-700">
+                Coach de Relacionamentos
+              </span>
+              <span className="text-xs text-gray-500 hidden md:block">
+                Análise objetiva do seu match
+              </span>
+            </div>
           </Link>
         </div>
       </nav>
@@ -210,161 +294,87 @@ export default function AccountPage() {
           </div>
 
           {user.plan === 'FREE' && (
-            <div className="space-y-4">
-              <div className="bg-purple-50 p-6 rounded-lg border border-purple-200">
-                <h3 className="text-lg font-semibold mb-2 text-gray-900">✨ Upgrade para PRO</h3>
-                <p className="text-gray-700 mb-4">
-                  Acesso ilimitado a análises completas e todos os recursos.
-                </p>
-                <div className="space-y-2">
-                  <button
-                    onClick={async () => {
-                      const res = await fetch('/api/checkout', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: 'SUBSCRIPTION', subscriptionPeriod: 'MONTHLY' }),
-                      })
-                      if (res.ok) {
-                        const data = await res.json()
-                        if (data.success) {
-                          alert('Assinatura ativada!')
-                          window.location.reload()
-                        } else {
-                          window.location.href = data.checkoutUrl
-                        }
-                      }
-                    }}
-                    className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition"
-                  >
-                    Mensal - R$ {((user.prices?.subscription.monthly || 2990) / 100).toFixed(2).replace('.', ',')}/mês
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const res = await fetch('/api/checkout', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: 'SUBSCRIPTION', subscriptionPeriod: 'QUARTERLY' }),
-                      })
-                      if (res.ok) {
-                        const data = await res.json()
-                        if (data.success) {
-                          alert('Assinatura ativada!')
-                          window.location.reload()
-                        } else {
-                          window.location.href = data.checkoutUrl
-                        }
-                      }
-                    }}
-                    className="w-full bg-purple-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-600 transition"
-                  >
-                    Trimestral - R$ {((user.prices?.subscription.quarterly || 7990) / 100).toFixed(2).replace('.', ',')} (11% OFF)
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const res = await fetch('/api/checkout', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: 'SUBSCRIPTION', subscriptionPeriod: 'YEARLY' }),
-                      })
-                      if (res.ok) {
-                        const data = await res.json()
-                        if (data.success) {
-                          alert('Assinatura ativada!')
-                          window.location.reload()
-                        } else {
-                          window.location.href = data.checkoutUrl
-                        }
-                      }
-                    }}
-                    className="w-full bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-800 transition relative"
-                  >
-                    <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                      17% OFF
-                    </span>
-                    Anual - R$ {((user.prices?.subscription.yearly || 29900) / 100).toFixed(2).replace('.', ',')}/ano
-                  </button>
-                </div>
+            <div className="bg-purple-50 p-6 rounded-lg border border-purple-200">
+              <h3 className="text-lg font-semibold mb-2 text-gray-900">✨ Upgrade para PRO</h3>
+              <p className="text-gray-700 mb-4">
+                Acesso ilimitado a análises completas e todos os recursos premium.
+              </p>
+              
+              {/* Planos de assinatura */}
+              <div className="space-y-2 mb-4">
+                <button
+                  onClick={() => handleSubscribe('MONTHLY')}
+                  disabled={subscribing}
+                  className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition disabled:opacity-50 cursor-pointer"
+                >
+                  Mensal - R$ {((user.prices?.subscription.monthly || 2990) / 100).toFixed(2).replace('.', ',')}/mês
+                </button>
+                <button
+                  onClick={() => handleSubscribe('QUARTERLY')}
+                  disabled={subscribing}
+                  className="w-full bg-purple-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-600 transition disabled:opacity-50 relative cursor-pointer"
+                >
+                  <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
+                    11% OFF
+                  </span>
+                  Trimestral - R$ {((user.prices?.subscription.quarterly || 7990) / 100).toFixed(2).replace('.', ',')}
+                </button>
+                <button
+                  onClick={() => handleSubscribe('YEARLY')}
+                  disabled={subscribing}
+                  className="w-full bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-800 transition disabled:opacity-50 relative cursor-pointer"
+                >
+                  <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                    17% OFF
+                  </span>
+                  Anual - R$ {((user.prices?.subscription.yearly || 29900) / 100).toFixed(2).replace('.', ',')}/ano
+                </button>
               </div>
 
-              <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
-                <h3 className="text-lg font-semibold mb-2 text-gray-900">💳 Comprar Créditos Avulsos</h3>
-                <p className="text-gray-700 mb-4">
-                  Desbloqueie análises individuais com créditos.
-                </p>
-                <div className="space-y-2">
-                  <button
-                    onClick={async () => {
-                      const res = await fetch('/api/checkout', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: 'ONE_TIME', creditPackage: 'SINGLE' }),
-                      })
-                      if (res.ok) {
-                        const data = await res.json()
-                        if (data.success) {
-                          alert('Crédito adicionado!')
-                          window.location.reload()
-                        } else {
-                          window.location.href = data.checkoutUrl
-                        }
-                      }
-                    }}
-                    className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition text-left flex justify-between items-center"
-                  >
-                    <span>1 Crédito</span>
-                    <span>R$ {((user.prices?.credits.single || 799) / 100).toFixed(2).replace('.', ',')}</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const res = await fetch('/api/checkout', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: 'ONE_TIME', creditPackage: 'PACK_3' }),
-                      })
-                      if (res.ok) {
-                        const data = await res.json()
-                        if (data.success) {
-                          alert('Créditos adicionados!')
-                          window.location.reload()
-                        } else {
-                          window.location.href = data.checkoutUrl
-                        }
-                      }
-                    }}
-                    className="w-full bg-blue-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 transition text-left flex justify-between items-center relative"
-                  >
-                    <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
-                      16% OFF
+              {/* Cupom de desconto - sempre visível de forma discreta */}
+              <div className="pt-4 border-t border-purple-200">
+                {!appliedCoupon ? (
+                  <div className="flex items-center justify-center gap-2 opacity-70 hover:opacity-100 transition-opacity">
+                    <Tag className="w-4 h-4 text-purple-400" />
+                    <input
+                      type="text"
+                      placeholder="Cupom de desconto"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => e.key === 'Enter' && validateCoupon()}
+                      disabled={couponLoading}
+                      className="w-40 h-9 text-sm border border-purple-200 rounded-lg px-3 focus:border-purple-400 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                    />
+                    <button
+                      onClick={validateCoupon}
+                      disabled={couponLoading || !couponCode.trim()}
+                      className="h-9 px-3 text-sm text-purple-600 hover:text-purple-700 hover:bg-purple-100 rounded-lg transition disabled:opacity-50 cursor-pointer"
+                    >
+                      {couponLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        'Aplicar'
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2 bg-green-100 px-4 py-2 rounded-lg">
+                    <CheckCircle2 className="w-4 h-4 text-green-600" />
+                    <span className="text-sm text-green-700 font-medium">
+                      {appliedCoupon.percentOff === 100 ? '1 mês PRO grátis!' : `${appliedCoupon.percentOff}% de desconto aplicado`}
                     </span>
-                    <span>3 Créditos</span>
-                    <span>R$ {((user.prices?.credits.pack3 || 2490) / 100).toFixed(2).replace('.', ',')}</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const res = await fetch('/api/checkout', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: 'ONE_TIME', creditPackage: 'PACK_5' }),
-                      })
-                      if (res.ok) {
-                        const data = await res.json()
-                        if (data.success) {
-                          alert('Créditos adicionados!')
-                          window.location.reload()
-                        } else {
-                          window.location.href = data.checkoutUrl
-                        }
-                      }
-                    }}
-                    className="w-full bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-800 transition text-left flex justify-between items-center relative"
-                  >
-                    <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                      19% OFF
-                    </span>
-                    <span>5 Créditos</span>
-                    <span>R$ {((user.prices?.credits.pack5 || 3990) / 100).toFixed(2).replace('.', ',')}</span>
-                  </button>
-                </div>
+                    <button
+                      onClick={removeCoupon}
+                      className="text-xs text-gray-500 hover:text-red-500 underline ml-2 cursor-pointer"
+                    >
+                      remover
+                    </button>
+                  </div>
+                )}
+
+                {couponError && (
+                  <p className="text-xs text-red-500 text-center mt-2">{couponError}</p>
+                )}
               </div>
             </div>
           )}
@@ -378,7 +388,7 @@ export default function AccountPage() {
               <button
                 onClick={handleDowngradePlan}
                 disabled={downgrading}
-                className="bg-white text-gray-800 px-6 py-3 rounded-lg font-semibold border border-gray-300 hover:bg-gray-100 transition disabled:opacity-50"
+                className="bg-white text-gray-800 px-6 py-3 rounded-lg font-semibold border border-gray-300 hover:bg-gray-100 transition disabled:opacity-50 cursor-pointer"
               >
                 {downgrading ? 'Atualizando...' : 'Voltar ao plano FREE'}
               </button>
@@ -390,14 +400,14 @@ export default function AccountPage() {
             <div className="space-y-4">
               <button
                 onClick={handleDeleteAnalyses}
-                className="bg-yellow-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-yellow-700 transition"
+                className="bg-yellow-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-yellow-700 transition cursor-pointer"
               >
                 Excluir Todas as Análises
               </button>
               <button
                 onClick={handleDeleteAccount}
                 disabled={deleting}
-                className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50 block"
+                className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition disabled:opacity-50 block cursor-pointer"
               >
                 {deleting ? 'Excluindo...' : 'Excluir Conta Permanentemente'}
               </button>
