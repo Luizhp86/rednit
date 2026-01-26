@@ -359,3 +359,15 @@
 {"location":"new/page.tsx:481","message":"API_RESPONSE_RECEIVED","data":{"ok":true,"status":200},"timestamp":1769455821604,"sessionId":"debug-session","hypothesisId":"H3"}
 {"location":"new/page.tsx:506","message":"ROUTER_PUSH_START","data":{"path":"/dashboard/analysis/c780be6a-e001-461d-8926-90ac7056188a"},"timestamp":1769455821605,"sessionId":"debug-session","hypothesisId":"H2"}
 {"location":"new/page.tsx:499","message":"API_SUCCESS","data":{"hasId":true,"id":"c780be6a-e001-461d-8926-90ac7056188a","dataKeys":["id","free_teaser","premium_available"]},"timestamp":1769455821604,"sessionId":"debug-session","hypothesisId":"H1"}
+{"location":"dashboard/page.tsx:66","message":"LOAD_START","data":{},"timestamp":1769456647267,"sessionId":"debug-session","hypothesisId":"H6,H9"}
+{"location":"dashboard/page.tsx:66","message":"LOAD_START","data":{},"timestamp":1769456647270,"sessionId":"debug-session","hypothesisId":"H6,H9"}
+{"location":"dashboard/page.tsx:75","message":"AUTH_CHECK","data":{"hasUser":true,"userId":"e78fd40b-a02d-4316-be61-3c86b562fccc","email":"luizhenrique.pinotti@gmail.com"},"timestamp":1769456647687,"sessionId":"debug-session","hypothesisId":"H6,H8"}
+{"location":"dashboard/page.tsx:89","message":"ANALYSES_FETCH_START","data":{},"timestamp":1769456647688,"sessionId":"debug-session","hypothesisId":"H7,H9"}
+{"location":"dashboard/page.tsx:75","message":"AUTH_CHECK","data":{"hasUser":true,"userId":"e78fd40b-a02d-4316-be61-3c86b562fccc","email":"luizhenrique.pinotti@gmail.com"},"timestamp":1769456647932,"sessionId":"debug-session","hypothesisId":"H6,H8"}
+{"location":"dashboard/page.tsx:89","message":"ANALYSES_FETCH_START","data":{},"timestamp":1769456647933,"sessionId":"debug-session","hypothesisId":"H7,H9"}
+{"location":"dashboard/page.tsx:96","message":"ANALYSES_FETCH_RESPONSE","data":{"ok":true,"status":200},"timestamp":1769456649927,"sessionId":"debug-session","hypothesisId":"H7"}
+{"location":"dashboard/page.tsx:104","message":"ANALYSES_DATA_RECEIVED","data":{"isArray":true,"length":1,"hasData":true},"timestamp":1769456649928,"sessionId":"debug-session","hypothesisId":"H8"}
+{"location":"dashboard/page.tsx:109","message":"ANALYSES_STATE_SET","data":{"count":1},"timestamp":1769456649928,"sessionId":"debug-session","hypothesisId":"H8"}
+{"location":"dashboard/page.tsx:96","message":"ANALYSES_FETCH_RESPONSE","data":{"ok":true,"status":200},"timestamp":1769456650870,"sessionId":"debug-session","hypothesisId":"H7"}
+{"location":"dashboard/page.tsx:104","message":"ANALYSES_DATA_RECEIVED","data":{"isArray":true,"length":1,"hasData":true},"timestamp":1769456650871,"sessionId":"debug-session","hypothesisId":"H8"}
+{"location":"dashboard/page.tsx:109","message":"ANALYSES_STATE_SET","data":{"count":1},"timestamp":1769456650871,"sessionId":"debug-session","hypothesisId":"H8"}

@@ -1,6 +1,18 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Inicialização lazy do Resend - só cria a instância quando necessário
+let resendInstance: Resend | null = null
+
+function getResend(): Resend | null {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[EMAIL] RESEND_API_KEY não configurada - emails desabilitados')
+    return null
+  }
+  if (!resendInstance) {
+    resendInstance = new Resend(process.env.RESEND_API_KEY)
+  }
+  return resendInstance
+}
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Radar Match <noreply@radarmatch.com.br>'
 
@@ -15,6 +27,9 @@ export async function sendTherapistWelcomeEmail(therapist: {
   email: string
   name: string
 }) {
+  const resend = getResend()
+  if (!resend) return { success: false, error: 'Email service not configured' }
+  
   try {
     await resend.emails.send({
       from: FROM_EMAIL,
@@ -65,6 +80,9 @@ export async function sendTherapistApprovalEmail(therapist: {
   email: string
   name: string
 }) {
+  const resend = getResend()
+  if (!resend) return { success: false, error: 'Email service not configured' }
+  
   try {
     await resend.emails.send({
       from: FROM_EMAIL,
@@ -114,6 +132,9 @@ export async function sendLeadSignupNotification(params: {
     userPhone: string
   }
 }) {
+  const resend = getResend()
+  if (!resend) return { success: false, error: 'Email service not configured' }
+  
   const { therapist, lead } = params
   
   try {
@@ -183,6 +204,9 @@ export async function sendLeadAnalysisNotification(params: {
     analysisData?: any
   }
 }) {
+  const resend = getResend()
+  if (!resend) return { success: false, error: 'Email service not configured' }
+  
   const { therapist, lead } = params
   
   // Extrair dados relevantes da análise
@@ -293,6 +317,9 @@ export async function sendLeadCtaNotification(params: {
     analysisData?: any
   }
 }) {
+  const resend = getResend()
+  if (!resend) return { success: false, error: 'Email service not configured' }
+  
   const { therapist, lead } = params
   
   // Extrair dados relevantes da análise
@@ -402,6 +429,9 @@ export async function sendUserWelcomeEmail(user: {
   email: string
   name?: string | null
 }) {
+  const resend = getResend()
+  if (!resend) return { success: false, error: 'Email service not configured' }
+  
   try {
     await resend.emails.send({
       from: FROM_EMAIL,
