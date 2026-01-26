@@ -18,6 +18,18 @@ type UserData = {
     totalAnalyses: number
     totalPayments: number
   }
+  prices?: {
+    subscription: {
+      monthly: number
+      quarterly: number
+      yearly: number
+    }
+    credits: {
+      single: number
+      pack3: number
+      pack5: number
+    }
+  }
 }
 
 export default function AccountPage() {
@@ -26,6 +38,7 @@ export default function AccountPage() {
   const [user, setUser] = useState<UserData | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
+  const [downgrading, setDowngrading] = useState(false)
 
   useEffect(() => {
     async function loadUser() {
@@ -96,6 +109,33 @@ export default function AccountPage() {
       alert('Erro ao excluir análises')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleDowngradePlan = async () => {
+    if (!confirm('Tem certeza que deseja voltar ao plano FREE?')) {
+      return
+    }
+
+    setDowngrading(true)
+    try {
+      const res = await fetch('/api/downgrade-plan', { method: 'POST' })
+      if (res.ok) {
+        const userRes = await fetch('/api/me')
+        if (userRes.ok) {
+          const userData = await userRes.json()
+          setUser(userData)
+        }
+        alert('Seu plano foi alterado para FREE.')
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Erro ao atualizar plano')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Erro ao atualizar plano')
+    } finally {
+      setDowngrading(false)
     }
   }
 
@@ -170,26 +210,177 @@ export default function AccountPage() {
           </div>
 
           {user.plan === 'FREE' && (
-            <div className="bg-purple-50 p-6 rounded-lg">
-              <h3 className="text-lg font-semibold mb-2 text-gray-900">Upgrade para PRO</h3>
+            <div className="space-y-4">
+              <div className="bg-purple-50 p-6 rounded-lg border border-purple-200">
+                <h3 className="text-lg font-semibold mb-2 text-gray-900">✨ Upgrade para PRO</h3>
+                <p className="text-gray-700 mb-4">
+                  Acesso ilimitado a análises completas e todos os recursos.
+                </p>
+                <div className="space-y-2">
+                  <button
+                    onClick={async () => {
+                      const res = await fetch('/api/checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'SUBSCRIPTION', subscriptionPeriod: 'MONTHLY' }),
+                      })
+                      if (res.ok) {
+                        const data = await res.json()
+                        if (data.success) {
+                          alert('Assinatura ativada!')
+                          window.location.reload()
+                        } else {
+                          window.location.href = data.checkoutUrl
+                        }
+                      }
+                    }}
+                    className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition"
+                  >
+                    Mensal - R$ {((user.prices?.subscription.monthly || 2990) / 100).toFixed(2).replace('.', ',')}/mês
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const res = await fetch('/api/checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'SUBSCRIPTION', subscriptionPeriod: 'QUARTERLY' }),
+                      })
+                      if (res.ok) {
+                        const data = await res.json()
+                        if (data.success) {
+                          alert('Assinatura ativada!')
+                          window.location.reload()
+                        } else {
+                          window.location.href = data.checkoutUrl
+                        }
+                      }
+                    }}
+                    className="w-full bg-purple-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-600 transition"
+                  >
+                    Trimestral - R$ {((user.prices?.subscription.quarterly || 7990) / 100).toFixed(2).replace('.', ',')} (11% OFF)
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const res = await fetch('/api/checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'SUBSCRIPTION', subscriptionPeriod: 'YEARLY' }),
+                      })
+                      if (res.ok) {
+                        const data = await res.json()
+                        if (data.success) {
+                          alert('Assinatura ativada!')
+                          window.location.reload()
+                        } else {
+                          window.location.href = data.checkoutUrl
+                        }
+                      }
+                    }}
+                    className="w-full bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-800 transition relative"
+                  >
+                    <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                      17% OFF
+                    </span>
+                    Anual - R$ {((user.prices?.subscription.yearly || 29900) / 100).toFixed(2).replace('.', ',')}/ano
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
+                <h3 className="text-lg font-semibold mb-2 text-gray-900">💳 Comprar Créditos Avulsos</h3>
+                <p className="text-gray-700 mb-4">
+                  Desbloqueie análises individuais com créditos.
+                </p>
+                <div className="space-y-2">
+                  <button
+                    onClick={async () => {
+                      const res = await fetch('/api/checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'ONE_TIME', creditPackage: 'SINGLE' }),
+                      })
+                      if (res.ok) {
+                        const data = await res.json()
+                        if (data.success) {
+                          alert('Crédito adicionado!')
+                          window.location.reload()
+                        } else {
+                          window.location.href = data.checkoutUrl
+                        }
+                      }
+                    }}
+                    className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition text-left flex justify-between items-center"
+                  >
+                    <span>1 Crédito</span>
+                    <span>R$ {((user.prices?.credits.single || 799) / 100).toFixed(2).replace('.', ',')}</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const res = await fetch('/api/checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'ONE_TIME', creditPackage: 'PACK_3' }),
+                      })
+                      if (res.ok) {
+                        const data = await res.json()
+                        if (data.success) {
+                          alert('Créditos adicionados!')
+                          window.location.reload()
+                        } else {
+                          window.location.href = data.checkoutUrl
+                        }
+                      }
+                    }}
+                    className="w-full bg-blue-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 transition text-left flex justify-between items-center relative"
+                  >
+                    <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
+                      16% OFF
+                    </span>
+                    <span>3 Créditos</span>
+                    <span>R$ {((user.prices?.credits.pack3 || 2490) / 100).toFixed(2).replace('.', ',')}</span>
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const res = await fetch('/api/checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'ONE_TIME', creditPackage: 'PACK_5' }),
+                      })
+                      if (res.ok) {
+                        const data = await res.json()
+                        if (data.success) {
+                          alert('Créditos adicionados!')
+                          window.location.reload()
+                        } else {
+                          window.location.href = data.checkoutUrl
+                        }
+                      }
+                    }}
+                    className="w-full bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-800 transition text-left flex justify-between items-center relative"
+                  >
+                    <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                      19% OFF
+                    </span>
+                    <span>5 Créditos</span>
+                    <span>R$ {((user.prices?.credits.pack5 || 3990) / 100).toFixed(2).replace('.', ',')}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {user.plan === 'PRO' && (
+            <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+              <h3 className="text-lg font-semibold mb-2 text-gray-900">Plano PRO ativo</h3>
               <p className="text-gray-700 mb-4">
-                Acesso ilimitado a análises completas e todos os recursos.
+                Se quiser, voce pode voltar ao plano FREE a qualquer momento.
               </p>
               <button
-                onClick={async () => {
-                  const res = await fetch('/api/checkout', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: 'SUBSCRIPTION' }),
-                  })
-                  if (res.ok) {
-                    const data = await res.json()
-                    window.location.href = data.checkoutUrl
-                  }
-                }}
-                className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition"
+                onClick={handleDowngradePlan}
+                disabled={downgrading}
+                className="bg-white text-gray-800 px-6 py-3 rounded-lg font-semibold border border-gray-300 hover:bg-gray-100 transition disabled:opacity-50"
               >
-                Assinar PRO por R$ 29,90/mês
+                {downgrading ? 'Atualizando...' : 'Voltar ao plano FREE'}
               </button>
             </div>
           )}

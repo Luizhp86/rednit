@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/logo'
@@ -11,14 +12,16 @@ import { Progress } from '@/components/ui/progress'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { trackEvent } from '@/lib/tracking'
 import { 
   Heart, Zap, Clock, MessageCircle, Calendar, 
   AlertTriangle, CheckCircle2, XCircle, 
   TrendingUp, TrendingDown, Minus,
-  Sparkles, ArrowRight, ArrowLeft
+  Sparkles, ArrowRight, ArrowLeft, User
 } from 'lucide-react'
 
 type FormData = {
+  genero_match: 'ELE' | 'ELA' | ''
   objetivo_usuario: 'CASUAL' | 'CONHECER' | 'NAMORO' | ''
   ritmo_usuario: 'RAPIDO' | 'MEDIO' | 'LENTO' | ''
   estagio: 'FIRST_CHAT' | 'TALKING' | 'POST_DATE' | ''
@@ -34,15 +37,13 @@ type FormData = {
   fala_futuro: 'NAO' | 'FALA' | 'FALA_E_FAZ' | ''
   sinais_alerta: string[]
   inegociaveis: string[]
-  texto_bio_match?: string
-  trecho_chat?: string
   nome_match?: string
 }
 
 type Question = {
   id: keyof FormData
   label: string
-  type: 'card-select' | 'number' | 'textarea'
+  type: 'card-select' | 'number' | 'textarea' | 'avatar-select'
   required?: boolean
   options?: { value: string; label: string; hint?: string; icon?: any; color?: string }[]
   placeholder?: string
@@ -51,6 +52,17 @@ type Question = {
 }
 
 const QUESTIONS: Question[] = [
+  {
+    id: 'genero_match',
+    label: 'Este match é ele ou ela?',
+    type: 'card-select',
+    required: true,
+    autoAdvance: true,
+    options: [
+      { value: 'ELE', label: 'Ele', hint: 'Match masculino', icon: User, color: 'blue' },
+      { value: 'ELA', label: 'Ela', hint: 'Match feminino', icon: User, color: 'pink' },
+    ],
+  },
   {
     id: 'objetivo_usuario',
     label: 'Qual seu objetivo com este match?',
@@ -197,26 +209,11 @@ const QUESTIONS: Question[] = [
       { value: 'SIM', label: 'Sim', hint: 'Só aparece de madrugada', icon: AlertTriangle, color: 'orange' },
     ],
   },
-  {
-    id: 'texto_bio_match',
-    label: 'Bio do match (opcional)',
-    type: 'textarea',
-    placeholder: 'Cole ou descreva a bio do match...',
-    rows: 3,
-  },
-  {
-    id: 'trecho_chat',
-    label: 'Trecho de conversa (opcional)',
-    type: 'textarea',
-    placeholder: 'Cole um trecho relevante da conversa...',
-    rows: 4,
-  },
-  {
+{
     id: 'nome_match',
     label: 'Como você chama este match?',
-    type: 'textarea',
-    placeholder: 'Ex: João, Maria, o crush do Tinder, meu match...',
-    rows: 2,
+    type: 'avatar-select',
+    placeholder: 'EX: JOAO, MARIA, O CRUSH DO TINDER...',
   },
 ]
 
@@ -246,6 +243,9 @@ export default function NewAnalysisPage() {
   const router = useRouter()
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
   // Todos os sinais de alerta serão analisados automaticamente
   const ALL_ALERT_SIGNS = [
     'LOVE_BOMBING',
@@ -258,6 +258,7 @@ export default function NewAnalysisPage() {
   ]
 
   const [formData, setFormData] = useState<FormData>({
+    genero_match: '',
     objetivo_usuario: '',
     ritmo_usuario: '',
     estagio: '',
@@ -273,15 +274,28 @@ export default function NewAnalysisPage() {
     fala_futuro: '',
     sinais_alerta: ALL_ALERT_SIGNS, // Todos os sinais são analisados por padrão
     inegociaveis: [],
-    texto_bio_match: '',
-    trecho_chat: '',
     nome_match: '',
   })
 
-  const currentQuestion = QUESTIONS[currentQuestionIndex]
-  const progress = ((currentQuestionIndex + 1) / QUESTIONS.length) * 100
-  const isLastQuestion = currentQuestionIndex === QUESTIONS.length - 1
-  const isFirstQuestion = currentQuestionIndex === 0
+  // Filtrar perguntas visíveis baseado em condições
+  const getVisibleQuestions = () => {
+    return QUESTIONS.filter((question) => {
+      // Se for a pergunta "remarcou_com_data", só mostrar se cancelou_encontro for SIM
+      if (question.id === 'remarcou_com_data') {
+        return formData.cancelou_encontro === 'SIM'
+      }
+      return true
+    })
+  }
+
+  const visibleQuestions = getVisibleQuestions()
+  
+  // Garantir que o índice atual está dentro dos limites das perguntas visíveis
+  const safeIndex = Math.min(currentQuestionIndex, visibleQuestions.length - 1)
+  const currentQuestion = visibleQuestions[safeIndex] || visibleQuestions[0]
+  const progress = ((safeIndex + 1) / visibleQuestions.length) * 100
+  const isLastQuestion = safeIndex === visibleQuestions.length - 1
+  const isFirstQuestion = safeIndex === 0
 
   const canProceed = () => {
     if (!currentQuestion.required) return true
@@ -289,50 +303,102 @@ export default function NewAnalysisPage() {
     if (currentQuestion.type === 'number') {
       return typeof value === 'number' && value >= 0
     }
-    return value !== '' && value !== undefined && value !== null && value !== 0
+    if (Array.isArray(value)) return value.length > 0
+    return value !== '' && value !== undefined && value !== null
   }
 
   const handleNext = () => {
     if (canProceed() && !isLastQuestion) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      const nextIndex = safeIndex + 1
+      if (nextIndex < visibleQuestions.length) {
+        setCurrentQuestionIndex(nextIndex)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
     }
   }
 
   const handleBack = () => {
     if (!isFirstQuestion) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      const prevIndex = safeIndex - 1
+      if (prevIndex >= 0) {
+        setCurrentQuestionIndex(prevIndex)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
     }
   }
 
   const handleSkip = () => {
     if (!isLastQuestion) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      const nextIndex = safeIndex + 1
+      if (nextIndex < visibleQuestions.length) {
+        setCurrentQuestionIndex(nextIndex)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
     }
   }
 
-  const updateField = (field: keyof FormData, value: any) => {
+  const updateField = useCallback((field: keyof FormData, value: any) => {
+    // Bloquear se já está em transição
+    if (isTransitioning) return
+    
+    // Cancelar timeout pendente
+    if (transitionTimeoutRef.current) {
+      clearTimeout(transitionTimeoutRef.current)
+      transitionTimeoutRef.current = null
+    }
+    
     // Atualizar o estado primeiro
     setFormData((prev) => {
       const newData = { ...prev, [field]: value }
+      
+      // Se cancelou_encontro mudou para NAO, limpar remarcou_com_data
+      if (field === 'cancelou_encontro' && value === 'NAO') {
+        newData.remarcou_com_data = ''
+      }
+      
       return newData
     })
     
     // Auto-advance se configurado (após atualizar o estado)
-    if (currentQuestion.autoAdvance && !isLastQuestion && value) {
-      setTimeout(() => {
-        setCurrentQuestionIndex((idx) => {
-          if (idx < QUESTIONS.length - 1) {
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-            return idx + 1
+    const question = visibleQuestions[safeIndex]
+    if (question?.autoAdvance && safeIndex < visibleQuestions.length - 1 && value) {
+      // Bloquear novas interações durante a transição
+      setIsTransitioning(true)
+      
+      transitionTimeoutRef.current = setTimeout(() => {
+        // Recalcular perguntas visíveis após atualizar o estado
+        const updatedFormData = { ...formData, [field]: value }
+        if (field === 'cancelou_encontro' && value === 'NAO') {
+          updatedFormData.remarcou_com_data = ''
+        }
+        
+        const updatedVisibleQuestions = QUESTIONS.filter((q) => {
+          if (q.id === 'remarcou_com_data') {
+            return updatedFormData.cancelou_encontro === 'SIM'
           }
-          return idx
+          return true
         })
-      }, 500) // Delay maior para garantir que o estado foi atualizado
+        
+        setCurrentQuestionIndex((idx) => {
+          // Encontrar a posição da pergunta atual na nova lista de perguntas visíveis
+          const currentQuestionId = visibleQuestions[idx]?.id
+          const newIndex = updatedVisibleQuestions.findIndex(q => q.id === currentQuestionId)
+          const adjustedIdx = newIndex >= 0 ? newIndex : idx
+          
+          if (adjustedIdx < updatedVisibleQuestions.length - 1) {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+            return adjustedIdx + 1
+          }
+          return adjustedIdx
+        })
+        
+        // Desbloquear após a transição
+        setTimeout(() => {
+          setIsTransitioning(false)
+        }, 350) // Tempo da animação
+      }, 400)
     }
-  }
+  }, [isTransitioning, formData, visibleQuestions, safeIndex])
 
 
   const handleSubmit = async () => {
@@ -340,7 +406,7 @@ export default function NewAnalysisPage() {
 
     try {
       // Validar campos obrigatórios antes de enviar
-      const requiredFields = ['objetivo_usuario', 'ritmo_usuario', 'estagio', 'iniciativa', 'frequencia_contato']
+      const requiredFields = ['genero_match', 'objetivo_usuario', 'ritmo_usuario', 'estagio', 'iniciativa', 'frequencia_contato']
       const missingFields = requiredFields.filter(field => !formData[field as keyof FormData] || formData[field as keyof FormData] === '')
       
       if (missingFields.length > 0) {
@@ -351,6 +417,7 @@ export default function NewAnalysisPage() {
       
       // Garantir que os valores são strings, não arrays
       const dataToSend: any = {
+        genero_match: String(formData.genero_match),
         objetivo_usuario: String(formData.objetivo_usuario),
         ritmo_usuario: String(formData.ritmo_usuario),
         estagio: String(formData.estagio),
@@ -361,43 +428,45 @@ export default function NewAnalysisPage() {
       }
       
       // Adicionar campos opcionais apenas se preenchidos
-      if (formData.cancelou_encontro && formData.cancelou_encontro !== '') {
+      if (formData.cancelou_encontro) {
         dataToSend.cancelou_encontro = formData.cancelou_encontro
       }
       
       // Log para debug
       console.log('[FORM] Dados sendo enviados:', JSON.stringify(dataToSend, null, 2))
 
-      if (formData.tempo_resposta && formData.tempo_resposta !== '') {
+      if (formData.tempo_resposta) {
         dataToSend.tempo_resposta = formData.tempo_resposta
       }
-      if (formData.encontro_marcado && formData.encontro_marcado !== '') {
+      if (formData.encontro_marcado) {
         dataToSend.encontro_marcado = formData.encontro_marcado
       }
-      if (formData.remarcou_com_data && formData.remarcou_com_data !== '') {
+      // Se cancelou_encontro for NAO, definir remarcou_com_data como NAO_SE_APLICA
+      if (formData.cancelou_encontro === 'NAO') {
+        dataToSend.remarcou_com_data = 'NAO_SE_APLICA'
+      } else if (formData.remarcou_com_data) {
         dataToSend.remarcou_com_data = formData.remarcou_com_data
       }
-      if (formData.curiosidade_por_voce && formData.curiosidade_por_voce !== '') {
+      if (formData.curiosidade_por_voce) {
         dataToSend.curiosidade_por_voce = formData.curiosidade_por_voce
       }
-      if (formData.respeito_limites && formData.respeito_limites !== '') {
+      if (formData.respeito_limites) {
         dataToSend.respeito_limites = formData.respeito_limites
       }
-      if (formData.disponivel_so_madrugada && formData.disponivel_so_madrugada !== '') {
+      if (formData.disponivel_so_madrugada) {
         dataToSend.disponivel_so_madrugada = formData.disponivel_so_madrugada
       }
-      if (formData.fala_futuro && formData.fala_futuro !== '') {
+      if (formData.fala_futuro) {
         dataToSend.fala_futuro = formData.fala_futuro
-      }
-      if (formData.texto_bio_match && formData.texto_bio_match.trim()) {
-        dataToSend.texto_bio_match = formData.texto_bio_match.trim()
-      }
-      if (formData.trecho_chat && formData.trecho_chat.trim()) {
-        dataToSend.trecho_chat = formData.trecho_chat.trim()
       }
       if (formData.nome_match && formData.nome_match.trim()) {
         dataToSend.nome_match = formData.nome_match.trim()
       }
+
+      trackEvent('ANALYSIS_STARTED', {
+        stage: dataToSend.estagio,
+        objective: dataToSend.objetivo_usuario,
+      })
 
       const response = await fetch('/api/analyze', {
         method: 'POST',
@@ -408,14 +477,17 @@ export default function NewAnalysisPage() {
       if (!response.ok) {
         const error = await response.json()
         console.error('Erro do servidor:', error)
+        trackEvent('ANALYSIS_FAILED', { error: error.error })
         alert(error.error || 'Erro ao processar análise')
         return
       }
 
       const data = await response.json()
+      trackEvent('ANALYSIS_CREATED', { analysisId: data.id })
       router.push(`/dashboard/analysis/${data.id}`)
     } catch (error) {
       console.error('Error:', error)
+      trackEvent('ANALYSIS_FAILED', { error: 'unknown' })
       alert('Erro ao processar análise')
     } finally {
       setLoading(false)
@@ -451,14 +523,15 @@ export default function NewAnalysisPage() {
                 >
                   <Card
                     className={`
-                      p-6 cursor-pointer transition-all duration-200 border-2 rounded-3xl
+                      p-6 transition-all duration-200 border-2 rounded-3xl
                       ${isLastOddItem ? 'md:w-full md:max-w-sm' : 'w-full'}
                       ${isSelected 
                         ? selectedColorClasses[color] 
                         : colorClasses[color]
                       }
+                      ${isTransitioning ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}
                     `}
-                    onClick={() => updateField(currentQuestion.id, option.value)}
+                    onClick={() => !isTransitioning && updateField(currentQuestion.id, option.value)}
                   >
                     <div className="flex flex-col items-center text-center space-y-3">
                       <Icon className={`h-8 w-8 ${isSelected ? 'scale-110' : ''} transition-transform`} />
@@ -490,7 +563,7 @@ export default function NewAnalysisPage() {
           <Input
             type="number"
             min="0"
-            value={value as number}
+            value={typeof value === 'number' ? value : 0}
             onChange={(e) => updateField(currentQuestion.id, parseInt(e.target.value) || 0)}
             placeholder={currentQuestion.placeholder}
             className="h-14 text-base rounded-2xl text-center text-2xl font-bold"
@@ -508,6 +581,40 @@ export default function NewAnalysisPage() {
           />
         )
 
+      case 'avatar-select':
+        const avatarImage = formData.genero_match === 'ELE' 
+          ? '/images/homem.svg' 
+          : '/images/mulher.svg'
+        const avatarAlt = formData.genero_match === 'ELE' 
+          ? 'Avatar masculino' 
+          : 'Avatar feminino'
+        
+        return (
+          <div className="flex flex-col items-center space-y-6">
+            <Input
+              value={(formData.nome_match as string) || ''}
+              onChange={(e) => updateField('nome_match', e.target.value.toUpperCase())}
+              placeholder={currentQuestion.placeholder}
+              className="h-20 text-base rounded-2xl text-center text-3xl font-semibold uppercase tracking-widest"
+            />
+            {formData.genero_match && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+                className="flex flex-col items-center"
+              >
+                <Image
+                  src={avatarImage}
+                  alt={avatarAlt}
+                  width={150}
+                  height={150}
+                  className="drop-shadow-lg"
+                />
+              </motion.div>
+            )}
+          </div>
+        )
 
       default:
         return null
@@ -528,9 +635,6 @@ export default function NewAnalysisPage() {
         {/* Progress */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-3">
-            <span className="text-sm font-medium text-gray-700">
-              Pergunta {currentQuestionIndex + 1} de {QUESTIONS.length}
-            </span>
             <span className="text-sm text-gray-500">{Math.round(progress)}%</span>
           </div>
           <Progress value={progress} className="h-3 rounded-full" />
@@ -545,8 +649,9 @@ export default function NewAnalysisPage() {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="p-8 md:p-12 rounded-3xl shadow-xl border-0 bg-white/90 backdrop-blur-sm">
-              <div className="space-y-6">
+            <Card className="rounded-3xl shadow-xl border-0 bg-white/90 backdrop-blur-sm overflow-hidden">
+              <div className="h-3 bg-gradient-to-r from-purple-600 via-fuchsia-500 to-purple-600" />
+              <div className="p-8 md:p-12 space-y-6">
                 {/* Question Label */}
                 <div>
                   <Label className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 block">
@@ -645,3 +750,4 @@ export default function NewAnalysisPage() {
     </div>
   )
 }
+

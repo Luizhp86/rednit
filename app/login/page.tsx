@@ -1,17 +1,18 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { trackEvent } from '@/lib/tracking'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
 
   const handleGoogleLogin = async () => {
     try {
       setLoading(true)
+      trackEvent('LOGIN_ATTEMPT', { provider: 'google' })
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -21,10 +22,12 @@ export default function LoginPage() {
 
       if (error) {
         console.error('Error:', error)
+        trackEvent('LOGIN_FAILED', { provider: 'google', error: error.message })
         alert('Erro ao fazer login: ' + error.message)
       }
     } catch (error: any) {
       console.error('Error:', error)
+      trackEvent('LOGIN_FAILED', { provider: 'google', error: error.message })
       alert('Erro ao fazer login')
     } finally {
       setLoading(false)

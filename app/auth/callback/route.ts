@@ -42,7 +42,7 @@ export async function GET(request: Request) {
         console.log('[AUTH CALLBACK] Tentando fazer upsert no Prisma...')
         
         try {
-          await prisma.user.upsert({
+          const dbUser = await prisma.user.upsert({
             where: { email: user.email! },
             update: {
               name: user.user_metadata?.full_name || user.email!,
@@ -54,11 +54,29 @@ export async function GET(request: Request) {
             },
           })
           console.log('[AUTH CALLBACK] Usuário sincronizado com sucesso')
+          
+          // Registrar evento de login
+          await prisma.userActivityLog.create({
+            data: {
+              userId: dbUser.id,
+              sessionId: `session-${Date.now()}`, // Será atualizado pelo cookie no próximo request
+              eventType: 'LOGIN',
+              eventData: { provider: 'google' },
+              page: '/auth/callback',
+            }
+          }).catch(err => console.error('[AUTH CALLBACK] Erro ao registrar log de login:', err))
         } catch (prismaError: any) {
-          console.error('[AUTH CALLBACK] Erro ao fazer upsert no Prisma:', prismaError.message)
-          console.error('[AUTH CALLBACK] Stack:', prismaError.stack)
-          console.error('[AUTH CALLBACK] Código do erro:', prismaError.code)
-          throw prismaError
+          const prismaMessage = prismaError?.message || ''
+          console.error('[AUTH CALLBACK] Erro ao fazer upsert no Prisma:', prismaMessage)
+          console.error('[AUTH CALLBACK] Stack:', prismaError?.stack)
+          console.error('[AUTH CALLBACK] Código do erro:', prismaError?.code)
+          // Em desenvolvimento, permite continuar sem banco quando a conexão falha
+          const isDbUnreachable = prismaMessage.includes("Can't reach database server")
+          if (process.env.NODE_ENV === 'development' && isDbUnreachable) {
+            console.warn('[AUTH CALLBACK] Banco indisponível; continuando sem sincronizar usuário')
+          } else {
+            throw prismaError
+          }
         }
       } else {
         console.warn('[AUTH CALLBACK] Usuário não encontrado após autenticação')

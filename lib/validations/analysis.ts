@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 export const analysisInputSchema = z.object({
   // Campos obrigatórios (passo 1)
+  genero_match: z.enum(['ELE', 'ELA']),
   objetivo_usuario: z.enum(['CASUAL', 'CONHECER', 'NAMORO']),
   ritmo_usuario: z.enum(['RAPIDO', 'MEDIO', 'LENTO']),
   estagio: z.enum(['FIRST_CHAT', 'TALKING', 'POST_DATE']),
