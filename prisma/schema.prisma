@@ -24,6 +24,7 @@ model User {
   id                String    @id @default(uuid())
   email             String    @unique
   name              String?
+  phone             String?   // Telefone obrigatorio para gerar lead
   plan              Plan      @default(FREE)
   creditsFreeDaily  Int       @default(1)
   creditsPaid       Int       @default(0)
@@ -33,9 +34,10 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  analyses  Analysis[]
-  payments  Payment[]
+  analyses     Analysis[]
+  payments     Payment[]
   entitlements Entitlement?
+  leads        Lead[]        // Leads gerados por este usuario
 
   @@map("users")
 }
@@ -50,7 +52,8 @@ model Analysis {
   usedInRouteCorrection  Boolean        @default(false)
   createdAt              DateTime       @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leads Lead[] // Leads gerados a partir desta analise
 
   @@index([userId])
   @@index([createdAt])
@@ -129,15 +132,31 @@ model SystemConfig {
   geminiCallsToday         Int @default(0)      // Contador de chamadas hoje
   geminiLastResetDate      DateTime?            // Última vez que resetou contador diário
   
-  // Configurações de preços - Assinaturas
+  // Configurações de preços - Assinaturas Usuario (legado, manter por compatibilidade)
   proPriceMonthly          Int @default(2990)   // Preço mensal PRO em centavos
-  proPriceQuarterly         Int @default(7990)   // Preço trimestral PRO em centavos
+  proPriceQuarterly        Int @default(7990)   // Preço trimestral PRO em centavos
   proPriceYearly           Int @default(29900)  // Preço anual PRO em centavos
   
-  // Configurações de preços - Pacotes de créditos
+  // Configurações de preços - Pacotes de créditos (legado)
   creditPriceSingle        Int @default(799)    // Preço 1 crédito em centavos
   creditPricePack3         Int @default(2490)   // Preço pacote 3 créditos em centavos
   creditPricePack5         Int @default(3990)   // Preço pacote 5 créditos em centavos
+  
+  // ============================================
+  // CONFIGURAÇÕES B2B - TERAPEUTAS
+  // ============================================
+  
+  // Preços dos planos de terapeuta (em centavos)
+  therapistPriceBasic         Int @default(7900)   // R$ 79/mes
+  therapistPriceIntermediate  Int @default(14900)  // R$ 149/mes
+  therapistPricePro           Int @default(24900)  // R$ 249/mes
+  
+  // Limites de leads
+  therapistLeadsPerDay        Int @default(10)     // Limite de leads por terapeuta/dia
+  
+  // Feature flags B2B
+  enableLeadSignup            Boolean @default(true)  // Gerar lead no cadastro
+  enableLeadCta               Boolean @default(true)  // Gerar lead no CTA
   
   // Feature flags
   maintenanceMode          Boolean @default(false)
@@ -202,4 +221,127 @@ model UserActivityLog {
   @@index([sessionId])
   @@index([eventType])
   @@map("user_activity_logs")
+}
+
+// ============================================
+// MODELOS B2B - TERAPEUTAS E LEADS
+// ============================================
+
+enum TherapistType {
+  TAROLOGO
+  COACH
+  HOLISTICO
+  ASTROLOGO
+  TERAPEUTA_FLORAL
+  CONSTELADOR
+  PSICOLOGO      // Fase 2
+  OUTRO
+}
+
+enum TherapistStatus {
+  PENDING        // Aguardando aprovacao
+  APPROVED       // Aprovado e pode entrar no pool
+  SUSPENDED      // Temporariamente suspenso
+  BLOCKED        // Bloqueado permanentemente
+}
+
+enum TherapistPlan {
+  BASIC          // R$ 79/mes - so leads SIGNUP
+  INTERMEDIATE   // R$ 149/mes - leads SIGNUP + CTA (email)
+  PRO            // R$ 249/mes - todos + WhatsApp direto
+}
+
+model Therapist {
+  id                 String           @id @default(uuid())
+  email              String           @unique
+  password           String?          // Hash da senha (se nao usar social login)
+  name               String
+  type               TherapistType    @default(OUTRO)
+  plan               TherapistPlan    @default(BASIC)
+  crp                String?          // Opcional (apenas psicologos)
+  whatsapp           String
+  bio                String?
+  photoUrl           String?
+  instagram          String?
+  website            String?
+  specialties        String[]         @default(["relacionamentos"])
+  status             TherapistStatus  @default(PENDING)
+  active             Boolean          @default(false) // Ativo no pool de rotacao
+  
+  // Stripe
+  stripeCustomerId   String?          @unique
+  subscriptionId     String?
+  subscriptionStatus String           @default("inactive")
+  
+  // Contadores para rotacao justa
+  leadsReceived      Int              @default(0)
+  leadsThisMonth     Int              @default(0)
+  leadsSignup        Int              @default(0)
+  leadsCta           Int              @default(0)
+  lastLeadAt         DateTime?        // Ultimo lead recebido (para rotacao)
+  
+  // Timestamps
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  approvedAt         DateTime?
+  approvedBy         String?          // ID do admin que aprovou
+  
+  leads              Lead[]
+
+  @@index([status])
+  @@index([plan])
+  @@index([active])
+  @@index([lastLeadAt])
+  @@map("therapists")
+}
+
+enum LeadType {
+  SIGNUP     // Lead de cadastro (frio)
+  CTA        // Lead de CTA (quente)
+}
+
+enum LeadStatus {
+  NEW           // Novo, ainda nao contatado
+  CONTACTED     // Terapeuta entrou em contato
+  CONVERTED     // Virou cliente
+  LOST          // Nao converteu
+}
+
+model Lead {
+  id           String      @id @default(uuid())
+  type         LeadType    @default(SIGNUP)
+  status       LeadStatus  @default(NEW)
+  
+  // Dados do lead (usuario)
+  userId       String?
+  user         User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userName     String?
+  userEmail    String
+  userPhone    String
+  
+  // Dados da analise (para CTA)
+  analysisId   String?
+  analysis     Analysis?   @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+  matchName    String?     // Nome do match analisado
+  analysisData Json?       // Dados da analise (red flags, hipoteses, etc)
+  
+  // Terapeuta que recebeu
+  therapistId  String
+  therapist    Therapist   @relation(fields: [therapistId], references: [id], onDelete: Cascade)
+  
+  // Notificacoes
+  emailSentAt    DateTime?
+  whatsappOpenedAt DateTime?
+  
+  // Timestamps
+  createdAt    DateTime    @default(now())
+  contactedAt  DateTime?   // Quando foi marcado como contatado
+  convertedAt  DateTime?   // Quando foi marcado como convertido
+
+  @@index([type])
+  @@index([status])
+  @@index([therapistId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("leads")
 }

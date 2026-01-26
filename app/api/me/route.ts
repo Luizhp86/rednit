@@ -1,7 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { getSystemConfig } from '@/lib/config'
+import { generateLead } from '@/lib/lead-rotation'
+import { sendLeadSignupNotification } from '@/lib/email'
 
 export async function GET() {
   try {
@@ -86,6 +88,7 @@ export async function GET() {
       id: dbUser.id,
       email: dbUser.email,
       name: dbUser.name,
+      phone: dbUser.phone,
       plan: dbUser.plan,
       creditsFreeDaily: dbUser.creditsFreeDaily,
       creditsPaid: dbUser.creditsPaid,
@@ -118,5 +121,91 @@ export async function GET() {
   } catch (error) {
     console.error('Error in /api/me:', error)
     return NextResponse.json({ error: 'Erro ao buscar dados' }, { status: 500 })
+  }
+}
+
+// Atualizar perfil do usuário (nome, telefone)
+export async function PATCH(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { email: user.email! },
+    })
+
+    if (!dbUser) {
+      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
+    }
+
+    const body = await request.json()
+    const { name, phone } = body
+
+    // Verificar se é a primeira vez que o telefone está sendo adicionado
+    const isFirstPhone = !dbUser.phone && phone
+
+    // Atualizar usuário
+    const updateData: any = {}
+    if (name) updateData.name = name
+    if (phone) updateData.phone = phone
+
+    const updatedUser = await prisma.user.update({
+      where: { id: dbUser.id },
+      data: updateData,
+    })
+
+    // Se é a primeira vez adicionando telefone, gerar lead SIGNUP
+    if (isFirstPhone) {
+      try {
+        const leadResult = await generateLead({
+          type: 'SIGNUP',
+          userId: dbUser.id,
+          userName: updatedUser.name || undefined,
+          userEmail: updatedUser.email,
+          userPhone: phone,
+        })
+
+        if (leadResult) {
+          // Buscar terapeuta para enviar email
+          const therapist = await prisma.therapist.findUnique({
+            where: { id: leadResult.therapistId },
+            select: { email: true, name: true }
+          })
+
+          if (therapist) {
+            await sendLeadSignupNotification({
+              therapist: { email: therapist.email, name: therapist.name },
+              lead: {
+                userName: updatedUser.name,
+                userEmail: updatedUser.email,
+                userPhone: phone,
+              }
+            })
+          }
+        }
+      } catch (leadError) {
+        console.error('Erro ao gerar lead SIGNUP:', leadError)
+        // Não falhar a requisição se o lead falhar
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        phone: updatedUser.phone,
+      }
+    })
+  } catch (error) {
+    console.error('Error in PATCH /api/me:', error)
+    return NextResponse.json({ error: 'Erro ao atualizar dados' }, { status: 500 })
   }
 }

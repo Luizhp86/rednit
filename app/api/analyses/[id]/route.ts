@@ -37,15 +37,21 @@ export async function GET(
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 })
     }
 
-    // Return free teaser or full result based on isPaid and user plan
-    // Apenas usuários PRO ou análises pagas têm acesso ao conteúdo premium
-    const hasAccess = analysis.isPaid || dbUser.plan === 'PRO'
+    // MODELO B2B: Usuários autenticados sempre têm acesso completo às análises
+    // A monetização agora é via terapeutas, não usuários
+    const hasAccess = true
     
-    console.log('[ANALYSES] Verificando acesso:', {
+    // Marcar análise como visualizada (para tracking)
+    if (!analysis.isPaid) {
+      await prisma.analysis.update({
+        where: { id },
+        data: { isPaid: true }
+      })
+    }
+    
+    console.log('[ANALYSES] Acesso liberado (modelo B2B):', {
       userId: dbUser.id,
-      plan: dbUser.plan,
-      isPaid: analysis.isPaid,
-      hasAccess
+      analysisId: analysis.id,
     })
 
     const resultJson = analysis.resultJson as any

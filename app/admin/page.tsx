@@ -27,8 +27,13 @@ import {
   Activity,
   Key,
   Check,
-  X
+  X,
+  UserCheck,
+  MessageCircle,
+  Phone,
+  Crown
 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 
 type SystemConfig = {
   minAnalysesFirstTime: number
@@ -70,7 +75,7 @@ export default function AdminPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'config' | 'users' | 'logs' | 'apikeys'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'config' | 'users' | 'logs' | 'apikeys' | 'therapists' | 'leads'>('dashboard')
   
   // Dashboard data
   const [stats, setStats] = useState<Stats | null>(null)
@@ -125,6 +130,26 @@ export default function AdminPage() {
   
   // Error state
   const [error, setError] = useState<string | null>(null)
+  
+  // Therapists tab
+  const [therapists, setTherapists] = useState<any[]>([])
+  const [therapistSearch, setTherapistSearch] = useState('')
+  const [therapistStatusFilter, setTherapistStatusFilter] = useState('')
+  const [therapistPage, setTherapistPage] = useState(1)
+  const [therapistTotal, setTherapistTotal] = useState(0)
+  const [therapistTotalPages, setTherapistTotalPages] = useState(1)
+  const [loadingTherapists, setLoadingTherapists] = useState(false)
+  const [therapistStats, setTherapistStats] = useState<any>(null)
+  
+  // Leads tab
+  const [adminLeads, setAdminLeads] = useState<any[]>([])
+  const [leadTypeFilter, setLeadTypeFilter] = useState('')
+  const [leadStatusFilter, setLeadStatusFilter] = useState('')
+  const [leadPage, setLeadPage] = useState(1)
+  const [leadTotal, setLeadTotal] = useState(0)
+  const [leadTotalPages, setLeadTotalPages] = useState(1)
+  const [loadingLeads, setLoadingLeads] = useState(false)
+  const [leadStats, setLeadStats] = useState<any>(null)
 
   useEffect(() => {
     checkAdmin()
@@ -276,6 +301,67 @@ export default function AdminPage() {
       console.error('Error loading API keys:', error)
     } finally {
       setLoadingApiKeys(false)
+    }
+  }
+
+  const loadTherapists = async (page = 1, search = '', status = '') => {
+    setLoadingTherapists(true)
+    try {
+      const params = new URLSearchParams({ page: page.toString(), limit: '20' })
+      if (search) params.set('search', search)
+      if (status) params.set('status', status)
+      
+      const res = await fetch(`/api/admin/therapists?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setTherapists(data.therapists)
+        setTherapistPage(data.pagination.page)
+        setTherapistTotal(data.pagination.total)
+        setTherapistTotalPages(data.pagination.totalPages)
+        setTherapistStats(data.stats)
+      }
+    } catch (error) {
+      console.error('Error loading therapists:', error)
+    } finally {
+      setLoadingTherapists(false)
+    }
+  }
+
+  const loadAdminLeads = async (page = 1, type = '', status = '') => {
+    setLoadingLeads(true)
+    try {
+      const params = new URLSearchParams({ page: page.toString(), limit: '50' })
+      if (type) params.set('type', type)
+      if (status) params.set('status', status)
+      
+      const res = await fetch(`/api/admin/leads?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setAdminLeads(data.leads)
+        setLeadPage(data.pagination.page)
+        setLeadTotal(data.pagination.total)
+        setLeadTotalPages(data.pagination.totalPages)
+        setLeadStats(data.stats)
+      }
+    } catch (error) {
+      console.error('Error loading leads:', error)
+    } finally {
+      setLoadingLeads(false)
+    }
+  }
+
+  const updateTherapist = async (therapistId: string, action: string) => {
+    try {
+      const res = await fetch('/api/admin/therapists', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ therapistId, action })
+      })
+      if (res.ok) {
+        loadTherapists(therapistPage, therapistSearch, therapistStatusFilter)
+      }
+    } catch (error) {
+      console.error('Error updating therapist:', error)
     }
   }
 
@@ -496,6 +582,28 @@ export default function AdminPage() {
           >
             <Key className="w-5 h-5" />
             API Keys
+          </button>
+          <button
+            onClick={() => { setActiveTab('therapists'); loadTherapists(1, '', ''); }}
+            className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
+              activeTab === 'therapists' 
+                ? 'bg-purple-600 text-white' 
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            }`}
+          >
+            <UserCheck className="w-5 h-5" />
+            Terapeutas
+          </button>
+          <button
+            onClick={() => { setActiveTab('leads'); loadAdminLeads(1, '', ''); }}
+            className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
+              activeTab === 'leads' 
+                ? 'bg-purple-600 text-white' 
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            }`}
+          >
+            <MessageCircle className="w-5 h-5" />
+            Leads
           </button>
           
           {/* Botão Refresh */}
@@ -1637,6 +1745,422 @@ export default function AdminPage() {
                 </p>
               </div>
             </Card>
+          </div>
+        )}
+
+        {/* Therapists Tab */}
+        {activeTab === 'therapists' && (
+          <div className="space-y-6">
+            {/* Stats */}
+            {therapistStats && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card className="bg-gray-800 border-gray-700 p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-blue-600/20 rounded-lg">
+                      <Users className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm">Total</p>
+                      <p className="text-2xl font-bold text-white">{therapistStats.total}</p>
+                    </div>
+                  </div>
+                </Card>
+                <Card className="bg-gray-800 border-gray-700 p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-green-600/20 rounded-lg">
+                      <CheckCircle2 className="w-6 h-6 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm">Ativos</p>
+                      <p className="text-2xl font-bold text-white">{therapistStats.active}</p>
+                    </div>
+                  </div>
+                </Card>
+                <Card className="bg-gray-800 border-gray-700 p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-yellow-600/20 rounded-lg">
+                      <AlertTriangle className="w-6 h-6 text-yellow-500" />
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm">Pendentes</p>
+                      <p className="text-2xl font-bold text-white">
+                        {therapistStats.byStatus?.find((s: any) => s.status === 'PENDING')?._count || 0}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+                <Card className="bg-gray-800 border-gray-700 p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-purple-600/20 rounded-lg">
+                      <Crown className="w-6 h-6 text-purple-500" />
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm">PRO</p>
+                      <p className="text-2xl font-bold text-white">
+                        {therapistStats.byPlan?.find((p: any) => p.plan === 'PRO')?._count || 0}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* Filters */}
+            <div className="flex gap-4 flex-wrap">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <Input
+                  type="text"
+                  placeholder="Buscar por nome ou email..."
+                  value={therapistSearch}
+                  onChange={(e) => setTherapistSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && loadTherapists(1, therapistSearch, therapistStatusFilter)}
+                  className="pl-10 bg-gray-800 border-gray-700 text-white"
+                />
+              </div>
+              <select
+                value={therapistStatusFilter}
+                onChange={(e) => { setTherapistStatusFilter(e.target.value); loadTherapists(1, therapistSearch, e.target.value); }}
+                className="bg-gray-800 border-gray-700 text-white rounded-lg px-3 py-2"
+              >
+                <option value="">Todos os status</option>
+                <option value="PENDING">Pendentes</option>
+                <option value="APPROVED">Aprovados</option>
+                <option value="SUSPENDED">Suspensos</option>
+                <option value="BLOCKED">Bloqueados</option>
+              </select>
+              <Button onClick={() => loadTherapists(1, therapistSearch, therapistStatusFilter)} className="bg-purple-600 hover:bg-purple-700">
+                Buscar
+              </Button>
+            </div>
+
+            {/* Table */}
+            <Card className="bg-gray-800 border-gray-700 p-6">
+              {loadingTherapists ? (
+                <div className="flex justify-center py-8">
+                  <RefreshCw className="w-8 h-8 animate-spin text-purple-500" />
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-left text-gray-400 text-sm border-b border-gray-700">
+                          <th className="pb-3">Nome</th>
+                          <th className="pb-3">Tipo</th>
+                          <th className="pb-3">Plano</th>
+                          <th className="pb-3">Status</th>
+                          <th className="pb-3">Leads</th>
+                          <th className="pb-3">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {therapists.map((t) => (
+                          <tr key={t.id} className="border-b border-gray-700/50">
+                            <td className="py-3">
+                              <div>
+                                <p className="text-white font-medium">{t.name}</p>
+                                <p className="text-gray-400 text-sm">{t.email}</p>
+                              </div>
+                            </td>
+                            <td className="py-3 text-gray-300">{t.type}</td>
+                            <td className="py-3">
+                              <Badge className={
+                                t.plan === 'PRO' ? 'bg-purple-600' : 
+                                t.plan === 'INTERMEDIATE' ? 'bg-orange-600' : 'bg-gray-600'
+                              }>
+                                {t.plan}
+                              </Badge>
+                            </td>
+                            <td className="py-3">
+                              <Badge className={
+                                t.status === 'APPROVED' ? 'bg-green-600' :
+                                t.status === 'PENDING' ? 'bg-yellow-600' :
+                                t.status === 'SUSPENDED' ? 'bg-orange-600' : 'bg-red-600'
+                              }>
+                                {t.status}
+                              </Badge>
+                            </td>
+                            <td className="py-3 text-white">{t.leadsReceived}</td>
+                            <td className="py-3">
+                              <div className="flex gap-2">
+                                {t.status === 'PENDING' && (
+                                  <Button onClick={() => updateTherapist(t.id, 'approve')} size="sm" className="bg-green-600 hover:bg-green-700">
+                                    Aprovar
+                                  </Button>
+                                )}
+                                {t.status === 'APPROVED' && !t.active && (
+                                  <Button onClick={() => updateTherapist(t.id, 'activate')} size="sm" className="bg-blue-600 hover:bg-blue-700">
+                                    Ativar
+                                  </Button>
+                                )}
+                                {t.active && (
+                                  <Button onClick={() => updateTherapist(t.id, 'deactivate')} size="sm" variant="outline" className="border-gray-600">
+                                    Desativar
+                                  </Button>
+                                )}
+                                {t.status !== 'BLOCKED' && (
+                                  <Button onClick={() => updateTherapist(t.id, 'block')} size="sm" variant="outline" className="border-red-600 text-red-400">
+                                    Bloquear
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
+                    <p className="text-sm text-gray-400">
+                      Mostrando {therapists.length} de {therapistTotal}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => loadTherapists(therapistPage - 1, therapistSearch, therapistStatusFilter)}
+                        disabled={therapistPage === 1}
+                        variant="outline"
+                        size="sm"
+                        className="border-gray-600"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <span className="px-3 py-1 text-gray-400">{therapistPage} / {therapistTotalPages}</span>
+                      <Button
+                        onClick={() => loadTherapists(therapistPage + 1, therapistSearch, therapistStatusFilter)}
+                        disabled={therapistPage === therapistTotalPages}
+                        variant="outline"
+                        size="sm"
+                        className="border-gray-600"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </Card>
+          </div>
+        )}
+
+        {/* Leads Tab */}
+        {activeTab === 'leads' && (
+          <div className="space-y-6">
+            {/* Stats */}
+            {leadStats && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card className="bg-gray-800 border-gray-700 p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-blue-600/20 rounded-lg">
+                      <MessageCircle className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm">Total</p>
+                      <p className="text-2xl font-bold text-white">{leadStats.total}</p>
+                    </div>
+                  </div>
+                </Card>
+                <Card className="bg-gray-800 border-gray-700 p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-green-600/20 rounded-lg">
+                      <TrendingUp className="w-6 h-6 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm">Hoje</p>
+                      <p className="text-2xl font-bold text-white">{leadStats.today}</p>
+                    </div>
+                  </div>
+                </Card>
+                <Card className="bg-gray-800 border-gray-700 p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-orange-600/20 rounded-lg">
+                      <Zap className="w-6 h-6 text-orange-500" />
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm">Esta Semana</p>
+                      <p className="text-2xl font-bold text-white">{leadStats.week}</p>
+                    </div>
+                  </div>
+                </Card>
+                <Card className="bg-gray-800 border-gray-700 p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-purple-600/20 rounded-lg">
+                      <BarChart3 className="w-6 h-6 text-purple-500" />
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-sm">Este Mês</p>
+                      <p className="text-2xl font-bold text-white">{leadStats.month}</p>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* Filters */}
+            <div className="flex gap-4 flex-wrap">
+              <select
+                value={leadTypeFilter}
+                onChange={(e) => { setLeadTypeFilter(e.target.value); loadAdminLeads(1, e.target.value, leadStatusFilter); }}
+                className="bg-gray-800 border-gray-700 text-white rounded-lg px-3 py-2"
+              >
+                <option value="">Todos os tipos</option>
+                <option value="SIGNUP">Cadastro</option>
+                <option value="CTA">CTA (Quente)</option>
+              </select>
+              <select
+                value={leadStatusFilter}
+                onChange={(e) => { setLeadStatusFilter(e.target.value); loadAdminLeads(1, leadTypeFilter, e.target.value); }}
+                className="bg-gray-800 border-gray-700 text-white rounded-lg px-3 py-2"
+              >
+                <option value="">Todos os status</option>
+                <option value="NEW">Novos</option>
+                <option value="CONTACTED">Contatados</option>
+                <option value="CONVERTED">Convertidos</option>
+                <option value="LOST">Perdidos</option>
+              </select>
+              <Button onClick={() => loadAdminLeads(1, leadTypeFilter, leadStatusFilter)} variant="outline" className="border-gray-700">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Atualizar
+              </Button>
+            </div>
+
+            {/* Table */}
+            <Card className="bg-gray-800 border-gray-700 p-6">
+              {loadingLeads ? (
+                <div className="flex justify-center py-8">
+                  <RefreshCw className="w-8 h-8 animate-spin text-purple-500" />
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-left text-gray-400 text-sm border-b border-gray-700">
+                          <th className="pb-3">Data</th>
+                          <th className="pb-3">Tipo</th>
+                          <th className="pb-3">Lead</th>
+                          <th className="pb-3">Contato</th>
+                          <th className="pb-3">Match</th>
+                          <th className="pb-3">Terapeuta</th>
+                          <th className="pb-3">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {adminLeads.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="py-8 text-center text-gray-500">
+                              Nenhum lead encontrado
+                            </td>
+                          </tr>
+                        ) : adminLeads.map((lead) => (
+                          <tr key={lead.id} className="border-b border-gray-700/50">
+                            <td className="py-3 text-white text-sm">
+                              {new Date(lead.createdAt).toLocaleDateString('pt-BR')}
+                              <br />
+                              <span className="text-gray-500 text-xs">
+                                {new Date(lead.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </td>
+                            <td className="py-3">
+                              <Badge className={lead.type === 'CTA' ? 'bg-green-600' : 'bg-blue-600'}>
+                                {lead.type === 'CTA' ? 'Quente' : 'Cadastro'}
+                              </Badge>
+                            </td>
+                            <td className="py-3">
+                              <p className="text-white">{lead.userName || 'Sem nome'}</p>
+                              <p className="text-gray-400 text-sm">{lead.userEmail}</p>
+                            </td>
+                            <td className="py-3">
+                              <a 
+                                href={`https://wa.me/55${lead.userPhone?.replace(/\D/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-green-400 hover:text-green-300 text-sm"
+                              >
+                                <Phone className="w-3 h-3" />
+                                {lead.userPhone}
+                              </a>
+                            </td>
+                            <td className="py-3 text-gray-300">{lead.matchName || '-'}</td>
+                            <td className="py-3">
+                              <p className="text-white text-sm">{lead.therapist?.name}</p>
+                              <Badge className={
+                                lead.therapist?.plan === 'PRO' ? 'bg-purple-600' :
+                                lead.therapist?.plan === 'INTERMEDIATE' ? 'bg-orange-600' : 'bg-gray-600'
+                              } style={{ fontSize: '10px' }}>
+                                {lead.therapist?.plan}
+                              </Badge>
+                            </td>
+                            <td className="py-3">
+                              <Badge className={
+                                lead.status === 'NEW' ? 'bg-blue-600' :
+                                lead.status === 'CONTACTED' ? 'bg-yellow-600' :
+                                lead.status === 'CONVERTED' ? 'bg-green-600' : 'bg-gray-600'
+                              }>
+                                {lead.status === 'NEW' ? 'Novo' :
+                                 lead.status === 'CONTACTED' ? 'Contatado' :
+                                 lead.status === 'CONVERTED' ? 'Convertido' : 'Perdido'}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
+                    <p className="text-sm text-gray-400">
+                      Mostrando {adminLeads.length} de {leadTotal}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => loadAdminLeads(leadPage - 1, leadTypeFilter, leadStatusFilter)}
+                        disabled={leadPage === 1}
+                        variant="outline"
+                        size="sm"
+                        className="border-gray-600"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <span className="px-3 py-1 text-gray-400">{leadPage} / {leadTotalPages}</span>
+                      <Button
+                        onClick={() => loadAdminLeads(leadPage + 1, leadTypeFilter, leadStatusFilter)}
+                        disabled={leadPage === leadTotalPages}
+                        variant="outline"
+                        size="sm"
+                        className="border-gray-600"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </Card>
+
+            {/* Top Therapists by Leads */}
+            {leadStats?.byTherapist && leadStats.byTherapist.length > 0 && (
+              <Card className="bg-gray-800 border-gray-700 p-6">
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-purple-500" />
+                  Top Terapeutas por Leads
+                </h3>
+                <div className="space-y-3">
+                  {leadStats.byTherapist.slice(0, 5).map((t: any, idx: number) => (
+                    <div key={t.therapistId} className="flex items-center justify-between py-2 border-b border-gray-700/50">
+                      <div className="flex items-center gap-3">
+                        <span className="text-gray-500 font-bold">{idx + 1}</span>
+                        <span className="text-white">{t.therapistName}</span>
+                      </div>
+                      <span className="text-purple-400 font-bold">{t.count} leads</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
           </div>
         )}
 

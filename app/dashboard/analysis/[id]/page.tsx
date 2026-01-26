@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { SubscriptionPlans } from '@/components/subscription-plans'
 import { trackEvent } from '@/lib/tracking'
 import { X, Lock, Sparkles, TrendingUp, Shield, CheckCircle2, AlertTriangle, Eye, Zap, Heart, Crown } from 'lucide-react'
+import { TherapistCta } from '@/components/therapist-cta'
 
 type AnalysisResult = {
   id: string
@@ -25,6 +26,13 @@ type UserCredits = {
   creditsPaid: number
 }
 
+type UserData = {
+  id: string
+  email: string
+  name: string | null
+  phone: string | null
+}
+
 export default function AnalysisPage() {
   const router = useRouter()
   const params = useParams()
@@ -34,6 +42,7 @@ export default function AnalysisPage() {
   const [unlocking, setUnlocking] = useState(false)
   const [showUnlockModal, setShowUnlockModal] = useState(false)
   const [userCredits, setUserCredits] = useState<UserCredits | null>(null)
+  const [userData, setUserData] = useState<UserData | null>(null)
   const [showSubscriptionPlans, setShowSubscriptionPlans] = useState(false)
   const [subscriptionPrices, setSubscriptionPrices] = useState({
     monthly: 2990,
@@ -78,6 +87,12 @@ export default function AnalysisPage() {
       if (res.ok) {
         const data = await res.json()
         setUserCredits({ creditsPaid: data.creditsPaid || 0 })
+        setUserData({
+          id: data.id,
+          email: data.email,
+          name: data.name,
+          phone: data.phone,
+        })
         
         // Atualizar preços do sistema
         if (data.prices?.subscription) {
@@ -94,30 +109,9 @@ export default function AnalysisPage() {
     loadUserCredits()
   }, [id])
 
-  // Mostrar modal de forma recorrente se não tiver acesso premium
-  // Primeira vez: 5 segundos, depois: a cada 45 segundos após fechar
-  useEffect(() => {
-    if (!loading && analysis && !analysis.has_access) {
-      // Timer inicial de 5 segundos
-      const initialTimer = setTimeout(() => {
-        setShowUnlockModal(true)
-      }, 5000)
-      
-      return () => clearTimeout(initialTimer)
-    }
-  }, [loading, analysis])
-
-  // Timer recorrente quando o modal é fechado
-  useEffect(() => {
-    if (!loading && analysis && !analysis.has_access && !showUnlockModal) {
-      // Se o modal foi fechado, mostrar novamente após 45 segundos
-      const recurringTimer = setTimeout(() => {
-        setShowUnlockModal(true)
-      }, 45000) // 45 segundos
-      
-      return () => clearTimeout(recurringTimer)
-    }
-  }, [loading, analysis, showUnlockModal])
+  // MODELO B2B: Modais de pagamento removidos
+  // Análises agora são gratuitas para usuários autenticados
+  // A monetização é via terapeutas
 
   const handleUnlockWithCredit = async () => {
     setUnlocking(true)
@@ -937,6 +931,22 @@ export default function AnalysisPage() {
                     ))}
                 </div>
               </details>
+            )}
+
+            {/* CTA para falar com especialista */}
+            {userData && (
+              <div className="mt-8">
+                <TherapistCta
+                  userId={userData.id}
+                  userName={userData.name || undefined}
+                  userEmail={userData.email}
+                  userPhone={userData.phone}
+                  analysisId={id}
+                  matchName={premium?.nome_match || free_teaser?.nome_match}
+                  hasRedFlags={premium?.red_flags?.length > 0 || free_teaser?.red_flag}
+                  onPhoneUpdated={(phone) => setUserData(prev => prev ? { ...prev, phone } : null)}
+                />
+              </div>
             )}
           </div>
         )}

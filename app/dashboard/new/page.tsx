@@ -37,7 +37,7 @@ type FormData = {
   fala_futuro: 'NAO' | 'FALA' | 'FALA_E_FAZ' | ''
   sinais_alerta: string[]
   inegociaveis: string[]
-  nome_match?: string
+  nome_match: string
 }
 
 type Question = {
@@ -213,6 +213,7 @@ const QUESTIONS: Question[] = [
     id: 'nome_match',
     label: 'Como você chama este match?',
     type: 'avatar-select',
+    required: true,
     placeholder: 'EX: JOAO, MARIA, O CRUSH DO TINDER...',
   },
 ]
@@ -466,9 +467,8 @@ export default function NewAnalysisPage() {
       if (formData.fala_futuro) {
         dataToSend.fala_futuro = formData.fala_futuro
       }
-      if (formData.nome_match && formData.nome_match.trim()) {
-        dataToSend.nome_match = formData.nome_match.trim()
-      }
+      // Nome do match é obrigatório
+      dataToSend.nome_match = formData.nome_match.trim()
 
       trackEvent('ANALYSIS_STARTED', {
         stage: dataToSend.estagio,
