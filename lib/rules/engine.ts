@@ -3,11 +3,12 @@ import ruleset from './ruleset.json'
 
 export type AnalysisInput = {
   genero_match: 'ELE' | 'ELA'
-  objetivo_usuario: 'CASUAL' | 'CONHECER' | 'NAMORO'
-  ritmo_usuario: 'RAPIDO' | 'MEDIO' | 'LENTO'
-  estagio: 'FIRST_CHAT' | 'TALKING' | 'POST_DATE'
-  iniciativa: 'VOCE' | 'MATCH' | 'MEIO_A_MEIO'
-  frequencia_contato: 'DIARIA' | 'ALTERNADA' | 'SOME'
+  // Campos opcionais para suportar formulários temáticos
+  objetivo_usuario?: 'CASUAL' | 'CONHECER' | 'NAMORO'
+  ritmo_usuario?: 'RAPIDO' | 'MEDIO' | 'LENTO'
+  estagio?: 'FIRST_CHAT' | 'TALKING' | 'POST_DATE'
+  iniciativa?: 'VOCE' | 'MATCH' | 'MEIO_A_MEIO'
+  frequencia_contato?: 'DIARIA' | 'ALTERNADA' | 'SOME'
   tempo_resposta?: 'MINUTOS' | 'HORAS' | 'DIAS'
   encontro_marcado?: 'SIM' | 'NAO'
   cancelou_encontro?: 'SIM' | 'NAO'
@@ -21,6 +22,8 @@ export type AnalysisInput = {
   texto_bio_match?: string
   trecho_chat?: string
   nome_match?: string
+  // Campos de formulários temáticos (passthrough)
+  [key: string]: any
 }
 
 export type Scores = {
@@ -120,7 +123,8 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
 }
 
-function getStageMultiplier(stage: string): number {
+function getStageMultiplier(stage?: string): number {
+  if (!stage) return 1.0
   const multipliers = (ruleset as any).stage_multipliers || {}
   return multipliers[stage] || 1.0
 }
@@ -261,7 +265,11 @@ function collectSignals(input: AnalysisInput): SignalFired[] {
   return signals
 }
 
-function calculateScores(input: AnalysisInput, signals: SignalFired[]): Scores {
+function calculateScores(
+  input: AnalysisInput, 
+  signals: SignalFired[],
+  questionWeights: Record<string, number> = {}
+): Scores {
   // Usar valores base do ruleset (psicologicamente calibrados)
   const scoreConfigs = (ruleset as any).scores || {}
   const baseScores: Scores = {
@@ -279,7 +287,7 @@ function calculateScores(input: AnalysisInput, signals: SignalFired[]): Scores {
   const signalConfigs = (ruleset as any).signals || {}
   const stageMultiplier = getStageMultiplier(input.estagio)
 
-  // Aplicar deltas dos signals
+  // Aplicar deltas dos signals com pesos ajustados
   for (const signal of signals) {
     const field = Object.keys(signalConfigs).find(f => {
       const fieldSignals = signalConfigs[f]
@@ -291,11 +299,18 @@ function calculateScores(input: AnalysisInput, signals: SignalFired[]): Scores {
       const signalConfig = Object.values(fieldSignals).find((s: any) => s.code === signal.code) as any
 
       if (signalConfig?.deltas) {
+        // Calcular multiplicador baseado no peso da pergunta
+        // Peso 0-100 -> multiplicador 0.5x-2x (peso 50 = 1x padrão)
+        const questionWeight = questionWeights[field] ?? 50
+        const weightMultiplier = 0.5 + (questionWeight / 100) * 1.5
+        
         for (const [dimension, delta] of Object.entries(signalConfig.deltas)) {
+          let adjustedDelta = (delta as number) * weightMultiplier
+          
           if (dimension === 'acao_mundo_real') {
-            baseScores[dimension as keyof Scores] += (delta as number) * stageMultiplier
+            baseScores[dimension as keyof Scores] += adjustedDelta * stageMultiplier
           } else {
-            baseScores[dimension as keyof Scores] += delta as number
+            baseScores[dimension as keyof Scores] += adjustedDelta
           }
         }
       }
@@ -303,7 +318,7 @@ function calculateScores(input: AnalysisInput, signals: SignalFired[]): Scores {
   }
 
   // Aplicar regras específicas para encontro_marcado
-  if (input.encontro_marcado === 'NAO') {
+  if (input.encontro_marcado === 'NAO' && input.estagio) {
     if (input.estagio === 'TALKING') {
       baseScores.acao_mundo_real -= 8
     } else if (input.estagio === 'POST_DATE') {
@@ -318,26 +333,30 @@ function calculateScores(input: AnalysisInput, signals: SignalFired[]): Scores {
 
   // Calcular compat_objetivo baseado no objetivo do usuário
   // Usar TODOS os campos, não apenas os opcionais
-  const userObjective = input.objetivo_usuario
+  const userObjective = input.objetivo_usuario || 'CONHECER' // Default se não informado
   
   // ============================================
-  // FATORES OBRIGATÓRIOS (sempre aplicados)
+  // FATORES OBRIGATÓRIOS (sempre aplicados se existirem)
   // ============================================
   
   // Iniciativa - desequilíbrio é ruim para qualquer objetivo
-  if (input.iniciativa === 'VOCE') {
-    baseScores.compat_objetivo -= 15 // Você sempre inicia = baixo interesse do match
-  } else if (input.iniciativa === 'MEIO_A_MEIO') {
-    baseScores.compat_objetivo += 15 // Equilibrado = bom sinal
-  } else if (input.iniciativa === 'MATCH') {
-    baseScores.compat_objetivo += 10 // Match inicia = interesse
+  if (input.iniciativa) {
+    if (input.iniciativa === 'VOCE') {
+      baseScores.compat_objetivo -= 15 // Você sempre inicia = baixo interesse do match
+    } else if (input.iniciativa === 'MEIO_A_MEIO') {
+      baseScores.compat_objetivo += 15 // Equilibrado = bom sinal
+    } else if (input.iniciativa === 'MATCH') {
+      baseScores.compat_objetivo += 10 // Match inicia = interesse
+    }
   }
   
   // Frequência de contato
-  if (input.frequencia_contato === 'DIARIA') {
-    baseScores.compat_objetivo += 15
-  } else if (input.frequencia_contato === 'SOME') {
-    baseScores.compat_objetivo -= 20
+  if (input.frequencia_contato) {
+    if (input.frequencia_contato === 'DIARIA') {
+      baseScores.compat_objetivo += 15
+    } else if (input.frequencia_contato === 'SOME') {
+      baseScores.compat_objetivo -= 20
+    }
   }
   // ALTERNADA é neutro (0)
   
@@ -720,23 +739,29 @@ function evaluateFlags(input: AnalysisInput, scores: Scores, signals: SignalFire
 }
 
 function calculateCompletenessScore(input: AnalysisInput): number {
-  const requiredFields = ['genero_match', 'objetivo_usuario', 'ritmo_usuario', 'estagio', 'iniciativa', 'frequencia_contato']
+  // Campos padrão do formulário tradicional
+  const standardFields = ['genero_match', 'objetivo_usuario', 'ritmo_usuario', 'estagio', 'iniciativa', 'frequencia_contato']
   const optionalFields = ['tempo_resposta', 'curiosidade_por_voce', 'respeito_limites', 'fala_futuro', 'encontro_marcado', 'cancelou_encontro', 'remarcou_com_data', 'disponivel_so_madrugada', 'texto_bio_match', 'trecho_chat']
 
-  let score = 0
-  const totalFields = requiredFields.length + optionalFields.length
-
-  // Campos obrigatórios valem mais
-  for (const field of requiredFields) {
-    if ((input as any)[field]) score += 10
+  // Contar todos os campos preenchidos (incluindo campos de formulários temáticos)
+  const excludeFields = ['sinais_alerta', 'inegociaveis', 'themeId']
+  let filledCount = 0
+  let totalCount = 0
+  
+  for (const [key, value] of Object.entries(input)) {
+    if (excludeFields.includes(key)) continue
+    if (Array.isArray(value)) continue // Arrays são tratados separadamente
+    
+    totalCount++
+    if (value !== undefined && value !== null && value !== '') {
+      filledCount++
+    }
   }
 
-  // Campos opcionais valem menos
-  for (const field of optionalFields) {
-    if ((input as any)[field]) score += 3
-  }
-
-  return Math.min(100, Math.round((score / (requiredFields.length * 10 + optionalFields.length * 3)) * 100))
+  // Se não há campos suficientes para calcular, retornar um valor base
+  if (totalCount === 0) return 50
+  
+  return Math.min(100, Math.round((filledCount / totalCount) * 100))
 }
 
 function generateFreeTeaser(
@@ -937,7 +962,8 @@ function generatePremiumReport(
     'CASUAL': 'algo casual'
   }
   
-  let compatExplanation = `Compatibilidade com seu objetivo (${objetivoLabels[input.objetivo_usuario] || input.objetivo_usuario}): ${scores.compat_objetivo}/100. `
+  const userObjective = input.objetivo_usuario || 'CONHECER'
+  let compatExplanation = `Compatibilidade com seu objetivo (${objetivoLabels[userObjective] || userObjective}): ${scores.compat_objetivo}/100. `
   if (compatibilityAlignment === 'ALINHADO') {
     compatExplanation += 'O comportamento demonstrado é compatível com o que você busca.'
   } else if (compatibilityAlignment === 'PARCIAL') {
@@ -1008,7 +1034,7 @@ function generatePremiumReport(
     }
   }
 
-  const currentStageConfig = stageActions[input.estagio] || stageActions['TALKING']
+  const currentStageConfig = stageActions[input.estagio || 'TALKING'] || stageActions['TALKING']
 
   // Adicionar hipóteses com títulos e descrições
   const enrichedHypotheses = hypotheses.map(h => ({
@@ -1066,19 +1092,21 @@ function generateNextActions(input: AnalysisInput, scores: Scores): string[] {
   }
 
   // Ações baseadas em estágio
-  if (input.estagio === 'TALKING') {
-    if (!input.encontro_marcado || input.encontro_marcado === 'NAO') {
-      if (scores.acao_mundo_real > 50) {
-        actions.push('Proponha um encontro casual para testar interesse real no mundo offline')
-      } else {
-        actions.push('Observe se há iniciativa de encontro do outro lado antes de propor')
+  if (input.estagio) {
+    if (input.estagio === 'TALKING') {
+      if (!input.encontro_marcado || input.encontro_marcado === 'NAO') {
+        if (scores.acao_mundo_real > 50) {
+          actions.push('Proponha um encontro casual para testar interesse real no mundo offline')
+        } else {
+          actions.push('Observe se há iniciativa de encontro do outro lado antes de propor')
+        }
       }
     }
-  }
 
-  if (input.estagio === 'POST_DATE') {
-    if (scores.constancia < 50) {
-      actions.push('Atenção: fase crítica pós-encontro - se comunicação diminuiu, pode ser sinal de desinteresse')
+    if (input.estagio === 'POST_DATE') {
+      if (scores.constancia < 50) {
+        actions.push('Atenção: fase crítica pós-encontro - se comunicação diminuiu, pode ser sinal de desinteresse')
+      }
     }
   }
 
@@ -1095,12 +1123,15 @@ function generateNextActions(input: AnalysisInput, scores: Scores): string[] {
   return actions.slice(0, 5)
 }
 
-export function analyze(input: AnalysisInput): AnalysisResult {
+export function analyze(
+  input: AnalysisInput, 
+  questionWeights: Record<string, number> = {}
+): AnalysisResult {
   // Coletar signals
   const signals = collectSignals(input)
 
-  // Calcular scores
-  const scores = calculateScores(input, signals)
+  // Calcular scores (passando pesos das perguntas)
+  const scores = calculateScores(input, signals, questionWeights)
 
   // Avaliar hipóteses
   const hypotheses = evaluateHypotheses(input, scores, signals)
@@ -1123,8 +1154,9 @@ export function analyze(input: AnalysisInput): AnalysisResult {
   return {
     meta: {
       created_at: new Date().toISOString(),
-      stage: input.estagio,
-      completeness_score: completenessScore
+      stage: input.estagio || 'TALKING', // Default para TALKING se não informado
+      completeness_score: completenessScore,
+      question_weights_applied: Object.keys(questionWeights).length > 0
     },
     scores,
     hypotheses_top3: hypotheses,

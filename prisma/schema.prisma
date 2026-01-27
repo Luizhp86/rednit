@@ -25,6 +25,8 @@ model User {
   email             String    @unique
   name              String?
   phone             String?   // Telefone obrigatorio para gerar lead
+  instagram         String?   // Instagram do usuário (opcional)
+  facebook          String?   // Facebook do usuário (opcional)
   plan              Plan      @default(FREE)
   creditsFreeDaily  Int       @default(1)
   creditsPaid       Int       @default(0)
@@ -50,14 +52,17 @@ model Analysis {
   resultJson             Json
   isPaid                 Boolean        @default(false)
   usedInRouteCorrection  Boolean        @default(false)
+  themeId                String?        // Tema do formulário usado (null = formulário legado)
   createdAt              DateTime       @default(now())
 
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  leads Lead[] // Leads gerados a partir desta analise
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme FormTheme? @relation(fields: [themeId], references: [id], onDelete: SetNull)
+  leads Lead[]     // Leads gerados a partir desta analise
 
   @@index([userId])
   @@index([createdAt])
   @@index([usedInRouteCorrection])
+  @@index([themeId])
   @@map("analyses")
 }
 
@@ -119,11 +124,19 @@ model Entitlement {
 model SystemConfig {
   id        String   @id @default("default")
   
-  // Configurações de análise de comportamento
-  minAnalysesFirstTime     Int @default(3)  // Mínimo para primeira análise
-  minNewAnalysesForUnlock  Int @default(4)  // Mínimo de novas para desbloquear
+  // ============================================
+  // LIMITES DA JORNADA DO LEAD
+  // ============================================
   
-  // Configurações de créditos
+  // Análises
+  leadMaxAnalysesPerDay        Int @default(50)  // Máximo de análises por lead/dia
+  
+  // Análise de comportamento (route correction)
+  leadMaxRouteCorrectionPerDay Int @default(3)   // Máximo de análises de comportamento por lead/dia
+  minAnalysesFirstTime         Int @default(3)   // Mínimo de análises para primeira análise de comportamento
+  minNewAnalysesForUnlock      Int @default(4)   // Mínimo de novas análises para desbloquear próxima
+  
+  // Configurações de créditos (legado - mantido por compatibilidade)
   freeCreditsDaily         Int @default(10) // Créditos gratuitos por dia
   
   // Controle de gastos Gemini
@@ -508,4 +521,111 @@ model Lead {
   @@index([userId])
   @@index([createdAt])
   @@map("leads")
+}
+
+// ============================================
+// SISTEMA DE FORMULÁRIOS TEMÁTICOS
+// ============================================
+
+// Tema do formulário (ex: "Relacionamento", "Encontro de Carnaval")
+model FormTheme {
+  id          String   @id @default(uuid())
+  name        String   @unique  // Slug: "relacionamento-geral", "encontro-carnaval"
+  displayName String              // Nome para exibição: "Relacionamento Geral"
+  description String?             // Descrição do tema
+  icon        String?             // Nome do ícone (Lucide)
+  color       String   @default("purple") // Cor do tema (para UI)
+  active      Boolean  @default(true)     // Se está ativo e disponível
+  order       Int      @default(0)        // Ordem de exibição
+  
+  // Temas sazonais
+  seasonal    Boolean  @default(false)    // Se é um tema sazonal
+  startDate   DateTime?                   // Data de início (para sazonais)
+  endDate     DateTime?                   // Data de fim (para sazonais)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  questions   FormQuestion[]
+  analyses    Analysis[]
+  
+  @@index([active])
+  @@index([order])
+  @@index([seasonal])
+  @@map("form_themes")
+}
+
+enum QuestionType {
+  CARD_SELECT      // Seleção com cards
+  TEXTAREA         // Texto livre
+  AVATAR_SELECT    // Seleção com avatar (ex: nome do match)
+  NUMBER           // Número
+  MULTI_SELECT     // Múltipla escolha
+}
+
+enum FixedQuestionPosition {
+  BEFORE  // Antes das perguntas do tema
+  AFTER   // Depois das perguntas do tema
+}
+
+// Pergunta do formulário
+model FormQuestion {
+  id          String       @id @default(uuid())
+  themeId     String?                      // null = pergunta fixa (global)
+  theme       FormTheme?   @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  
+  // Identificação
+  key         String                       // Chave única: "genero_match", "objetivo_usuario"
+  label       String                       // Texto da pergunta
+  description String?                      // Texto de ajuda/descrição
+  
+  // Tipo e configuração
+  type        QuestionType                 // Tipo de input
+  required    Boolean      @default(false) // Se é obrigatória
+  order       Int                          // Ordem de exibição no tema
+  
+  // Peso na análise (0-100)
+  weight      Int          @default(50)    // Importância para a análise
+  
+  // UI/UX
+  placeholder String?                      // Placeholder para inputs de texto
+  rows        Int?                         // Número de linhas para textarea
+  autoAdvance Boolean      @default(false) // Avança automaticamente após seleção
+  
+  // Lógica condicional
+  showIf      Json?                        // Condições para exibir: { field: "cancelou_encontro", value: "SIM" }
+  
+  // Perguntas fixas (aparecem em todos os temas)
+  isFixed         Boolean                   @default(false)
+  fixedPosition   FixedQuestionPosition?    // BEFORE ou AFTER (apenas se isFixed = true)
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  options     FormQuestionOption[]
+  
+  @@unique([themeId, key])
+  @@index([themeId, order])
+  @@index([isFixed])
+  @@map("form_questions")
+}
+
+// Opções de resposta para perguntas tipo card-select ou multi-select
+model FormQuestionOption {
+  id          String       @id @default(uuid())
+  questionId  String
+  question    FormQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  
+  value       String       // Valor: "ELE", "ELA", "CASUAL"
+  label       String       // Label para exibição: "Ele", "Ela", "Casual"
+  hint        String?      // Dica/subtítulo
+  icon        String?      // Nome do ícone (Lucide)
+  color       String?      // Cor da opção (blue, pink, etc)
+  order       Int          @default(0) // Ordem de exibição
+  
+  createdAt   DateTime     @default(now())
+  
+  @@unique([questionId, value])
+  @@index([questionId, order])
+  @@map("form_question_options")
 }

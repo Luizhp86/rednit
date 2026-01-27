@@ -91,6 +91,7 @@ export async function GET(
   }
 }
 
+// POST: Desbloquear análise (modelo B2B - sem pagamento para leads)
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -130,44 +131,13 @@ export async function POST(
       return NextResponse.json({ error: 'Análise já desbloqueada' }, { status: 400 })
     }
 
-    // Se for PRO, desbloquear automaticamente
-    if (dbUser.plan === 'PRO') {
-      await prisma.analysis.update({
-        where: { id },
-        data: { isPaid: true },
-      })
-      return NextResponse.json({ success: true, message: 'Análise desbloqueada' })
-    }
-
-    // Verificar se tem créditos pagos
-    if (dbUser.creditsPaid <= 0) {
-      return NextResponse.json(
-        { error: 'Você não tem créditos disponíveis. Compre um pacote para desbloquear análises.' },
-        { status: 403 }
-      )
-    }
-
-    // Desbloquear usando crédito
-    await prisma.$transaction([
-      prisma.analysis.update({
-        where: { id },
-        data: { isPaid: true },
-      }),
-      prisma.user.update({
-        where: { id: dbUser.id },
-        data: {
-          creditsPaid: {
-            decrement: 1,
-          },
-        },
-      }),
-    ])
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Análise desbloqueada com sucesso',
-      creditsRemaining: dbUser.creditsPaid - 1,
+    // Modelo B2B: Desbloquear automaticamente para todos os usuários
+    await prisma.analysis.update({
+      where: { id },
+      data: { isPaid: true },
     })
+
+    return NextResponse.json({ success: true, message: 'Análise desbloqueada' })
   } catch (error) {
     console.error('Error unlocking analysis:', error)
     return NextResponse.json({ error: 'Erro ao desbloquear análise' }, { status: 500 })

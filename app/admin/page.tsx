@@ -36,13 +36,19 @@ import {
   Trash2,
   Edit,
   UserCog,
-  Sliders
+  Sliders,
+  Layers
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { FormThemesManager } from '@/components/admin/form-themes-manager'
 
 type SystemConfig = {
+  // Limites da jornada do lead
+  leadMaxAnalysesPerDay: number
+  leadMaxRouteCorrectionPerDay: number
   minAnalysesFirstTime: number
   minNewAnalysesForUnlock: number
+  // Legado
   freeCreditsDaily: number
   geminiDailyLimit: number
   geminiMonthlyBudgetCents: number
@@ -101,7 +107,7 @@ export default function AdminPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'config' | 'users' | 'logs' | 'apikeys' | 'therapists' | 'leads' | 'admins' | 'demos'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'config' | 'users' | 'logs' | 'apikeys' | 'therapists' | 'leads' | 'admins' | 'demos' | 'forms'>('dashboard')
   
   // Dashboard data
   const [stats, setStats] = useState<Stats | null>(null)
@@ -912,10 +918,36 @@ export default function AdminPage() {
     }).format(cents / 100)
   }
 
+  // Tab configuration para renderização dinâmica
+  const tabs = [
+    { id: 'dashboard', label: 'Dashboard', icon: BarChart3, onClick: () => setActiveTab('dashboard') },
+    { id: 'config', label: 'Config', icon: Settings, onClick: () => setActiveTab('config') },
+    { id: 'users', label: 'Usuários', icon: Users, onClick: () => { setActiveTab('users'); loadUsers(1, ''); } },
+    { id: 'therapists', label: 'Terapeutas', icon: UserCheck, onClick: () => { setActiveTab('therapists'); loadTherapists(1, '', ''); } },
+    { id: 'leads', label: 'Leads', icon: MessageCircle, onClick: () => { setActiveTab('leads'); loadAdminLeads(1, '', '', ''); loadAllTherapists(); } },
+    { id: 'forms', label: 'Formulários', icon: Layers, onClick: () => setActiveTab('forms') },
+    { id: 'demos', label: 'Demos', icon: Activity, onClick: () => { setActiveTab('demos'); loadDemos(1, ''); } },
+    { id: 'logs', label: 'Logs', icon: FileText, onClick: () => { setActiveTab('logs'); loadLogs(1); } },
+    { id: 'apikeys', label: 'API Keys', icon: Key, onClick: () => { setActiveTab('apikeys'); loadApiKeys(); } },
+    { id: 'admins', label: 'Admins', icon: UserCog, onClick: () => { setActiveTab('admins'); loadAdmins(); } },
+  ]
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center relative overflow-hidden">
+        {/* Background grid pattern */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(20,184,166,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(20,184,166,0.03)_1px,transparent_1px)] bg-[size:50px_50px]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 via-transparent to-cyan-500/5" />
+        
+        <div className="relative flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="absolute inset-0 animate-ping rounded-full bg-teal-500/20" />
+            <div className="relative w-16 h-16 rounded-full border-2 border-teal-500/50 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full border-t-2 border-teal-400 animate-spin" />
+            </div>
+          </div>
+          <p className="text-teal-400/80 text-sm font-mono tracking-wider uppercase">Inicializando sistema...</p>
+        </div>
       </div>
     )
   }
@@ -925,162 +957,111 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <nav className="bg-gray-800 border-b border-gray-700">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="flex items-center gap-3">
-              <Logo size="lg" variant="dark" />
-              <div className="flex flex-col">
-                <span className="text-sm md:text-base font-semibold text-purple-400">
-                  Coach de Relacionamentos
-                </span>
-                <span className="text-xs text-gray-400 hidden md:block">
-                  Análise objetiva do seu match
-                </span>
+    <div className="min-h-screen bg-[#0a0a0f] text-white relative">
+      {/* Background Effects */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(20,184,166,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(20,184,166,0.02)_1px,transparent_1px)] bg-[size:60px_60px]" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-teal-500/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-cyan-500/5 rounded-full blur-[100px]" />
+      </div>
+
+      {/* Header - Command Bar */}
+      <nav className="relative z-50 bg-[#0d0d14]/80 backdrop-blur-xl border-b border-white/5">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-6">
+              <Link href="/dashboard" className="flex items-center gap-3 group">
+                <div className="relative">
+                  <Logo size="lg" variant="dark" />
+                  <div className="absolute -inset-1 bg-teal-500/20 rounded-lg blur opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-base font-semibold bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">
+                    Radar Match
+                  </span>
+                  <span className="text-xs text-white/40 font-mono">
+                    Control Panel v2.0
+                  </span>
+                </div>
+              </Link>
+              
+              {/* Status Badge */}
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 border border-red-500/30 rounded-full">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-xs font-bold text-red-400 tracking-wider uppercase">Admin Mode</span>
               </div>
-            </Link>
-            <span className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">ADMIN</span>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={loadDashboard}
+                className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/60 hover:text-teal-400 transition-all group"
+                title="Recarregar dados"
+              >
+                <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
+              </button>
+              <Link 
+                href="/dashboard" 
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/60 hover:text-white transition-all text-sm"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Voltar</span>
+              </Link>
+            </div>
           </div>
-          <Link href="/dashboard" className="text-gray-400 hover:text-white">
-            Voltar ao App
-          </Link>
         </div>
       </nav>
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Tabs */}
-        <div className="flex gap-2 mb-8">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
-              activeTab === 'dashboard' 
-                ? 'bg-purple-600 text-white' 
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
-          >
-            <BarChart3 className="w-5 h-5" />
-            Dashboard
-          </button>
-          <button
-            onClick={() => setActiveTab('config')}
-            className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
-              activeTab === 'config' 
-                ? 'bg-purple-600 text-white' 
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
-          >
-            <Settings className="w-5 h-5" />
-            Configurações
-          </button>
-          <button
-            onClick={() => { setActiveTab('users'); loadUsers(1, ''); }}
-            className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
-              activeTab === 'users' 
-                ? 'bg-purple-600 text-white' 
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
-          >
-            <Users className="w-5 h-5" />
-            Usuários
-          </button>
-          <button
-            onClick={() => { setActiveTab('logs'); loadLogs(1); }}
-            className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
-              activeTab === 'logs' 
-                ? 'bg-purple-600 text-white' 
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
-          >
-            <FileText className="w-5 h-5" />
-            Logs
-          </button>
-          <button
-            onClick={() => { setActiveTab('apikeys'); loadApiKeys(); }}
-            className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
-              activeTab === 'apikeys' 
-                ? 'bg-purple-600 text-white' 
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
-          >
-            <Key className="w-5 h-5" />
-            API Keys
-          </button>
-          <button
-            onClick={() => { setActiveTab('therapists'); loadTherapists(1, '', ''); }}
-            className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
-              activeTab === 'therapists' 
-                ? 'bg-purple-600 text-white' 
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
-          >
-            <UserCheck className="w-5 h-5" />
-            Terapeutas
-          </button>
-          <button
-            onClick={() => { setActiveTab('leads'); loadAdminLeads(1, '', '', ''); loadAllTherapists(); }}
-            className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
-              activeTab === 'leads' 
-                ? 'bg-purple-600 text-white' 
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
-          >
-            <MessageCircle className="w-5 h-5" />
-            Leads
-          </button>
-          <button
-            onClick={() => { setActiveTab('demos'); loadDemos(1, ''); }}
-            className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
-              activeTab === 'demos' 
-                ? 'bg-purple-600 text-white' 
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            Demos
-          </button>
-          <button
-            onClick={() => { setActiveTab('admins'); loadAdmins(); }}
-            className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition ${
-              activeTab === 'admins' 
-                ? 'bg-purple-600 text-white' 
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
-          >
-            <UserCog className="w-5 h-5" />
-            Admins
-          </button>
-          
-          {/* Botão Refresh */}
-          <button
-            onClick={loadDashboard}
-            className="ml-auto px-4 py-3 rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700 transition"
-            title="Recarregar dados"
-          >
-            <RefreshCw className="w-5 h-5" />
-          </button>
+      <div className="relative z-10 container mx-auto px-6 py-8">
+        {/* Navigation Tabs */}
+        <div className="flex flex-wrap gap-1 mb-8 p-1 bg-white/[0.02] rounded-2xl border border-white/5">
+          {tabs.map((tab) => {
+            const Icon = tab.icon
+            const isActive = activeTab === tab.id
+            
+            return (
+              <button
+                key={tab.id}
+                onClick={tab.onClick}
+                className={`relative px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all duration-300 text-sm ${
+                  isActive 
+                    ? 'text-white' 
+                    : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+                }`}
+              >
+                {isActive && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-teal-500/20 to-cyan-500/20 rounded-xl border border-teal-500/30" />
+                )}
+                <Icon className={`relative w-4 h-4 ${isActive ? 'text-teal-400' : ''}`} />
+                <span className="relative">{tab.label}</span>
+                {isActive && (
+                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-gradient-to-r from-teal-400 to-cyan-400 rounded-full" />
+                )}
+              </button>
+            )
+          })}
         </div>
 
-        {/* Mensagem de Erro */}
+        {/* Error Message */}
         {error && (
-          <Card className="bg-red-900/50 border-red-700 p-4 mb-6">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-6 h-6 text-red-400" />
-              <div>
-                <p className="text-red-200 font-semibold">Erro ao carregar dados</p>
-                <p className="text-red-300 text-sm">{error}</p>
+          <div className="relative mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 to-transparent" />
+            <div className="relative flex items-center gap-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-red-300 font-semibold text-sm">Erro ao carregar dados</p>
+                <p className="text-red-400/70 text-xs mt-0.5">{error}</p>
               </div>
               <button 
                 onClick={loadDashboard}
-                className="ml-auto bg-red-700 hover:bg-red-600 px-4 py-2 rounded text-white text-sm"
+                className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-300 text-sm font-medium transition-colors"
               >
                 Tentar novamente
               </button>
             </div>
-          </Card>
+          </div>
         )}
 
         {/* Loading */}
@@ -1094,125 +1075,133 @@ export default function AdminPage() {
         {/* Dashboard Tab */}
         {activeTab === 'dashboard' && stats && (
           <div className="space-y-6">
-            {/* Stats Cards */}
+            {/* Stats Cards - Redesigned */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="bg-gray-800 border-gray-700 p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-blue-600/20 rounded-lg">
-                    <Users className="w-6 h-6 text-blue-500" />
+              {/* Usuários Card */}
+              <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f1419] to-[#0a0d10] border border-white/5 p-6 hover:border-cyan-500/30 transition-all duration-500">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl group-hover:bg-cyan-500/20 transition-all" />
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2 bg-cyan-500/10 rounded-xl border border-cyan-500/20">
+                      <Users className="w-5 h-5 text-cyan-400" />
+                    </div>
+                    <span className="text-xs font-mono text-cyan-500/60 tracking-wider">USERS</span>
                   </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">Usuários</p>
-                    <p className="text-2xl font-bold text-white">{stats.users.total}</p>
-                    <p className="text-xs text-gray-500">
-                      {stats.users.withPhone || 0} com telefone
-                    </p>
-                  </div>
+                  <p className="text-4xl font-bold text-white mb-1 tracking-tight">{stats.users.total.toLocaleString()}</p>
+                  <p className="text-sm text-white/40">
+                    <span className="text-cyan-400">{stats.users.withPhone || 0}</span> com telefone
+                  </p>
                 </div>
-              </Card>
-
-              <Card className="bg-gray-800 border-gray-700 p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-purple-600/20 rounded-lg">
-                    <BarChart3 className="w-6 h-6 text-purple-500" />
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">Análises</p>
-                    <p className="text-2xl font-bold text-white">{stats.analyses.total}</p>
-                    <p className="text-xs text-gray-500">
-                      {stats.analyses.today} hoje / {stats.analyses.thisMonth} este mês
-                    </p>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="bg-gray-800 border-gray-700 p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-green-600/20 rounded-lg">
-                    <UserCheck className="w-6 h-6 text-green-500" />
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">Terapeutas</p>
-                    <p className="text-2xl font-bold text-white">{stats.therapists?.total || 0}</p>
-                    <p className="text-xs text-gray-500">
-                      {stats.therapists?.approved || 0} aprovados / {stats.therapists?.pending || 0} pendentes
-                    </p>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="bg-gray-800 border-gray-700 p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-pink-600/20 rounded-lg">
-                    <MessageCircle className="w-6 h-6 text-pink-500" />
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">Leads Gerados</p>
-                    <p className="text-2xl font-bold text-white">{stats.leads?.total || 0}</p>
-                    <p className="text-xs text-gray-500">
-                      {stats.leads?.today || 0} hoje / {stats.leads?.converted || 0} convertidos
-                    </p>
-                  </div>
-                </div>
-              </Card>
-
-            </div>
-
-            {/* Segunda linha de cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card className="bg-gray-800 border-gray-700 p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-orange-600/20 rounded-lg">
-                    <Cpu className="w-6 h-6 text-orange-500" />
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">Gemini API</p>
-                    <p className="text-2xl font-bold text-white">{stats.gemini.callsToday}</p>
-                    <p className="text-xs text-gray-500">
-                      chamadas hoje / {stats.gemini.callsThisMonth} este mês
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            </div>
-
-            {/* Top Users */}
-            <Card className="bg-gray-800 border-gray-700 p-6">
-              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-purple-500" />
-                Top Usuários por Análises
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-left text-gray-400 text-sm border-b border-gray-700">
-                      <th className="pb-3">Email</th>
-                      <th className="pb-3">Nome</th>
-                      <th className="pb-3">Telefone</th>
-                      <th className="pb-3">Análises</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topUsers.map((user, idx) => (
-                      <tr key={user.id} className="border-b border-gray-700/50">
-                        <td className="py-3 text-white">{user.email}</td>
-                        <td className="py-3 text-gray-400">{user.name || '-'}</td>
-                        <td className="py-3">
-                          {user.phone ? (
-                            <span className="px-2 py-1 rounded text-xs font-bold bg-green-600/20 text-green-400">
-                              {user.phone}
-                            </span>
-                          ) : (
-                            <span className="text-gray-500 text-xs">-</span>
-                          )}
-                        </td>
-                        <td className="py-3 text-white font-semibold">{user.analysesCount}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
-            </Card>
+
+              {/* Análises Card */}
+              <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f1419] to-[#0a0d10] border border-white/5 p-6 hover:border-teal-500/30 transition-all duration-500">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/10 rounded-full blur-3xl group-hover:bg-teal-500/20 transition-all" />
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2 bg-teal-500/10 rounded-xl border border-teal-500/20">
+                      <BarChart3 className="w-5 h-5 text-teal-400" />
+                    </div>
+                    <span className="text-xs font-mono text-teal-500/60 tracking-wider">ANÁLISES</span>
+                  </div>
+                  <p className="text-4xl font-bold text-white mb-1 tracking-tight">{stats.analyses.total.toLocaleString()}</p>
+                  <div className="flex items-center gap-2 text-sm text-white/40">
+                    <span className="px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-400 text-xs">{stats.analyses.today} hoje</span>
+                    <span>{stats.analyses.thisMonth} mês</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Terapeutas Card */}
+              <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f1419] to-[#0a0d10] border border-white/5 p-6 hover:border-emerald-500/30 transition-all duration-500">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all" />
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                      <UserCheck className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <span className="text-xs font-mono text-emerald-500/60 tracking-wider">TERAPEUTAS</span>
+                  </div>
+                  <p className="text-4xl font-bold text-white mb-1 tracking-tight">{stats.therapists?.total || 0}</p>
+                  <div className="flex items-center gap-2 text-sm text-white/40">
+                    <span className="text-emerald-400">{stats.therapists?.approved || 0}</span> aprovados
+                    <span className="text-white/20">•</span>
+                    <span className="text-amber-400">{stats.therapists?.pending || 0}</span> pendentes
+                  </div>
+                </div>
+              </div>
+
+              {/* Leads Card */}
+              <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f1419] to-[#0a0d10] border border-white/5 p-6 hover:border-pink-500/30 transition-all duration-500">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-pink-500/10 rounded-full blur-3xl group-hover:bg-pink-500/20 transition-all" />
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2 bg-pink-500/10 rounded-xl border border-pink-500/20">
+                      <MessageCircle className="w-5 h-5 text-pink-400" />
+                    </div>
+                    <span className="text-xs font-mono text-pink-500/60 tracking-wider">LEADS</span>
+                  </div>
+                  <p className="text-4xl font-bold text-white mb-1 tracking-tight">{stats.leads?.total || 0}</p>
+                  <div className="flex items-center gap-2 text-sm text-white/40">
+                    <span className="text-pink-400">{stats.leads?.today || 0}</span> hoje
+                    <span className="text-white/20">•</span>
+                    <span className="text-green-400">{stats.leads?.converted || 0}</span> convertidos
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* API Usage Card */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-1 relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f1419] to-[#0a0d10] border border-white/5 p-6">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                      <Cpu className="w-5 h-5 text-amber-400" />
+                    </div>
+                    <span className="text-xs font-mono text-amber-500/60 tracking-wider">GEMINI API</span>
+                  </div>
+                  <p className="text-4xl font-bold text-white mb-1 tracking-tight">{stats.gemini.callsToday}</p>
+                  <p className="text-sm text-white/40">
+                    <span className="text-amber-400">{stats.gemini.callsThisMonth}</span> chamadas este mês
+                  </p>
+                </div>
+              </div>
+
+              {/* Top Users - Redesigned */}
+              <div className="md:col-span-2 relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f1419] to-[#0a0d10] border border-white/5 p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-teal-400" />
+                    Top Usuários
+                  </h3>
+                  <span className="text-xs font-mono text-white/30">POR ANÁLISES</span>
+                </div>
+                <div className="space-y-3">
+                  {topUsers.slice(0, 5).map((user, idx) => (
+                    <div key={user.id} className="flex items-center gap-4 p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] transition-colors">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500/20 to-cyan-500/20 flex items-center justify-center border border-white/10">
+                        <span className="text-xs font-bold text-teal-400">#{idx + 1}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-white truncate">{user.email}</p>
+                        <p className="text-xs text-white/40">{user.name || 'Sem nome'}</p>
+                      </div>
+                      {user.phone && (
+                        <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                          <Phone className="w-3 h-3 text-emerald-400" />
+                          <span className="text-xs text-emerald-400 font-mono">{user.phone}</span>
+                        </div>
+                      )}
+                      <div className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/20">
+                        <span className="text-sm font-bold text-teal-400">{user.analysesCount}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1227,11 +1216,44 @@ export default function AdminPage() {
         {/* Config Tab */}
         {activeTab === 'config' && configDraft && (
           <div className="space-y-6">
+            {/* Limites da Jornada do Lead */}
             <Card className="bg-gray-800 border-gray-700 p-6">
               <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                <Zap className="w-5 h-5 text-yellow-500" />
-                Análise de Comportamento
+                <Target className="w-5 h-5 text-purple-500" />
+                Limites da Jornada do Lead
               </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Máx. análises por dia (por lead)
+                  </label>
+                  <Input
+                    type="number"
+                    value={configDraft.leadMaxAnalysesPerDay ?? 50}
+                    onChange={(e) => setConfigDraft({...configDraft, leadMaxAnalysesPerDay: parseInt(e.target.value) || 50})}
+                    className="bg-gray-700 border-gray-600 text-white"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Limite de análises de match que um lead pode fazer por dia
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">
+                    Máx. análises de comportamento por dia (por lead)
+                  </label>
+                  <Input
+                    type="number"
+                    value={configDraft.leadMaxRouteCorrectionPerDay ?? 3}
+                    onChange={(e) => setConfigDraft({...configDraft, leadMaxRouteCorrectionPerDay: parseInt(e.target.value) || 3})}
+                    className="bg-gray-700 border-gray-600 text-white"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Limite de análises de comportamento por dia (usa Gemini)
+                  </p>
+                </div>
+              </div>
+              
+              <h4 className="text-md font-semibold text-gray-300 mt-6 mb-4">Desbloqueio de Análise de Comportamento</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-gray-400 text-sm mb-2">
@@ -4035,6 +4057,11 @@ export default function AdminPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Forms Tab */}
+        {activeTab === 'forms' && (
+          <FormThemesManager />
         )}
       </div>
     </div>

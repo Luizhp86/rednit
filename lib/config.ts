@@ -2,19 +2,23 @@ import { prisma } from './prisma'
 
 // Configurações padrão (usadas se não houver no banco)
 const DEFAULT_CONFIG = {
+  // Limites da jornada do lead
+  leadMaxAnalysesPerDay: 50,
+  leadMaxRouteCorrectionPerDay: 3,
   minAnalysesFirstTime: 3,
   minNewAnalysesForUnlock: 4,
+  // Legado
   freeCreditsDaily: 10,
   geminiDailyLimit: 100,
   geminiMonthlyBudgetCents: 50000,
   // Modelos Gemini configuráveis
   geminiModelAnalysis: 'gemini-1.5-flash',
   geminiModelRouteCorrection: 'gemini-2.0-flash',
-  // Preços de assinatura
+  // Preços de assinatura (legado)
   proPriceMonthly: 2990,
   proPriceQuarterly: 7990,
   proPriceYearly: 29900,
-  // Preços de pacotes de créditos
+  // Preços de pacotes de créditos (legado)
   creditPriceSingle: 799,
   creditPricePack3: 2490,
   creditPricePack5: 3990,
@@ -42,8 +46,12 @@ export async function getSystemConfig(): Promise<SystemConfig> {
 
     if (config) {
       return {
+        // Limites da jornada do lead
+        leadMaxAnalysesPerDay: config.leadMaxAnalysesPerDay,
+        leadMaxRouteCorrectionPerDay: config.leadMaxRouteCorrectionPerDay,
         minAnalysesFirstTime: config.minAnalysesFirstTime,
         minNewAnalysesForUnlock: config.minNewAnalysesForUnlock,
+        // Legado
         freeCreditsDaily: config.freeCreditsDaily,
         geminiDailyLimit: config.geminiDailyLimit,
         geminiMonthlyBudgetCents: config.geminiMonthlyBudgetCents,
@@ -67,8 +75,12 @@ export async function getSystemConfig(): Promise<SystemConfig> {
         data: { id: 'default' }
       })
       return {
+        // Limites da jornada do lead
+        leadMaxAnalysesPerDay: newConfig.leadMaxAnalysesPerDay,
+        leadMaxRouteCorrectionPerDay: newConfig.leadMaxRouteCorrectionPerDay,
         minAnalysesFirstTime: newConfig.minAnalysesFirstTime,
         minNewAnalysesForUnlock: newConfig.minNewAnalysesForUnlock,
+        // Legado
         freeCreditsDaily: newConfig.freeCreditsDaily,
         geminiDailyLimit: newConfig.geminiDailyLimit,
         geminiMonthlyBudgetCents: newConfig.geminiMonthlyBudgetCents,

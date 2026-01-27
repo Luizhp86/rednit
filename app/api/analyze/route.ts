@@ -2,17 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { analyze, type AnalysisInput } from '@/lib/rules/engine'
-import { analysisInputSchema } from '@/lib/validations/analysis'
-import { startOfDay } from 'date-fns'
+import { analysisInputSchema, themeAnalysisInputSchema } from '@/lib/validations/analysis'
 import { generateLead } from '@/lib/lead-rotation'
 import { sendLeadAnalysisNotification } from '@/lib/email'
+import { getSystemConfig } from '@/lib/config'
+import { startOfDay } from 'date-fns'
 
 // Simple in-memory rate limiting (for MVP)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
 
-function checkRateLimit(userId: string, limit: number): boolean {
+function checkRateLimit(userId: string): boolean {
   const now = Date.now()
   const userLimit = rateLimitMap.get(userId)
+  const limit = 100 // Limite por hora para todos os usuários
 
   if (!userLimit || now > userLimit.resetAt) {
     rateLimitMap.set(userId, { count: 1, resetAt: now + 60 * 60 * 1000 }) // 1 hour
@@ -53,37 +55,34 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Check daily reset for free users
-    const today = startOfDay(new Date())
-    if (
-      dbUser.plan === 'FREE' &&
-      (!dbUser.lastDailyReset || dbUser.lastDailyReset < today)
-    ) {
-      await prisma.user.update({
-        where: { id: dbUser.id },
-        data: {
-          creditsFreeDaily: 10, // 10 análises gratuitas por dia
-          lastDailyReset: today,
-        },
-      })
-      dbUser.creditsFreeDaily = 10
-    }
-
-    // Check credits
-    if (dbUser.plan === 'FREE') {
-      if (dbUser.creditsFreeDaily <= 0) {
-        return NextResponse.json(
-          { error: 'Limite diário de análises gratuitas atingido' },
-          { status: 403 }
-        )
-      }
-    }
-
-    // Rate limiting
-    const rateLimit = dbUser.plan === 'PRO' ? 100 : 5
-    if (!checkRateLimit(dbUser.id, rateLimit)) {
+    // Rate limiting (igual para todos os usuários - modelo B2B sem pagamento para leads)
+    if (!checkRateLimit(dbUser.id)) {
       return NextResponse.json(
         { error: 'Muitas requisições. Tente novamente em alguns minutos.' },
+        { status: 429 }
+      )
+    }
+
+    // Verificar limite diário de análises (configurável no admin)
+    const config = await getSystemConfig()
+    const today = startOfDay(new Date())
+    
+    const analysesToday = await prisma.analysis.count({
+      where: {
+        userId: dbUser.id,
+        createdAt: {
+          gte: today
+        }
+      }
+    })
+
+    if (analysesToday >= config.leadMaxAnalysesPerDay) {
+      return NextResponse.json(
+        { 
+          error: `Você atingiu o limite de ${config.leadMaxAnalysesPerDay} análises por dia. Volte amanhã!`,
+          limit: config.leadMaxAnalysesPerDay,
+          used: analysesToday
+        },
         { status: 429 }
       )
     }
@@ -97,13 +96,21 @@ export async function POST(request: NextRequest) {
     
     // Garantir que campos enum não sejam arrays
     const cleanedBody: any = { ...body }
+    const themeId = cleanedBody.themeId || null
+    const hasTheme = !!themeId
     
     // Se algum campo enum vier como array, pegar o primeiro valor
     const enumFields = ['genero_match', 'objetivo_usuario', 'ritmo_usuario', 'estagio', 'iniciativa', 'frequencia_contato', 
                         'tempo_resposta', 'encontro_marcado', 'remarcou_com_data', 'curiosidade_por_voce', 
                         'respeito_limites', 'disponivel_so_madrugada', 'fala_futuro']
     
-    const requiredFields = ['genero_match', 'objetivo_usuario', 'ritmo_usuario', 'estagio', 'iniciativa', 'frequencia_contato']
+    // Campos obrigatórios apenas para formulário padrão (sem tema)
+    const requiredFieldsStandard = ['genero_match', 'objetivo_usuario', 'ritmo_usuario', 'estagio', 'iniciativa', 'frequencia_contato']
+    // Para formulários temáticos, genero_match e objetivo_usuario são obrigatórios (perguntas fixas)
+    const requiredFieldsTheme = ['genero_match', 'objetivo_usuario']
+    
+    const requiredFields = hasTheme ? requiredFieldsTheme : requiredFieldsStandard
+    
     const optionalEnumFields = ['tempo_resposta', 'encontro_marcado', 'remarcou_com_data', 'curiosidade_por_voce', 
                                  'respeito_limites', 'disponivel_so_madrugada', 'fala_futuro']
     
@@ -148,24 +155,62 @@ export async function POST(request: NextRequest) {
     })
     
     console.log('[ANALYZE] Body limpo:', JSON.stringify(bodyWithDefaults, null, 2))
+    console.log('[ANALYZE] Usando schema:', hasTheme ? 'themeAnalysisInputSchema' : 'analysisInputSchema')
     
-    const validatedInput = analysisInputSchema.parse(bodyWithDefaults)
+    // Usar schema apropriado baseado na presença de themeId
+    const validatedInput = hasTheme 
+      ? themeAnalysisInputSchema.parse(bodyWithDefaults)
+      : analysisInputSchema.parse(bodyWithDefaults)
+
+    // Buscar pesos das perguntas se themeId está presente
+    let questionWeights: Record<string, number> = {}
+    
+    if (themeId) {
+      try {
+        const questions = await prisma.formQuestion.findMany({
+          where: {
+            OR: [
+              { themeId: themeId },
+              { isFixed: true }
+            ]
+          },
+          select: {
+            key: true,
+            weight: true
+          }
+        })
+        
+        questionWeights = questions.reduce((acc, q) => {
+          acc[q.key] = q.weight
+          return acc
+        }, {} as Record<string, number>)
+        
+        console.log('[ANALYZE] Pesos carregados:', questionWeights)
+      } catch (error) {
+        console.error('[ANALYZE] Erro ao buscar pesos:', error)
+        // Continuar sem pesos se houver erro
+      }
+    }
 
     // Run rule-based analysis (sem IA para análises individuais)
-    const result = analyze(validatedInput as AnalysisInput)
+    const result = analyze(validatedInput as AnalysisInput, questionWeights)
 
     // Save analysis
+    // Usar stage do input ou default 'TALKING' para formulários temáticos
+    const analysisStage = validatedInput.estagio || 'TALKING'
+    
     // #region agent log
-    console.log('[ANALYZE] PRE_CREATE userId:', dbUser.id, 'stage:', validatedInput.estagio)
+    console.log('[ANALYZE] PRE_CREATE userId:', dbUser.id, 'stage:', analysisStage)
     // #endregion
     
     const analysis = await prisma.analysis.create({
       data: {
         userId: dbUser.id,
-        stage: validatedInput.estagio as any,
+        stage: analysisStage as any,
         inputJson: validatedInput as any,
         resultJson: result as any,
         isPaid: false,
+        themeId: themeId,
       },
     })
 
@@ -245,18 +290,6 @@ export async function POST(request: NextRequest) {
         console.error('[ANALYZE] Erro ao gerar lead ANALYSIS:', leadError)
         // Não falhar a requisição se o lead falhar
       }
-    }
-
-    // Deduct credit for free users
-    if (dbUser.plan === 'FREE') {
-      await prisma.user.update({
-        where: { id: dbUser.id },
-        data: {
-          creditsFreeDaily: {
-            decrement: 1,
-          },
-        },
-      })
     }
 
     // #region agent log

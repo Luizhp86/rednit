@@ -95,18 +95,16 @@ export async function GET() {
     // Check if this is the first time becoming available
     const isFirstTimeAvailable = isFirstTime && totalAnalyses === config.minAnalysesFirstTime
 
+    // Modelo B2B: Leads não têm planos nem pagamentos
     return NextResponse.json({
       id: dbUser.id,
       email: dbUser.email,
       name: dbUser.name,
       phone: dbUser.phone,
-      plan: dbUser.plan,
-      creditsFreeDaily: dbUser.creditsFreeDaily,
-      creditsPaid: dbUser.creditsPaid,
-      proUntil: dbUser.proUntil,
+      instagram: dbUser.instagram,
+      facebook: dbUser.facebook,
       stats: {
         totalAnalyses,
-        totalPayments: dbUser._count.payments,
       },
       routeCorrection: {
         available: routeCorrectionAvailable,
@@ -115,18 +113,6 @@ export async function GET() {
         isFirstTime,
         isFirstTimeAvailable,
         neededForNext,
-      },
-      prices: {
-        subscription: {
-          monthly: config.proPriceMonthly,
-          quarterly: config.proPriceQuarterly,
-          yearly: config.proPriceYearly,
-        },
-        credits: {
-          single: config.creditPriceSingle,
-          pack3: config.creditPricePack3,
-          pack5: config.creditPricePack5,
-        },
       },
       therapist: latestLead?.therapist ? {
         id: latestLead.therapist.id,
@@ -162,7 +148,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, phone } = body
+    const { name, phone, instagram, facebook } = body
 
     // Verificar se é a primeira vez que o telefone está sendo adicionado
     const isFirstPhone = !dbUser.phone && phone
@@ -171,6 +157,8 @@ export async function PATCH(request: NextRequest) {
     const updateData: any = {}
     if (name) updateData.name = name
     if (phone) updateData.phone = phone
+    if (instagram !== undefined) updateData.instagram = instagram || null
+    if (facebook !== undefined) updateData.facebook = facebook || null
 
     const updatedUser = await prisma.user.update({
       where: { id: dbUser.id },
@@ -223,6 +211,8 @@ export async function PATCH(request: NextRequest) {
         email: updatedUser.email,
         name: updatedUser.name,
         phone: updatedUser.phone,
+        instagram: updatedUser.instagram,
+        facebook: updatedUser.facebook,
       }
     })
   } catch (error) {

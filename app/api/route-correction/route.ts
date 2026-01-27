@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { analyzeRouteCorrection, prepareAnalysisDataForAI, type AnalysisDataPoint } from '@/lib/ai/gemini'
 import { getSystemConfig } from '@/lib/config'
+import { startOfDay } from 'date-fns'
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,14 +23,6 @@ export async function GET(request: NextRequest) {
 
     if (!dbUser) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
-    }
-
-    // Check if user has PRO plan - Route Correction is PRO only
-    if (dbUser.plan !== 'PRO') {
-      return NextResponse.json(
-        { error: 'A Análise de Comportamento é um recurso exclusivo do Plano PRO' },
-        { status: 403 }
-      )
     }
 
     // Buscar TODAS as análises do usuário (para análise com pesos)
@@ -53,6 +46,30 @@ export async function GET(request: NextRequest) {
 
     // Buscar configurações do sistema
     const config = await getSystemConfig()
+
+    // Verificar limite diário de análises de comportamento
+    const today = startOfDay(new Date())
+    const routeCorrectionsToday = await prisma.geminiUsageLog.count({
+      where: {
+        userId: dbUser.id,
+        endpoint: 'route-correction',
+        success: true,
+        createdAt: {
+          gte: today
+        }
+      }
+    })
+
+    if (routeCorrectionsToday >= config.leadMaxRouteCorrectionPerDay) {
+      return NextResponse.json(
+        { 
+          error: `Você atingiu o limite de ${config.leadMaxRouteCorrectionPerDay} análises de comportamento por dia. Volte amanhã!`,
+          limit: config.leadMaxRouteCorrectionPerDay,
+          used: routeCorrectionsToday
+        },
+        { status: 429 }
+      )
+    }
 
     // Verificar se pode gerar (usando configurações do sistema)
     if (isFirstTime) {

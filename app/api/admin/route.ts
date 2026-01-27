@@ -35,8 +35,12 @@ async function verifyAdmin(request: NextRequest) {
 // Configurações padrão (caso tabela não exista)
 const DEFAULT_CONFIG = {
   id: 'default',
+  // Limites da jornada do lead
+  leadMaxAnalysesPerDay: 50,
+  leadMaxRouteCorrectionPerDay: 3,
   minAnalysesFirstTime: 3,
   minNewAnalysesForUnlock: 4,
+  // Legado
   freeCreditsDaily: 10,
   geminiDailyLimit: 100,
   geminiMonthlyBudgetCents: 50000,
@@ -242,8 +246,12 @@ export async function PATCH(request: NextRequest) {
 
     // Campos permitidos para atualização
     const allowedFields = [
+      // Limites da jornada do lead
+      'leadMaxAnalysesPerDay',
+      'leadMaxRouteCorrectionPerDay',
       'minAnalysesFirstTime',
       'minNewAnalysesForUnlock',
+      // Legado
       'freeCreditsDaily',
       'geminiDailyLimit',
       'geminiMonthlyBudgetCents',

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -13,12 +13,26 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { trackEvent } from '@/lib/tracking'
+import { ThemeSelector } from '@/components/theme-selector'
+import { FloatingLoader } from '@/components/floating-loader'
 import { 
   Heart, Zap, Clock, MessageCircle, Calendar, 
   AlertTriangle, CheckCircle2, XCircle, 
   TrendingUp, TrendingDown, Minus,
-  Sparkles, ArrowRight, ArrowLeft, User, Shield
+  Sparkles, ArrowRight, ArrowLeft, User, Shield,
+  Users, Target, Timer, Phone, Star, ThumbsUp, ThumbsDown,
+  Eye, EyeOff, Ban, Check, X, HelpCircle, CircleDot
 } from 'lucide-react'
+
+// Mapa de ícones disponíveis para uso dinâmico
+const iconMap: Record<string, any> = {
+  Heart, Zap, Clock, MessageCircle, Calendar,
+  AlertTriangle, CheckCircle2, XCircle,
+  TrendingUp, TrendingDown, Minus,
+  Sparkles, ArrowRight, ArrowLeft, User, Shield,
+  Users, Target, Timer, Phone, Star, ThumbsUp, ThumbsDown,
+  Eye, EyeOff, Ban, Check, X, HelpCircle, CircleDot
+}
 
 type FormData = {
   genero_match: 'ELE' | 'ELA' | ''
@@ -41,7 +55,7 @@ type FormData = {
 }
 
 type Question = {
-  id: keyof FormData
+  id: string
   label: string
   type: 'card-select' | 'number' | 'textarea' | 'avatar-select'
   required?: boolean
@@ -50,173 +64,6 @@ type Question = {
   rows?: number
   autoAdvance?: boolean
 }
-
-const QUESTIONS: Question[] = [
-  {
-    id: 'genero_match',
-    label: 'Este match é ele ou ela?',
-    type: 'card-select',
-    required: true,
-    autoAdvance: true,
-    options: [
-      { value: 'ELE', label: 'Ele', hint: 'Match masculino', icon: User, color: 'blue' },
-      { value: 'ELA', label: 'Ela', hint: 'Match feminino', icon: User, color: 'pink' },
-    ],
-  },
-  {
-    id: 'objetivo_usuario',
-    label: 'Qual seu objetivo?',
-    type: 'card-select',
-    required: true,
-    autoAdvance: true,
-    options: [
-      { value: 'CASUAL', label: 'Casual', hint: 'Algo leve', icon: Sparkles, color: 'purple' },
-      { value: 'CONHECER', label: 'Conhecer', hint: 'Ver no que dá', icon: Heart, color: 'pink' },
-      { value: 'NAMORO', label: 'Namoro sério', hint: 'Algo duradouro', icon: Heart, color: 'red' },
-    ],
-  },
-  {
-    id: 'ritmo_usuario',
-    label: 'Qual ritmo você prefere?',
-    type: 'card-select',
-    required: true,
-    autoAdvance: true,
-    options: [
-      { value: 'RAPIDO', label: 'Rápido', hint: 'Quero avançar logo', icon: Zap, color: 'yellow' },
-      { value: 'MEDIO', label: 'Médio', hint: 'Sem pressa', icon: Clock, color: 'blue' },
-      { value: 'LENTO', label: 'Lento', hint: 'Vou com calma', icon: Minus, color: 'gray' },
-    ],
-  },
-  {
-    id: 'estagio',
-    label: 'Em que estágio está?',
-    type: 'card-select',
-    required: true,
-    autoAdvance: true,
-    options: [
-      { value: 'FIRST_CHAT', label: 'Primeira conversa', hint: 'Começamos agora', icon: MessageCircle, color: 'blue' },
-      { value: 'TALKING', label: 'Conversando', hint: 'Já temos rotina', icon: MessageCircle, color: 'green' },
-      { value: 'POST_DATE', label: 'Pós-encontro', hint: 'Já nos vimos', icon: Calendar, color: 'purple' },
-    ],
-  },
-  {
-    id: 'iniciativa',
-    label: 'Quem inicia as conversas?',
-    type: 'card-select',
-    required: true,
-    autoAdvance: true,
-    options: [
-      { value: 'VOCE', label: 'Você sempre', hint: 'Você inicia', icon: TrendingUp, color: 'orange' },
-      { value: 'MATCH', label: 'Match sempre', hint: 'Eles iniciam', icon: TrendingDown, color: 'blue' },
-      { value: 'MEIO_A_MEIO', label: 'Equilibrado', hint: 'Ambos', icon: Minus, color: 'green' },
-    ],
-  },
-  {
-    id: 'frequencia_contato',
-    label: 'Frequência de contato?',
-    type: 'card-select',
-    required: true,
-    autoAdvance: true,
-    options: [
-      { value: 'DIARIA', label: 'Diária', hint: 'Todo dia', icon: CheckCircle2, color: 'green' },
-      { value: 'ALTERNADA', label: 'Alternada', hint: 'Alguns dias', icon: Clock, color: 'yellow' },
-      { value: 'SOME', label: 'Raramente', hint: 'Pouco contato', icon: XCircle, color: 'red' },
-    ],
-  },
-  {
-    id: 'tempo_resposta',
-    label: 'Tempo de resposta?',
-    type: 'card-select',
-    autoAdvance: true,
-    options: [
-      { value: 'MINUTOS', label: 'Minutos', hint: 'Rápido', icon: Zap, color: 'green' },
-      { value: 'HORAS', label: 'Horas', hint: 'Mesmo dia', icon: Clock, color: 'yellow' },
-      { value: 'DIAS', label: 'Dias', hint: 'Demora', icon: XCircle, color: 'red' },
-    ],
-  },
-  {
-    id: 'curiosidade_por_voce',
-    label: 'Curiosidade por você?',
-    type: 'card-select',
-    autoAdvance: true,
-    options: [
-      { value: 'ALTA', label: 'Alta', hint: 'Faz perguntas', icon: TrendingUp, color: 'green' },
-      { value: 'MEDIA', label: 'Média', hint: 'Interesse moderado', icon: Minus, color: 'yellow' },
-      { value: 'BAIXA', label: 'Baixa', hint: 'Pouco interesse', icon: TrendingDown, color: 'red' },
-    ],
-  },
-  {
-    id: 'respeito_limites',
-    label: 'Respeita seus limites?',
-    type: 'card-select',
-    autoAdvance: true,
-    options: [
-      { value: 'RESPEITA', label: 'Respeita', hint: 'Totalmente', icon: CheckCircle2, color: 'green' },
-      { value: 'NEGOCIA', label: 'Negocia', hint: 'Tenta negociar', icon: Clock, color: 'yellow' },
-      { value: 'INSISTE', label: 'Insiste', hint: 'Insiste demais', icon: AlertTriangle, color: 'orange' },
-      { value: 'DEBOCHA', label: 'Debocha', hint: 'Zomba', icon: XCircle, color: 'red' },
-    ],
-  },
-  {
-    id: 'fala_futuro',
-    label: 'Fala sobre futuro?',
-    type: 'card-select',
-    autoAdvance: true,
-    options: [
-      { value: 'NAO', label: 'Não fala', hint: 'Evita o assunto', icon: XCircle, color: 'gray' },
-      { value: 'FALA', label: 'Fala mas não faz', hint: 'Promete, não cumpre', icon: AlertTriangle, color: 'yellow' },
-      { value: 'FALA_E_FAZ', label: 'Fala e faz', hint: 'Cumpre', icon: CheckCircle2, color: 'green' },
-    ],
-  },
-  {
-    id: 'encontro_marcado',
-    label: 'Já marcaram encontro?',
-    type: 'card-select',
-    autoAdvance: true,
-    options: [
-      { value: 'SIM', label: 'Sim', hint: 'Já nos vimos', icon: CheckCircle2, color: 'green' },
-      { value: 'NAO', label: 'Não', hint: 'Ainda não', icon: XCircle, color: 'gray' },
-    ],
-  },
-  {
-    id: 'cancelou_encontro',
-    label: 'Já cancelou encontro?',
-    type: 'card-select',
-    autoAdvance: true,
-    options: [
-      { value: 'NAO', label: 'Não', hint: 'Nunca cancelou', icon: CheckCircle2, color: 'green' },
-      { value: 'SIM', label: 'Sim', hint: 'Já cancelou', icon: XCircle, color: 'red' },
-    ],
-  },
-  {
-    id: 'remarcou_com_data',
-    label: 'Remarcou com data?',
-    type: 'card-select',
-    autoAdvance: true,
-    options: [
-      { value: 'NAO_SE_APLICA', label: 'Não se aplica', hint: 'Não cancelou', icon: Minus, color: 'gray' },
-      { value: 'SIM', label: 'Sim', hint: 'Remarcou', icon: CheckCircle2, color: 'green' },
-      { value: 'NAO', label: 'Não', hint: 'Não remarcou', icon: XCircle, color: 'red' },
-    ],
-  },
-  {
-    id: 'disponivel_so_madrugada',
-    label: 'Só disponível de madrugada?',
-    type: 'card-select',
-    autoAdvance: true,
-    options: [
-      { value: 'NAO', label: 'Não', hint: 'Horários normais', icon: CheckCircle2, color: 'green' },
-      { value: 'SIM', label: 'Sim', hint: 'Só madrugada', icon: AlertTriangle, color: 'orange' },
-    ],
-  },
-  {
-    id: 'nome_match',
-    label: 'Como você chama este match?',
-    type: 'avatar-select',
-    required: true,
-    placeholder: 'Ex: João, Maria...',
-  },
-]
 
 const colorClasses: { [key: string]: string } = {
   purple: 'border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-900',
@@ -242,6 +89,10 @@ const selectedColorClasses: { [key: string]: string } = {
 
 export default function NewAnalysisPage() {
   const router = useRouter()
+  const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null)
+  const [dynamicQuestions, setDynamicQuestions] = useState<Question[]>([])
+  const [loadingQuestions, setLoadingQuestions] = useState(false)
+  const [questionsLoaded, setQuestionsLoaded] = useState(false)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [loading, setLoading] = useState(false)
   const [isTransitioning, setIsTransitioning] = useState(false)
@@ -272,8 +123,66 @@ export default function NewAnalysisPage() {
     nome_match: '',
   })
 
+  // Carregar perguntas quando tema é selecionado
+  useEffect(() => {
+    if (!selectedThemeId) {
+      return
+    }
+
+    const loadQuestions = async () => {
+      setLoadingQuestions(true)
+      try {
+        const response = await fetch(`/api/form-themes/${selectedThemeId}/questions`)
+        if (response.ok) {
+          const data = await response.json()
+          
+          // Mapear perguntas do banco para o formato do formulário
+          const mapped: Question[] = data.questions.map((q: any) => ({
+            id: q.key,
+            label: q.label,
+            type: q.type.toLowerCase().replace('_', '-') as any,
+            required: q.required,
+            autoAdvance: q.autoAdvance,
+            placeholder: q.placeholder || undefined,
+            rows: q.rows || undefined,
+            options: q.options?.map((opt: any) => ({
+              value: opt.value,
+              label: opt.label,
+              hint: opt.hint || undefined,
+              icon: opt.icon ? iconMap[opt.icon] : undefined,
+              color: opt.color || undefined
+            }))
+          }))
+          
+          setDynamicQuestions(mapped)
+          
+          // Inicializar formData com campos vazios
+          const initialData: any = {
+            sinais_alerta: ALL_ALERT_SIGNS,
+            inegociaveis: [],
+            nome_match: ''
+          }
+          mapped.forEach((q) => {
+            initialData[q.id] = Array.isArray(formData[q.id as keyof FormData]) ? [] : ''
+          })
+          setFormData(initialData)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar perguntas:', error)
+      } finally {
+        setLoadingQuestions(false)
+        setQuestionsLoaded(true)
+      }
+    }
+
+    loadQuestions()
+  }, [selectedThemeId])
+
+  // Usar apenas perguntas dinâmicas do banco de dados
+  const questionsToUse = dynamicQuestions
+
   const getVisibleQuestions = () => {
-    return QUESTIONS.filter((question) => {
+    return questionsToUse.filter((question) => {
       if (question.id === 'remarcou_com_data') {
         return formData.cancelou_encontro === 'SIM'
       }
@@ -354,7 +263,7 @@ export default function NewAnalysisPage() {
           updatedFormData.remarcou_com_data = ''
         }
         
-        const updatedVisibleQuestions = QUESTIONS.filter((q) => {
+        const updatedVisibleQuestions = questionsToUse.filter((q) => {
           if (q.id === 'remarcou_com_data') {
             return updatedFormData.cancelou_encontro === 'SIM'
           }
@@ -384,8 +293,13 @@ export default function NewAnalysisPage() {
     setLoading(true)
 
     try {
-      const requiredFields = ['genero_match', 'objetivo_usuario', 'ritmo_usuario', 'estagio', 'iniciativa', 'frequencia_contato']
-      const missingFields = requiredFields.filter(field => !formData[field as keyof FormData] || formData[field as keyof FormData] === '')
+      // Verificar campos obrigatórios dinamicamente
+      const requiredQuestions = questionsToUse.filter(q => q.required)
+      const missingFields = requiredQuestions.filter(q => {
+        const value = formData[q.id as keyof FormData]
+        if (Array.isArray(value)) return value.length === 0
+        return !value || value === ''
+      })
       
       if (missingFields.length > 0) {
         alert(`Por favor, preencha os campos obrigatórios.`)
@@ -393,30 +307,33 @@ export default function NewAnalysisPage() {
         return
       }
       
+      // Construir payload dinamicamente a partir das perguntas
       const dataToSend: any = {
-        genero_match: String(formData.genero_match),
-        objetivo_usuario: String(formData.objetivo_usuario),
-        ritmo_usuario: String(formData.ritmo_usuario),
-        estagio: String(formData.estagio),
-        iniciativa: String(formData.iniciativa),
-        frequencia_contato: String(formData.frequencia_contato),
         sinais_alerta: Array.isArray(formData.sinais_alerta) ? formData.sinais_alerta : [],
         inegociaveis: Array.isArray(formData.inegociaveis) ? formData.inegociaveis : [],
       }
       
-      if (formData.cancelou_encontro) dataToSend.cancelou_encontro = formData.cancelou_encontro
-      if (formData.tempo_resposta) dataToSend.tempo_resposta = formData.tempo_resposta
-      if (formData.encontro_marcado) dataToSend.encontro_marcado = formData.encontro_marcado
-      if (formData.cancelou_encontro === 'NAO') {
+      // Adicionar todos os campos respondidos
+      questionsToUse.forEach(q => {
+        const value = formData[q.id as keyof FormData]
+        if (value !== undefined && value !== null && value !== '') {
+          if (q.id === 'nome_match' && typeof value === 'string') {
+            dataToSend.nome_match = value.trim()
+          } else {
+            dataToSend[q.id] = value
+          }
+        }
+      })
+      
+      // Tratamento especial para remarcou_com_data
+      if (formData.cancelou_encontro === 'NAO' && !dataToSend.remarcou_com_data) {
         dataToSend.remarcou_com_data = 'NAO_SE_APLICA'
-      } else if (formData.remarcou_com_data) {
-        dataToSend.remarcou_com_data = formData.remarcou_com_data
       }
-      if (formData.curiosidade_por_voce) dataToSend.curiosidade_por_voce = formData.curiosidade_por_voce
-      if (formData.respeito_limites) dataToSend.respeito_limites = formData.respeito_limites
-      if (formData.disponivel_so_madrugada) dataToSend.disponivel_so_madrugada = formData.disponivel_so_madrugada
-      if (formData.fala_futuro) dataToSend.fala_futuro = formData.fala_futuro
-      dataToSend.nome_match = formData.nome_match.trim()
+
+      // Adicionar themeId
+      if (selectedThemeId) {
+        dataToSend.themeId = selectedThemeId
+      }
 
       trackEvent('ANALYSIS_STARTED', {
         stage: dataToSend.estagio,
@@ -564,6 +481,40 @@ export default function NewAnalysisPage() {
       default:
         return null
     }
+  }
+
+  // Se ainda não selecionou tema, mostrar seletor
+  if (selectedThemeId === null) {
+    return <ThemeSelector onSelectTheme={setSelectedThemeId} />
+  }
+
+  // Se está carregando perguntas OU ainda não carregou, mostrar loading
+  if (loadingQuestions || !questionsLoaded) {
+    return <FloatingLoader />
+  }
+
+  // Se já carregou mas não há perguntas disponíveis, mostrar erro
+  if (questionsLoaded && questionsToUse.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full text-center bg-white rounded-2xl shadow-xl p-8">
+          <AlertTriangle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Formulário não disponível
+          </h2>
+          <p className="text-gray-600 mb-6">
+            O formulário selecionado não possui perguntas configuradas. Por favor, volte e tente novamente.
+          </p>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-semibold"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Voltar ao Dashboard
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (
