@@ -132,6 +132,10 @@ model SystemConfig {
   geminiCallsToday         Int @default(0)      // Contador de chamadas hoje
   geminiLastResetDate      DateTime?            // Última vez que resetou contador diário
   
+  // Modelos Gemini configuráveis
+  geminiModelAnalysis       String @default("gemini-1.5-flash")  // Modelo para análise de matches
+  geminiModelRouteCorrection String @default("gemini-2.0-flash") // Modelo para correção de rota
+  
   // Configurações de preços - Assinaturas Usuario (legado, manter por compatibilidade)
   proPriceMonthly          Int @default(2990)   // Preço mensal PRO em centavos
   proPriceQuarterly        Int @default(7990)   // Preço trimestral PRO em centavos

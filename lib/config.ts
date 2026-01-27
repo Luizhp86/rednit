@@ -7,6 +7,9 @@ const DEFAULT_CONFIG = {
   freeCreditsDaily: 10,
   geminiDailyLimit: 100,
   geminiMonthlyBudgetCents: 50000,
+  // Modelos Gemini configuráveis
+  geminiModelAnalysis: 'gemini-1.5-flash',
+  geminiModelRouteCorrection: 'gemini-2.0-flash',
   // Preços de assinatura
   proPriceMonthly: 2990,
   proPriceQuarterly: 7990,
@@ -44,6 +47,8 @@ export async function getSystemConfig(): Promise<SystemConfig> {
         freeCreditsDaily: config.freeCreditsDaily,
         geminiDailyLimit: config.geminiDailyLimit,
         geminiMonthlyBudgetCents: config.geminiMonthlyBudgetCents,
+        geminiModelAnalysis: config.geminiModelAnalysis,
+        geminiModelRouteCorrection: config.geminiModelRouteCorrection,
         proPriceMonthly: config.proPriceMonthly,
         proPriceQuarterly: config.proPriceQuarterly,
         proPriceYearly: config.proPriceYearly,
@@ -67,6 +72,8 @@ export async function getSystemConfig(): Promise<SystemConfig> {
         freeCreditsDaily: newConfig.freeCreditsDaily,
         geminiDailyLimit: newConfig.geminiDailyLimit,
         geminiMonthlyBudgetCents: newConfig.geminiMonthlyBudgetCents,
+        geminiModelAnalysis: newConfig.geminiModelAnalysis,
+        geminiModelRouteCorrection: newConfig.geminiModelRouteCorrection,
         proPriceMonthly: newConfig.proPriceMonthly,
         proPriceQuarterly: newConfig.proPriceQuarterly,
         proPriceYearly: newConfig.proPriceYearly,

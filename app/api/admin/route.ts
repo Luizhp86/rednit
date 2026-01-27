@@ -62,6 +62,9 @@ const DEFAULT_CONFIG = {
   allowNewRegistrations: true,
   geminiCallsToday: 0,
   geminiLastResetDate: null,
+  // Modelos Gemini configuráveis
+  geminiModelAnalysis: 'gemini-1.5-flash',
+  geminiModelRouteCorrection: 'gemini-2.0-flash',
   createdAt: new Date(),
   updatedAt: new Date()
 }
@@ -244,6 +247,8 @@ export async function PATCH(request: NextRequest) {
       'freeCreditsDaily',
       'geminiDailyLimit',
       'geminiMonthlyBudgetCents',
+      'geminiModelAnalysis',
+      'geminiModelRouteCorrection',
       // B2B - Preços de terapeutas
       'therapistPriceBasic',
       'therapistPriceIntermediate',

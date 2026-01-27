@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { prisma } from '../prisma'
+import { getSystemConfig } from '../config'
 import type { AnalysisInput, AnalysisResult } from '../rules/engine'
 
 const apiKey = process.env.GEMINI_API_KEY
@@ -51,8 +52,13 @@ export async function analyzeWithGemini(
   let outputTokenEstimate = 0
   
   try {
+    // Buscar modelo configurado no admin
+    const config = await getSystemConfig()
+    const modelName = config.geminiModelAnalysis || 'gemini-1.5-flash'
+    console.log(`[GEMINI] Usando modelo configurado para análise: ${modelName}`)
+    
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',
+      model: modelName,
       generationConfig: {
         maxOutputTokens: 4096, // Limitar resposta para evitar excesso
         temperature: 0.7,
@@ -575,10 +581,13 @@ export async function analyzeRouteCorrection(
   let outputTokens = 0
   
   try {
-    // Usar modelo compatível com API gratuita
-    // gemini-2.0-flash é o modelo disponível na API gratuita v1beta
+    // Buscar modelo configurado no admin
+    const config = await getSystemConfig()
+    const modelName = config.geminiModelRouteCorrection || 'gemini-2.0-flash'
+    console.log(`[GEMINI] Usando modelo configurado para correção de rota: ${modelName}`)
+    
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.0-flash',
+      model: modelName,
       generationConfig: {
         maxOutputTokens: 4096, // Limitar resposta para evitar excesso
         temperature: 0.7,

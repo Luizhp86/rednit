@@ -46,6 +46,8 @@ type SystemConfig = {
   freeCreditsDaily: number
   geminiDailyLimit: number
   geminiMonthlyBudgetCents: number
+  geminiModelAnalysis: string
+  geminiModelRouteCorrection: string
   // B2B - Preços de terapeutas
   therapistPriceBasic: number
   therapistPriceIntermediate: number
@@ -1308,6 +1310,44 @@ export default function AdminPage() {
                     onChange={(e) => setConfigDraft({...configDraft, geminiMonthlyBudgetCents: Math.round(parseFloat(e.target.value || '0') * 100)})}
                     className="bg-gray-700 border-gray-600 text-white"
                   />
+                </div>
+              </div>
+              
+              <div className="border-t border-gray-700 mt-6 pt-6">
+                <h4 className="text-md font-semibold text-white mb-4">Modelos de IA</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-2">
+                      Modelo para Análise de Matches
+                    </label>
+                    <select
+                      value={configDraft.geminiModelAnalysis || 'gemini-1.5-flash'}
+                      onChange={(e) => setConfigDraft({...configDraft, geminiModelAnalysis: e.target.value})}
+                      className="w-full bg-gray-700 border border-gray-600 text-white rounded-md px-3 py-2"
+                    >
+                      <option value="gemini-1.5-flash">Gemini 1.5 Flash (rápido, econômico)</option>
+                      <option value="gemini-1.5-pro">Gemini 1.5 Pro (mais capaz)</option>
+                      <option value="gemini-2.0-flash">Gemini 2.0 Flash (mais recente)</option>
+                      <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite (ultra rápido)</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Usado para análise principal de matches</p>
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-2">
+                      Modelo para Correção de Rota
+                    </label>
+                    <select
+                      value={configDraft.geminiModelRouteCorrection || 'gemini-2.0-flash'}
+                      onChange={(e) => setConfigDraft({...configDraft, geminiModelRouteCorrection: e.target.value})}
+                      className="w-full bg-gray-700 border border-gray-600 text-white rounded-md px-3 py-2"
+                    >
+                      <option value="gemini-1.5-flash">Gemini 1.5 Flash (rápido, econômico)</option>
+                      <option value="gemini-1.5-pro">Gemini 1.5 Pro (mais capaz)</option>
+                      <option value="gemini-2.0-flash">Gemini 2.0 Flash (mais recente)</option>
+                      <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite (ultra rápido)</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Usado para análise de comportamento e evolução</p>
+                  </div>
                 </div>
               </div>
             </Card>

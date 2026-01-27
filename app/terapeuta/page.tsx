@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { 
   ArrowRight, 
   Users, 
-  TrendingUp, 
   Mail, 
   MessageCircle, 
   Shield, 
@@ -17,7 +16,10 @@ import {
   Target,
   Heart,
   Calendar,
-  Play
+  Play,
+  Menu,
+  X,
+  Sparkles
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/logo'
@@ -25,14 +27,14 @@ import { DemoScheduler } from '@/components/demo-scheduler'
 
 // Profissionais que podem se cadastrar
 const profissionais = [
-  { nome: "Terapeutas", cor: "text-emerald-600" },
-  { nome: "Coaches", cor: "text-teal-600" },
-  { nome: "Psicólogos", cor: "text-cyan-600" },
-  { nome: "Tarólogos", cor: "text-purple-600" },
-  { nome: "Astrólogos", cor: "text-indigo-600" },
-  { nome: "Consteladores", cor: "text-pink-600" },
-  { nome: "Terapeutas Florais", cor: "text-rose-600" },
-  { nome: "Mentores", cor: "text-amber-600" },
+  { nome: "Terapeutas", cor: "text-emerald-400" },
+  { nome: "Coaches", cor: "text-amber-400" },
+  { nome: "Psicólogos", cor: "text-sky-400" },
+  { nome: "Tarólogos", cor: "text-violet-400" },
+  { nome: "Astrólogos", cor: "text-rose-400" },
+  { nome: "Consteladores", cor: "text-teal-400" },
+  { nome: "Terapeutas Florais", cor: "text-pink-400" },
+  { nome: "Mentores", cor: "text-orange-400" },
 ]
 
 // Componente de profissional rotativo
@@ -46,747 +48,915 @@ function RotatingProfessional() {
       setTimeout(() => {
         setCurrentIndex((prev) => (prev + 1) % profissionais.length)
         setIsVisible(true)
-      }, 300)
-    }, 2500)
+      }, 200)
+    }, 2000)
     return () => clearInterval(timer)
   }, [])
 
   return (
     <span 
       className={`inline-block transition-all duration-300 ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
-      } ${profissionais[currentIndex].cor} font-bold`}
+        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+      } ${profissionais[currentIndex].cor} font-semibold`}
     >
       {profissionais[currentIndex].nome}
     </span>
   )
 }
 
-export default function TerapeutaLandingPage() {
-  const [showDemoScheduler, setShowDemoScheduler] = useState(false)
+// Menu Mobile
+function MobileMenu({ isOpen, onClose, onOpenDemo }: { isOpen: boolean; onClose: () => void; onOpenDemo: () => void }) {
+  if (!isOpen) return null
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
-      {/* Header */}
-      <nav className="container mx-auto px-4 py-6">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <Logo size="lg" />
-            <div className="flex flex-col">
-              <span className="text-sm md:text-base font-semibold text-emerald-700">
-                Radar Match
-              </span>
-              <span className="text-xs text-gray-500 hidden md:block">
-                Para Profissionais
-              </span>
-            </div>
+    <div className="fixed inset-0 z-50 lg:hidden">
+      {/* Overlay */}
+      <div 
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      
+      {/* Menu Panel */}
+      <div className="absolute right-0 top-0 h-full w-[280px] bg-slate-900 border-l border-slate-800 p-6 animate-slide-in-right">
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white transition-colors"
+        >
+          <X className="w-6 h-6" />
+        </button>
+        
+        <nav className="mt-12 flex flex-col gap-4">
+          <button
+            onClick={() => { onOpenDemo(); onClose(); }}
+            className="flex items-center gap-3 text-slate-300 hover:text-emerald-400 transition-colors py-3 border-b border-slate-800"
+          >
+            <Calendar className="w-5 h-5" />
+            <span className="font-medium">Agendar Demo</span>
+          </button>
+          
+          <Link 
+            href="/terapeuta/login"
+            onClick={onClose}
+            className="flex items-center gap-3 text-slate-300 hover:text-white transition-colors py-3 border-b border-slate-800"
+          >
+            <span className="font-medium">Entrar</span>
           </Link>
-          <div className="flex gap-3">
-            <Button 
-              onClick={() => setShowDemoScheduler(true)}
-              variant="outline" 
-              className="border-purple-600 text-purple-600 hover:bg-purple-50 hidden sm:flex items-center gap-2"
+          
+          <Link 
+            href="/terapeuta/cadastro"
+            onClick={onClose}
+            className="mt-4 flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 rounded-xl font-semibold hover:from-emerald-400 hover:to-teal-400 transition-all"
+          >
+            <Sparkles className="w-5 h-5" />
+            Cadastrar Grátis
+          </Link>
+        </nav>
+        
+        <div className="absolute bottom-8 left-6 right-6">
+          <a
+            href="https://wa.me/5511937756627?text=Olá!%20Sou%20terapeuta%20e%20quero%20saber%20mais%20sobre%20o%20Radar%20Match"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-xl font-medium hover:bg-green-500 transition-all"
+          >
+            <MessageCircle className="w-5 h-5" />
+            WhatsApp
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function TerapeutaLandingPage() {
+  const [showDemoScheduler, setShowDemoScheduler] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  
+  return (
+    <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden">
+      {/* Decorative Background */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 right-0 w-[400px] h-[400px] bg-teal-500/10 rounded-full blur-[100px]" />
+        <div className="absolute top-1/2 left-0 w-[300px] h-[300px] bg-violet-500/5 rounded-full blur-[80px]" />
+      </div>
+
+      {/* Noise Texture Overlay */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.015] bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIiB4PSIwIiB5PSIwIj48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii43NSIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIi8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiIGZpbHRlcj0idXJsKCNhKSIgb3BhY2l0eT0iMSIvPjwvc3ZnPg==')]" />
+
+      {/* Header */}
+      <header className="relative z-40 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-xl sticky top-0">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between h-16 sm:h-20">
+            {/* Logo com efeito zero gravity */}
+            <Link href="/" className="flex items-center gap-2 sm:gap-3 group">
+              <div className="relative animate-zero-gravity">
+                <div className="absolute -inset-2 bg-gradient-to-r from-emerald-400/15 to-teal-400/15 rounded-full blur-lg animate-zero-gravity-glow" />
+                <div className="relative">
+                  <Logo size="lg" variant="dark" />
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm sm:text-base font-bold text-white group-hover:text-emerald-400 transition-colors">
+                  Radar Match
+                </span>
+                <span className="text-[10px] sm:text-xs text-slate-500 tracking-wider uppercase">
+                  Para Profissionais
+                </span>
+              </div>
+            </Link>
+
+            {/* Desktop Nav */}
+            <nav className="hidden lg:flex items-center gap-2">
+              <button 
+                onClick={() => setShowDemoScheduler(true)}
+                className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white transition-colors"
+              >
+                <Play className="w-4 h-4" />
+                <span className="text-sm font-medium">Ver Demo</span>
+              </button>
+              
+              <Link href="/terapeuta/login">
+                <Button variant="ghost" className="text-slate-400 hover:text-white hover:bg-slate-800">
+                  Entrar
+                </Button>
+              </Link>
+              
+              <div className="relative">
+                {/* 2 camadas de ondas */}
+                <div className="absolute inset-0 -m-1 rounded-md bg-gradient-to-r from-emerald-500 to-teal-500 opacity-25 animate-cta-pulse" />
+                <div className="absolute inset-0 -m-2 rounded-md bg-gradient-to-r from-emerald-400 to-teal-400 opacity-15 animate-cta-pulse animation-delay-200" />
+                
+                <Link href="/terapeuta/cadastro" className="relative block">
+                  <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white border-0 shadow-lg shadow-emerald-500/20">
+                    Cadastrar Grátis
+                  </Button>
+                </Link>
+              </div>
+            </nav>
+
+            {/* Mobile Menu Button */}
+            <button 
+              onClick={() => setMobileMenuOpen(true)}
+              className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors"
             >
-              <Calendar className="w-4 h-4" />
-              Agendar Demo
-            </Button>
-            <Link href="/terapeuta/login">
-              <Button variant="ghost" className="text-emerald-700 hover:text-emerald-800">
-                Entrar
-              </Button>
-            </Link>
-            <Link href="/terapeuta/cadastro">
-              <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                Cadastrar
-              </Button>
-            </Link>
+              <Menu className="w-6 h-6" />
+            </button>
           </div>
         </div>
-      </nav>
+      </header>
+
+      {/* Mobile Menu */}
+      <MobileMenu 
+        isOpen={mobileMenuOpen} 
+        onClose={() => setMobileMenuOpen(false)}
+        onOpenDemo={() => setShowDemoScheduler(true)}
+      />
 
       {/* Hero Section */}
-      <div className="container mx-auto px-4 py-16 md:py-24">
-        <div className="max-w-4xl mx-auto text-center">
-          {/* Badge rotativo com profissionais */}
-          <div className="mb-8">
-            <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm text-gray-700 px-6 py-3 rounded-full text-lg font-medium shadow-lg border border-gray-200">
-              <Users className="h-5 w-5 text-emerald-600" />
-              <span>Ideal para</span>
-              <RotatingProfessional />
+      <section className="relative z-10 pt-12 sm:pt-16 lg:pt-24 pb-16 sm:pb-20 lg:pb-32">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="max-w-4xl mx-auto">
+            {/* Badge */}
+            <div className="flex justify-center mb-6 sm:mb-8 animate-fade-in">
+              <div className="inline-flex items-center gap-2 bg-slate-800/50 backdrop-blur-sm text-slate-300 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-sm sm:text-base border border-slate-700/50">
+                <Users className="h-4 w-4 text-emerald-400" />
+                <span>Ideal para</span>
+                <RotatingProfessional />
+              </div>
             </div>
-          </div>
 
-          {/* Indicadores dos profissionais */}
-          <div className="flex flex-wrap justify-center gap-2 mb-8">
-            {profissionais.map((prof, index) => (
-              <span 
-                key={index}
-                className={`text-xs px-3 py-1 rounded-full bg-white/60 border border-gray-200 ${prof.cor}`}
-              >
-                {prof.nome}
+            {/* Headline */}
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-center leading-tight mb-6 sm:mb-8 animate-fade-in-up">
+              <span className="text-white">Receba leads de pessoas</span>
+              <br />
+              <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
+                buscando ajuda profissional
               </span>
-            ))}
-          </div>
+            </h1>
 
-          {/* Headline */}
-          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-            Receba leads qualificados de{' '}
-            <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-              pessoas buscando ajuda
-            </span>
-          </h1>
-
-          {/* Subheadline */}
-          <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
-            Conectamos você com usuários que acabaram de fazer uma análise de relacionamento 
-            e estão prontos para receber orientação profissional.
-          </p>
-
-          {/* CTA */}
-          <div className="relative flex flex-col items-center">
-            {/* Glow pulsante por trás do botão */}
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-32 bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 opacity-50 blur-3xl animate-pulse pointer-events-none"></div>
-            
-            <Link href="/terapeuta/cadastro">
-              <Button
-                size="lg"
-                className="group relative overflow-hidden bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-700 hover:via-teal-700 hover:to-emerald-700 text-white px-14 py-8 text-2xl md:text-3xl font-bold rounded-3xl shadow-2xl hover:shadow-emerald-500/50 transform hover:scale-105 transition-all duration-300 border-4 border-white/30 z-10"
-              >
-                {/* Efeito shimmer */}
-                <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></span>
-                <span className="relative flex items-center gap-3">
-                  <Zap className="h-7 w-7" />
-                  <span>Começar agora</span>
-                  <ArrowRight className="h-7 w-7 group-hover:translate-x-2 transition-transform" />
-                </span>
-              </Button>
-            </Link>
-            
-            <div className="flex flex-wrap justify-center gap-3 mt-6 text-sm text-gray-600 z-10">
-              <div className="flex items-center gap-1.5">
-                <span className="text-emerald-600 font-bold">✓</span>
-                <span>Cadastro gratuito</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-emerald-600 font-bold">✓</span>
-                <span>Aprovação em 24h</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-emerald-600 font-bold">✓</span>
-                <span>Cancele quando quiser</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Seção Destacada - Agendar Demonstração */}
-      <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 py-12">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="text-center md:text-left text-white">
-              <div className="flex items-center gap-2 justify-center md:justify-start mb-2">
-                <Play className="w-5 h-5" />
-                <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full">
-                  Demonstração Gratuita
-                </span>
-              </div>
-              <h2 className="text-2xl md:text-3xl font-bold mb-2">
-                Quer ver como funciona na prática?
-              </h2>
-              <p className="text-white/90">
-                Agende uma demonstração gratuita de 15 minutos e veja como o Radar Match pode ajudar seu negócio.
-              </p>
-            </div>
-            <Button
-              onClick={() => setShowDemoScheduler(true)}
-              size="lg"
-              className="group relative overflow-hidden bg-white text-purple-700 hover:bg-gray-50 px-10 py-7 text-xl font-bold rounded-2xl shadow-2xl hover:shadow-white/50 transform hover:scale-105 transition-all duration-300 border-4 border-white/50 whitespace-nowrap"
-            >
-              {/* Efeito shimmer */}
-              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-200/50 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></span>
-              {/* Brilho pulsante na borda */}
-              <span className="absolute inset-0 rounded-2xl border-2 border-purple-300 animate-pulse"></span>
-              <span className="relative flex items-center gap-3">
-                <Calendar className="w-6 h-6 group-hover:rotate-12 transition-transform" />
-                <span>Agendar Demonstração</span>
-                <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-              </span>
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Como Funciona */}
-      <div className="bg-white/60 backdrop-blur-sm py-20">
-        <div className="container mx-auto px-4">
-          <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-12">
-              <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full text-sm font-medium mb-4">
-                <TrendingUp className="h-4 w-4" />
-                Simples e eficiente
-              </div>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                Como funciona
-              </h2>
-              <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-                Leads qualificados chegam até você automaticamente. Sem prospecção, sem cold calling.
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-6">
-              {/* Passo 1 */}
-              <div className="relative">
-                <div className="bg-white rounded-2xl p-8 shadow-xl shadow-emerald-100/50 border-2 border-gray-200 h-full hover:shadow-2xl hover:border-emerald-300 transition-all duration-300 group">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl shadow-lg group-hover:scale-110 transition-transform">
-                      1
-                    </div>
-                    <div className="bg-emerald-100 p-3 rounded-xl group-hover:bg-emerald-200 transition-colors">
-                      <Target className="h-6 w-6 text-emerald-600" />
-                    </div>
-                  </div>
-                  <h3 className="font-bold text-xl text-gray-900 mb-3">Usuário faz análise</h3>
-                  <p className="text-gray-600">
-                    O usuário responde nosso formulário sobre o comportamento do match e recebe uma análise detalhada.
-                  </p>
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <span className="text-sm text-emerald-600 font-medium">14 perguntas objetivas</span>
-                  </div>
-                </div>
-                <div className="hidden md:block absolute top-1/2 -right-3 transform -translate-y-1/2 text-emerald-300 z-10">
-                  <ArrowRight className="w-6 h-6" />
-                </div>
-              </div>
-
-              {/* Passo 2 */}
-              <div className="relative">
-                <div className="bg-white rounded-2xl p-8 shadow-xl shadow-teal-100/50 border-2 border-gray-200 h-full hover:shadow-2xl hover:border-teal-300 transition-all duration-300 group">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="bg-gradient-to-r from-teal-500 to-cyan-500 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl shadow-lg group-hover:scale-110 transition-transform">
-                      2
-                    </div>
-                    <div className="bg-teal-100 p-3 rounded-xl group-hover:bg-teal-200 transition-colors">
-                      <Users className="h-6 w-6 text-teal-600" />
-                    </div>
-                  </div>
-                  <h3 className="font-bold text-xl text-gray-900 mb-3">Lead é distribuído</h3>
-                  <p className="text-gray-600">
-                    Quando o usuário demonstra interesse em ajuda profissional, distribuímos o lead para você.
-                  </p>
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <span className="text-sm text-teal-600 font-medium">Sistema de rodízio justo</span>
-                  </div>
-                </div>
-                <div className="hidden md:block absolute top-1/2 -right-3 transform -translate-y-1/2 text-teal-300 z-10">
-                  <ArrowRight className="w-6 h-6" />
-                </div>
-              </div>
-
-              {/* Passo 3 */}
-              <div className="relative">
-                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-8 shadow-xl shadow-emerald-200/50 border-2 border-emerald-300 h-full hover:shadow-2xl transition-all duration-300 group">
-                  {/* Badge de destaque */}
-                  <div className="absolute -top-3 -right-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
-                    RESULTADO
-                  </div>
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl shadow-lg group-hover:scale-110 transition-transform">
-                      3
-                    </div>
-                    <div className="bg-emerald-100 p-3 rounded-xl group-hover:bg-emerald-200 transition-colors">
-                      <Phone className="h-6 w-6 text-emerald-600" />
-                    </div>
-                  </div>
-                  <h3 className="font-bold text-xl text-gray-900 mb-3">Você entra em contato</h3>
-                  <p className="text-gray-600">
-                    Receba os dados do lead por email e WhatsApp. Entre em contato e converta em cliente.
-                  </p>
-                  <div className="mt-4 pt-4 border-t border-emerald-200">
-                    <span className="text-sm text-emerald-700 font-medium">Notificação em tempo real</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Estatísticas */}
-            <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white rounded-xl p-4 text-center shadow-lg border border-gray-100">
-                <div className="text-3xl font-bold text-emerald-600 mb-1">2min</div>
-                <div className="text-sm text-gray-600">Tempo médio de análise</div>
-              </div>
-              <div className="bg-white rounded-xl p-4 text-center shadow-lg border border-gray-100">
-                <div className="text-3xl font-bold text-teal-600 mb-1">24h</div>
-                <div className="text-sm text-gray-600">Para aprovação</div>
-              </div>
-              <div className="bg-white rounded-xl p-4 text-center shadow-lg border border-gray-100">
-                <div className="text-3xl font-bold text-cyan-600 mb-1">100%</div>
-                <div className="text-sm text-gray-600">Leads qualificados</div>
-              </div>
-              <div className="bg-white rounded-xl p-4 text-center shadow-lg border border-gray-100">
-                <div className="text-3xl font-bold text-emerald-600 mb-1">∞</div>
-                <div className="text-sm text-gray-600">Potencial de conversão</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tipos de Leads */}
-      <div className="py-20">
-        <div className="container mx-auto px-4">
-          <div className="max-w-5xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-4">
-              3 níveis de leads
-            </h2>
-            <p className="text-center text-gray-600 mb-12 text-lg">
-              Quanto mais quente o lead, maior a chance de conversão
+            {/* Subheadline */}
+            <p className="text-base sm:text-lg lg:text-xl text-slate-400 text-center mb-8 sm:mb-10 max-w-2xl mx-auto px-4 animate-fade-in-up animation-delay-100">
+              Conectamos você com usuários que acabaram de analisar um relacionamento 
+              e estão prontos para orientação especializada.
             </p>
 
-            <div className="grid md:grid-cols-3 gap-6">
-              {/* Lead Frio */}
-              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="bg-blue-100 p-3 rounded-full">
-                    <Mail className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg text-gray-900">Lead Básico</h3>
-                    <span className="text-xs text-blue-600 font-medium">Cadastrou telefone</span>
-                  </div>
-                </div>
-                <p className="text-gray-600 text-sm mb-4">
-                  Usuário se cadastrou na plataforma e deixou o telefone. Demonstrou interesse inicial.
-                </p>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                    <div className="w-2 h-2 rounded-full bg-gray-300"></div>
-                    <div className="w-2 h-2 rounded-full bg-gray-300"></div>
-                  </div>
-                  <span>Frio</span>
-                </div>
-              </div>
-
-              {/* Lead Morno */}
-              <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-amber-200">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="bg-amber-100 p-3 rounded-full">
-                    <BarChart3 className="h-6 w-6 text-amber-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg text-gray-900">Lead de Análise</h3>
-                    <span className="text-xs text-amber-600 font-medium">Completou análise</span>
-                  </div>
-                </div>
-                <p className="text-gray-600 text-sm mb-4">
-                  Usuário completou uma análise de match. Você recebe os dados da análise (red flags, scores).
-                </p>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-                    <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-                    <div className="w-2 h-2 rounded-full bg-gray-300"></div>
-                  </div>
-                  <span>Morno</span>
-                </div>
-              </div>
-
-              {/* Lead Quente */}
-              <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl p-6 shadow-lg border-2 border-orange-300 relative overflow-hidden">
-                <div className="absolute top-0 right-0 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl">
-                  PREMIUM
-                </div>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="bg-orange-100 p-3 rounded-full">
-                    <Phone className="h-6 w-6 text-orange-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg text-gray-900">Lead Premium</h3>
-                    <span className="text-xs text-orange-600 font-medium">Quer falar com especialista</span>
-                  </div>
-                </div>
-                <p className="text-gray-600 text-sm mb-4">
-                  Usuário clicou em "Falar com especialista". Altíssima intenção. Abre WhatsApp direto.
-                </p>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                    <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                    <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                  </div>
-                  <span>Quente</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Planos - Seção Principal */}
-      <div className="relative bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 py-24 overflow-hidden">
-        {/* Efeitos de fundo */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-30"></div>
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
-        
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-6xl mx-auto">
-            {/* Cabeçalho da seção */}
-            <div className="text-center mb-16">
-              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-6 py-3 rounded-full text-sm font-bold mb-6 border border-white/30">
-                <Star className="h-5 w-5 text-yellow-300" />
-                <span>ESCOLHA SEU PLANO</span>
-                <Star className="h-5 w-5 text-yellow-300" />
-              </div>
-              <h2 className="text-4xl md:text-6xl font-bold text-white mb-6">
-                Invista no seu crescimento
-              </h2>
-              <p className="text-xl text-white/90 max-w-2xl mx-auto">
-                Quanto maior o plano, mais tipos de leads qualificados você recebe. 
-                <strong className="text-white"> Comece hoje e cancele quando quiser.</strong>
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-8">
-              {/* Plano Basic */}
-              <div className="bg-white rounded-3xl p-8 shadow-2xl border-2 border-gray-100 hover:border-emerald-300 transition-all duration-300 hover:scale-105 group">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="bg-gray-100 p-2 rounded-xl">
-                    <Mail className="h-6 w-6 text-gray-600" />
-                  </div>
-                  <h3 className="font-bold text-2xl text-gray-900">Basic</h3>
-                </div>
-                <div className="flex items-baseline gap-1 mb-2">
-                  <span className="text-5xl font-bold text-gray-900">R$ 79</span>
-                  <span className="text-gray-500 text-lg">/mês</span>
-                </div>
-                <p className="text-gray-500 text-sm mb-6">Para começar a receber leads</p>
+            {/* CTA Principal com 4 camadas de ondas */}
+            <div className="flex flex-col items-center gap-4 sm:gap-6 animate-fade-in-up animation-delay-200">
+              <div className="relative w-full sm:w-auto">
+                {/* 4 camadas de ondas de pulso */}
+                <div className="absolute inset-0 -m-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 opacity-30 animate-cta-pulse" />
+                <div className="absolute inset-0 -m-4 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 opacity-25 animate-cta-pulse animation-delay-150" />
+                <div className="absolute inset-0 -m-6 rounded-2xl bg-gradient-to-r from-emerald-300 to-teal-300 opacity-20 animate-cta-pulse animation-delay-300" />
+                <div className="absolute inset-0 -m-8 rounded-2xl bg-gradient-to-r from-emerald-200 to-teal-200 opacity-15 animate-cta-pulse animation-delay-450" />
                 
-                <ul className="space-y-4 mb-8">
-                  <li className="flex items-center gap-3">
-                    <CheckCircle2 className="w-6 h-6 text-emerald-500 flex-shrink-0" />
-                    <span className="text-gray-700">Leads básicos (cadastro)</span>
-                  </li>
-                  <li className="flex items-center gap-3 text-gray-400">
-                    <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex-shrink-0"></div>
-                    <span>Leads de análise</span>
-                  </li>
-                  <li className="flex items-center gap-3 text-gray-400">
-                    <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex-shrink-0"></div>
-                    <span>Leads premium (CTA)</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <CheckCircle2 className="w-6 h-6 text-emerald-500 flex-shrink-0" />
-                    <span className="text-gray-700">Notificação por email</span>
-                  </li>
-                </ul>
-                
-                <Link href="/terapeuta/cadastro">
-                  <Button variant="outline" className="group/btn relative overflow-hidden w-full py-7 text-lg font-bold border-3 border-gray-300 hover:border-emerald-500 hover:bg-emerald-50 shadow-lg shadow-gray-200/50 hover:shadow-xl hover:shadow-emerald-200/50 transition-all duration-300 hover:scale-105">
-                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-200/60 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-out"></span>
-                    <span className="absolute inset-0 opacity-0 group-hover/btn:opacity-100 bg-gradient-to-r from-emerald-50 to-teal-50 transition-opacity duration-300"></span>
-                    <span className="relative flex items-center justify-center gap-2 group-hover/btn:text-emerald-700">
-                      <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
-                      Começar agora
+                <Link href="/terapeuta/cadastro" className="relative block w-full sm:w-auto">
+                  <Button
+                    size="lg"
+                    className="group relative w-full sm:w-auto bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500 bg-[length:200%_100%] hover:bg-[position:100%_0] text-white px-8 sm:px-12 py-6 sm:py-7 text-lg sm:text-xl font-bold rounded-2xl shadow-2xl shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-500 border border-emerald-400/20"
+                  >
+                    <span className="flex items-center justify-center gap-3">
+                      <Sparkles className="h-5 w-5 sm:h-6 sm:w-6" />
+                      <span>Começar agora</span>
+                      <ArrowRight className="h-5 w-5 sm:h-6 sm:w-6 group-hover:translate-x-1 transition-transform" />
                     </span>
                   </Button>
                 </Link>
               </div>
+              
+              {/* Trust badges */}
+              <div className="flex flex-wrap justify-center gap-x-4 sm:gap-x-6 gap-y-2 text-xs sm:text-sm text-slate-500">
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  <span>Cadastro gratuito</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  <span>Aprovação em 24h</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  <span>Cancele quando quiser</span>
+                </div>
+              </div>
+            </div>
 
-              {/* Plano Intermediate - DESTAQUE */}
-              <div className="relative">
-                {/* Glow animado */}
-                <div className="absolute -inset-1 bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-400 rounded-3xl opacity-75 blur-sm animate-pulse"></div>
+            {/* Profissionais Tags */}
+            <div className="flex flex-wrap justify-center gap-2 mt-10 sm:mt-12 px-4 animate-fade-in-up animation-delay-300">
+              {profissionais.map((prof, index) => (
+                <span 
+                  key={index}
+                  className={`text-xs px-3 py-1.5 rounded-full bg-slate-800/50 border border-slate-700/50 ${prof.cor}`}
+                >
+                  {prof.nome}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Demo Banner */}
+      <section className="relative z-10 py-8 sm:py-10 bg-gradient-to-r from-violet-600/20 via-purple-600/20 to-violet-600/20 border-y border-violet-500/20">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 max-w-4xl mx-auto">
+            <div className="text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
+                <Play className="w-4 h-4 text-violet-400" />
+                <span className="text-xs sm:text-sm font-medium text-violet-400 uppercase tracking-wider">
+                  Demonstração Gratuita
+                </span>
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-white">
+                Quer ver como funciona na prática?
+              </h3>
+            </div>
+            <Button
+              onClick={() => setShowDemoScheduler(true)}
+              className="w-full sm:w-auto bg-white text-slate-900 hover:bg-slate-100 px-6 sm:px-8 py-5 sm:py-6 text-base font-bold rounded-xl shadow-xl"
+            >
+              <Calendar className="w-5 h-5 mr-2" />
+              Agendar Demo
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Como Funciona */}
+      <section className="relative z-10 py-16 sm:py-20 lg:py-28">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="max-w-5xl mx-auto">
+            {/* Section Header */}
+            <div className="text-center mb-12 sm:mb-16">
+              <span className="inline-block text-emerald-400 text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3">
+                Processo simples
+              </span>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4">
+                Como funciona
+              </h2>
+              <p className="text-slate-400 text-sm sm:text-base max-w-xl mx-auto">
+                Leads qualificados chegam automaticamente. Sem prospecção, sem cold calling.
+              </p>
+            </div>
+
+            {/* Steps */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+              {/* Step 1 */}
+              <div className="relative group">
+                <div className="bg-slate-900/50 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-slate-800 hover:border-emerald-500/50 transition-all duration-300 h-full">
+                  <div className="flex items-center gap-4 mb-5 sm:mb-6">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg shadow-emerald-500/30">
+                      1
+                    </div>
+                    <Target className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-400" />
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-bold text-white mb-3">
+                    Usuário faz análise
+                  </h3>
+                  <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
+                    O usuário responde nosso formulário sobre o comportamento do match e recebe uma análise detalhada.
+                  </p>
+                  <div className="mt-4 pt-4 border-t border-slate-800">
+                    <span className="text-xs sm:text-sm text-emerald-400 font-medium">
+                      14 perguntas objetivas
+                    </span>
+                  </div>
+                </div>
+                {/* Connector */}
+                <div className="hidden md:block absolute top-1/2 -right-4 w-8 h-0.5 bg-gradient-to-r from-emerald-500 to-transparent" />
+              </div>
+
+              {/* Step 2 */}
+              <div className="relative group">
+                <div className="bg-slate-900/50 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-slate-800 hover:border-teal-500/50 transition-all duration-300 h-full">
+                  <div className="flex items-center gap-4 mb-5 sm:mb-6">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg shadow-teal-500/30">
+                      2
+                    </div>
+                    <Users className="w-6 h-6 sm:w-8 sm:h-8 text-teal-400" />
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-bold text-white mb-3">
+                    Lead é distribuído
+                  </h3>
+                  <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
+                    Quando demonstra interesse em ajuda profissional, distribuímos o lead para você.
+                  </p>
+                  <div className="mt-4 pt-4 border-t border-slate-800">
+                    <span className="text-xs sm:text-sm text-teal-400 font-medium">
+                      Sistema de rodízio justo
+                    </span>
+                  </div>
+                </div>
+                {/* Connector */}
+                <div className="hidden md:block absolute top-1/2 -right-4 w-8 h-0.5 bg-gradient-to-r from-teal-500 to-transparent" />
+              </div>
+
+              {/* Step 3 */}
+              <div className="relative group">
+                <div className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 border-2 border-emerald-500/50 h-full">
+                  <div className="absolute -top-3 -right-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full">
+                    RESULTADO
+                  </div>
+                  <div className="flex items-center gap-4 mb-5 sm:mb-6">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg shadow-emerald-500/30">
+                      3
+                    </div>
+                    <Phone className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-400" />
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-bold text-white mb-3">
+                    Você entra em contato
+                  </h3>
+                  <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
+                    Receba os dados por email e WhatsApp. Entre em contato e converta em cliente.
+                  </p>
+                  <div className="mt-4 pt-4 border-t border-emerald-500/30">
+                    <span className="text-xs sm:text-sm text-emerald-400 font-medium">
+                      Notificação em tempo real
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-12 sm:mt-16">
+              {[
+                { value: "2min", label: "Tempo médio de análise", color: "emerald" },
+                { value: "24h", label: "Para aprovação", color: "teal" },
+                { value: "100%", label: "Leads qualificados", color: "cyan" },
+                { value: "∞", label: "Potencial de conversão", color: "violet" },
+              ].map((stat, i) => (
+                <div 
+                  key={i} 
+                  className="bg-slate-900/50 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-6 border border-slate-800 text-center"
+                >
+                  <div className={`text-2xl sm:text-3xl lg:text-4xl font-bold text-${stat.color}-400 mb-1`}>
+                    {stat.value}
+                  </div>
+                  <div className="text-xs sm:text-sm text-slate-500">{stat.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Tipos de Leads */}
+      <section className="relative z-10 py-16 sm:py-20 lg:py-28 bg-slate-900/50">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="max-w-5xl mx-auto">
+            {/* Section Header */}
+            <div className="text-center mb-12 sm:mb-16">
+              <span className="inline-block text-amber-400 text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3">
+                Níveis de qualificação
+              </span>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4">
+                3 tipos de leads
+              </h2>
+              <p className="text-slate-400 text-sm sm:text-base">
+                Quanto mais quente, maior a chance de conversão
+              </p>
+            </div>
+
+            {/* Lead Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+              {/* Lead Frio */}
+              <div className="bg-slate-900/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-slate-800">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-sky-500/20 flex items-center justify-center">
+                    <Mail className="w-5 h-5 sm:w-6 sm:h-6 text-sky-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-base sm:text-lg">Lead Básico</h3>
+                    <span className="text-xs text-sky-400 font-medium">Cadastrou telefone</span>
+                  </div>
+                </div>
+                <p className="text-slate-400 text-sm mb-4">
+                  Usuário se cadastrou e deixou o telefone. Demonstrou interesse inicial.
+                </p>
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 rounded-full bg-sky-500" />
+                    <div className="w-2 h-2 rounded-full bg-slate-700" />
+                    <div className="w-2 h-2 rounded-full bg-slate-700" />
+                  </div>
+                  <span className="text-xs text-slate-500">Frio</span>
+                </div>
+              </div>
+
+              {/* Lead Morno */}
+              <div className="bg-slate-900/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border-2 border-amber-500/50">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                    <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-base sm:text-lg">Lead de Análise</h3>
+                    <span className="text-xs text-amber-400 font-medium">Completou análise</span>
+                  </div>
+                </div>
+                <p className="text-slate-400 text-sm mb-4">
+                  Completou análise de match. Você recebe os dados (red flags, scores).
+                </p>
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 rounded-full bg-amber-500" />
+                    <div className="w-2 h-2 rounded-full bg-amber-500" />
+                    <div className="w-2 h-2 rounded-full bg-slate-700" />
+                  </div>
+                  <span className="text-xs text-slate-500">Morno</span>
+                </div>
+              </div>
+
+              {/* Lead Quente */}
+              <div className="relative bg-gradient-to-br from-orange-500/20 to-rose-500/20 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border-2 border-orange-500/50">
+                <div className="absolute -top-3 right-4 bg-gradient-to-r from-orange-500 to-rose-500 text-white text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full">
+                  PREMIUM
+                </div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-orange-500/20 flex items-center justify-center">
+                    <Phone className="w-5 h-5 sm:w-6 sm:h-6 text-orange-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-base sm:text-lg">Lead Premium</h3>
+                    <span className="text-xs text-orange-400 font-medium">Quer falar com especialista</span>
+                  </div>
+                </div>
+                <p className="text-slate-400 text-sm mb-4">
+                  Clicou em "Falar com especialista". Altíssima intenção. WhatsApp direto.
+                </p>
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 rounded-full bg-orange-500" />
+                    <div className="w-2 h-2 rounded-full bg-orange-500" />
+                    <div className="w-2 h-2 rounded-full bg-orange-500" />
+                  </div>
+                  <span className="text-xs text-slate-500">Quente</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Planos */}
+      <section className="relative z-10 py-16 sm:py-20 lg:py-28 overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 via-transparent to-transparent" />
+        
+        <div className="container mx-auto px-4 sm:px-6 relative">
+          <div className="max-w-6xl mx-auto">
+            {/* Section Header */}
+            <div className="text-center mb-12 sm:mb-16">
+              <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-2 rounded-full text-xs sm:text-sm font-semibold mb-4">
+                <Star className="w-4 h-4" />
+                ESCOLHA SEU PLANO
+              </div>
+              <h2 className="text-2xl sm:text-3xl lg:text-5xl font-bold text-white mb-4">
+                Invista no seu crescimento
+              </h2>
+              <p className="text-slate-400 text-sm sm:text-base max-w-xl mx-auto">
+                Quanto maior o plano, mais tipos de leads qualificados você recebe.
+                <strong className="text-white"> Comece hoje e cancele quando quiser.</strong>
+              </p>
+            </div>
+
+            {/* Pricing Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+              {/* Basic */}
+              <div className="bg-slate-900/80 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-slate-800 hover:border-slate-700 transition-all group">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center">
+                    <Mail className="w-5 h-5 text-slate-400" />
+                  </div>
+                  <h3 className="font-bold text-xl sm:text-2xl text-white">Basic</h3>
+                </div>
                 
-                <div className="relative bg-white rounded-3xl p-8 shadow-2xl border-4 border-emerald-500 h-full">
-                  {/* Badge animado */}
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-bold px-6 py-2 rounded-full shadow-lg animate-bounce">
+                <div className="mb-6">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white">R$ 79</span>
+                    <span className="text-slate-500">/mês</span>
+                  </div>
+                  <p className="text-slate-500 text-sm mt-1">Para começar a receber leads</p>
+                </div>
+                
+                <ul className="space-y-3 sm:space-y-4 mb-8">
+                  <li className="flex items-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                    <span className="text-slate-300 text-sm sm:text-base">Leads básicos (cadastro)</span>
+                  </li>
+                  <li className="flex items-center gap-3 opacity-40">
+                    <div className="w-5 h-5 rounded-full border-2 border-slate-600 flex-shrink-0" />
+                    <span className="text-slate-500 text-sm sm:text-base">Leads de análise</span>
+                  </li>
+                  <li className="flex items-center gap-3 opacity-40">
+                    <div className="w-5 h-5 rounded-full border-2 border-slate-600 flex-shrink-0" />
+                    <span className="text-slate-500 text-sm sm:text-base">Leads premium (CTA)</span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                    <span className="text-slate-300 text-sm sm:text-base">Notificação por email</span>
+                  </li>
+                </ul>
+                
+                <Link href="/terapeuta/cadastro" className="block">
+                  <Button variant="outline" className="w-full py-5 sm:py-6 text-base font-semibold border-slate-700 text-white hover:bg-slate-800 hover:border-slate-600">
+                    Começar agora
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+              </div>
+
+              {/* Intermediate - DESTAQUE */}
+              <div className="relative">
+                {/* Glow */}
+                <div className="absolute -inset-[2px] bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500 rounded-2xl sm:rounded-3xl blur-sm opacity-75" />
+                
+                <div className="relative bg-slate-900 rounded-2xl sm:rounded-3xl p-6 sm:p-8 border-2 border-emerald-500/50 h-full">
+                  {/* Badge */}
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold px-4 py-1.5 rounded-full whitespace-nowrap">
                     MAIS POPULAR
                   </div>
                   
                   <div className="flex items-center gap-3 mb-4 mt-2">
-                    <div className="bg-emerald-100 p-2 rounded-xl">
-                      <BarChart3 className="h-6 w-6 text-emerald-600" />
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                      <BarChart3 className="w-5 h-5 text-emerald-400" />
                     </div>
-                    <h3 className="font-bold text-2xl text-gray-900">Intermediate</h3>
+                    <h3 className="font-bold text-xl sm:text-2xl text-white">Intermediate</h3>
                   </div>
-                  <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-5xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">R$ 149</span>
-                    <span className="text-gray-500 text-lg">/mês</span>
-                  </div>
-                  <p className="text-emerald-600 text-sm font-medium mb-6">Melhor custo-benefício</p>
                   
-                  <ul className="space-y-4 mb-8">
+                  <div className="mb-6">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">R$ 149</span>
+                      <span className="text-slate-500">/mês</span>
+                    </div>
+                    <p className="text-emerald-400 text-sm font-medium mt-1">Melhor custo-benefício</p>
+                  </div>
+                  
+                  <ul className="space-y-3 sm:space-y-4 mb-8">
                     <li className="flex items-center gap-3">
-                      <CheckCircle2 className="w-6 h-6 text-emerald-500 flex-shrink-0" />
-                      <span className="text-gray-700">Leads básicos (cadastro)</span>
+                      <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                      <span className="text-slate-300 text-sm sm:text-base">Leads básicos (cadastro)</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <CheckCircle2 className="w-6 h-6 text-emerald-500 flex-shrink-0" />
-                      <span className="text-gray-700 font-medium">Leads de análise</span>
+                      <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                      <span className="text-white font-medium text-sm sm:text-base">Leads de análise</span>
                     </li>
-                    <li className="flex items-center gap-3 text-gray-400">
-                      <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex-shrink-0"></div>
-                      <span>Leads premium (CTA)</span>
+                    <li className="flex items-center gap-3 opacity-40">
+                      <div className="w-5 h-5 rounded-full border-2 border-slate-600 flex-shrink-0" />
+                      <span className="text-slate-500 text-sm sm:text-base">Leads premium (CTA)</span>
                     </li>
                     <li className="flex items-center gap-3">
-                      <CheckCircle2 className="w-6 h-6 text-emerald-500 flex-shrink-0" />
-                      <span className="text-gray-700">Notificação por email</span>
+                      <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                      <span className="text-slate-300 text-sm sm:text-base">Notificação por email</span>
                     </li>
                   </ul>
                   
-                  <Link href="/terapeuta/cadastro">
-                    <Button className="group/btn relative overflow-hidden w-full py-7 text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-xl shadow-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/50 border-2 border-white/30 transition-all duration-300 hover:scale-105">
-                      {/* Brilho pulsante */}
-                      <span className="absolute inset-0 rounded-lg border-2 border-white/40 animate-pulse"></span>
-                      {/* Shimmer */}
-                      <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-out"></span>
-                      <span className="relative flex items-center justify-center gap-2">
-                        <Zap className="w-6 h-6 group-hover/btn:animate-bounce" />
-                        Começar agora
-                        <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-2 transition-transform" />
-                      </span>
+                  <Link href="/terapeuta/cadastro" className="block">
+                    <Button className="w-full py-5 sm:py-6 text-base font-bold bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-lg shadow-emerald-500/30">
+                      <Zap className="w-5 h-5 mr-2" />
+                      Começar agora
                     </Button>
                   </Link>
                 </div>
               </div>
 
-              {/* Plano Pro */}
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-3xl p-8 shadow-2xl border-2 border-purple-300 hover:border-purple-400 transition-all duration-300 hover:scale-105 group relative overflow-hidden">
-                {/* Badge */}
-                <div className="absolute top-4 right-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold px-3 py-1.5 rounded-full">
+              {/* Pro */}
+              <div className="bg-gradient-to-br from-violet-500/10 to-purple-500/10 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-violet-500/30 hover:border-violet-500/50 transition-all relative">
+                <div className="absolute top-4 right-4 bg-gradient-to-r from-violet-500 to-purple-500 text-white text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full">
                   COMPLETO
                 </div>
                 
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="bg-purple-100 p-2 rounded-xl">
-                    <Phone className="h-6 w-6 text-purple-600" />
+                  <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
+                    <Phone className="w-5 h-5 text-violet-400" />
                   </div>
-                  <h3 className="font-bold text-2xl text-gray-900">Pro</h3>
+                  <h3 className="font-bold text-xl sm:text-2xl text-white">Pro</h3>
                 </div>
-                <div className="flex items-baseline gap-1 mb-2">
-                  <span className="text-5xl font-bold text-gray-900">R$ 249</span>
-                  <span className="text-gray-500 text-lg">/mês</span>
-                </div>
-                <p className="text-purple-600 text-sm font-medium mb-6">Todos os tipos de leads</p>
                 
-                <ul className="space-y-4 mb-8">
+                <div className="mb-6">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white">R$ 249</span>
+                    <span className="text-slate-500">/mês</span>
+                  </div>
+                  <p className="text-violet-400 text-sm font-medium mt-1">Todos os tipos de leads</p>
+                </div>
+                
+                <ul className="space-y-3 sm:space-y-4 mb-8">
                   <li className="flex items-center gap-3">
-                    <CheckCircle2 className="w-6 h-6 text-purple-500 flex-shrink-0" />
-                    <span className="text-gray-700">Leads básicos (cadastro)</span>
+                    <CheckCircle2 className="w-5 h-5 text-violet-500 flex-shrink-0" />
+                    <span className="text-slate-300 text-sm sm:text-base">Leads básicos (cadastro)</span>
                   </li>
                   <li className="flex items-center gap-3">
-                    <CheckCircle2 className="w-6 h-6 text-purple-500 flex-shrink-0" />
-                    <span className="text-gray-700">Leads de análise</span>
+                    <CheckCircle2 className="w-5 h-5 text-violet-500 flex-shrink-0" />
+                    <span className="text-slate-300 text-sm sm:text-base">Leads de análise</span>
                   </li>
                   <li className="flex items-center gap-3">
-                    <CheckCircle2 className="w-6 h-6 text-purple-500 flex-shrink-0" />
-                    <span className="text-gray-700 font-bold">Leads premium (CTA)</span>
+                    <CheckCircle2 className="w-5 h-5 text-violet-500 flex-shrink-0" />
+                    <span className="text-white font-bold text-sm sm:text-base">Leads premium (CTA)</span>
                   </li>
                   <li className="flex items-center gap-3">
-                    <CheckCircle2 className="w-6 h-6 text-purple-500 flex-shrink-0" />
-                    <span className="text-gray-700">WhatsApp direto do usuário</span>
+                    <CheckCircle2 className="w-5 h-5 text-violet-500 flex-shrink-0" />
+                    <span className="text-slate-300 text-sm sm:text-base">WhatsApp direto do usuário</span>
                   </li>
                 </ul>
                 
-                <Link href="/terapeuta/cadastro">
-                  <Button className="group/btn relative overflow-hidden w-full py-7 text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-xl shadow-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/50 border-2 border-white/30 transition-all duration-300 hover:scale-105">
-                    {/* Shimmer */}
-                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-out"></span>
-                    <span className="relative flex items-center justify-center gap-2">
-                      <Star className="w-5 h-5 group-hover/btn:rotate-180 transition-transform duration-500" />
-                      Começar agora
-                      <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-2 transition-transform" />
-                    </span>
+                <Link href="/terapeuta/cadastro" className="block">
+                  <Button className="w-full py-5 sm:py-6 text-base font-bold bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-400 hover:to-purple-400 shadow-lg shadow-violet-500/30">
+                    <Star className="w-5 h-5 mr-2" />
+                    Começar agora
                   </Button>
                 </Link>
               </div>
             </div>
 
             {/* Garantia */}
-            <div className="mt-12 text-center">
-              <div className="inline-flex items-center gap-3 bg-white/20 backdrop-blur-sm text-white px-6 py-4 rounded-2xl border border-white/30">
-                <Shield className="w-8 h-8" />
+            <div className="mt-10 sm:mt-12 flex justify-center">
+              <div className="inline-flex items-center gap-3 bg-slate-900/50 backdrop-blur-sm border border-slate-800 px-5 sm:px-6 py-3 sm:py-4 rounded-2xl">
+                <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-400" />
                 <div className="text-left">
-                  <p className="font-bold">Satisfação garantida</p>
-                  <p className="text-sm text-white/80">Cancele a qualquer momento, sem multas</p>
+                  <p className="font-bold text-white text-sm sm:text-base">Satisfação garantida</p>
+                  <p className="text-xs sm:text-sm text-slate-500">Cancele a qualquer momento, sem multas</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Benefícios */}
-      <div className="py-20">
-        <div className="container mx-auto px-4">
+      <section className="relative z-10 py-16 sm:py-20 lg:py-28 bg-slate-900/50">
+        <div className="container mx-auto px-4 sm:px-6">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-12">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-center text-white mb-10 sm:mb-12">
               Por que o Radar Match?
             </h2>
 
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                <div className="bg-emerald-100 p-3 rounded-full w-fit mb-4">
-                  <Target className="h-6 w-6 text-emerald-600" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+              {[
+                { icon: Target, color: "emerald", title: "Leads pré-qualificados", desc: "Usuários já demonstraram interesse ao fazer análises e buscar ajuda. Não é cold calling." },
+                { icon: Heart, color: "rose", title: "Contexto completo", desc: "Receba dados da análise (red flags, padrões) para personalizar sua abordagem." },
+                { icon: Zap, color: "amber", title: "Distribuição justa", desc: "Sistema de rodízio garante distribuição equilibrada entre todos os profissionais." },
+                { icon: Shield, color: "violet", title: "Sem compromisso", desc: "Cancele quando quiser. Sem multas, sem burocracia. Você paga apenas pelo que usa." },
+              ].map((item, i) => (
+                <div key={i} className="bg-slate-900/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-slate-800 hover:border-slate-700 transition-all">
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-${item.color}-500/20 flex items-center justify-center mb-4`}>
+                    <item.icon className={`w-5 h-5 sm:w-6 sm:h-6 text-${item.color}-400`} />
+                  </div>
+                  <h3 className="font-bold text-white text-base sm:text-lg mb-2">{item.title}</h3>
+                  <p className="text-slate-400 text-sm">{item.desc}</p>
                 </div>
-                <h3 className="font-bold text-lg text-gray-900 mb-2">Leads pré-qualificados</h3>
-                <p className="text-gray-600 text-sm">
-                  Os usuários já demonstraram interesse ao fazer análises e buscar ajuda. 
-                  Não é cold calling.
-                </p>
-              </div>
-
-              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                <div className="bg-teal-100 p-3 rounded-full w-fit mb-4">
-                  <Heart className="h-6 w-6 text-teal-600" />
-                </div>
-                <h3 className="font-bold text-lg text-gray-900 mb-2">Contexto completo</h3>
-                <p className="text-gray-600 text-sm">
-                  Receba dados da análise do usuário (red flags, padrões) para personalizar 
-                  sua abordagem.
-                </p>
-              </div>
-
-              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                <div className="bg-cyan-100 p-3 rounded-full w-fit mb-4">
-                  <Zap className="h-6 w-6 text-cyan-600" />
-                </div>
-                <h3 className="font-bold text-lg text-gray-900 mb-2">Distribuição justa</h3>
-                <p className="text-gray-600 text-sm">
-                  Sistema de rodízio garante distribuição equilibrada de leads entre 
-                  todos os profissionais.
-                </p>
-              </div>
-
-              <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                <div className="bg-purple-100 p-3 rounded-full w-fit mb-4">
-                  <Shield className="h-6 w-6 text-purple-600" />
-                </div>
-                <h3 className="font-bold text-lg text-gray-900 mb-2">Sem compromisso</h3>
-                <p className="text-gray-600 text-sm">
-                  Cancele quando quiser. Sem multas, sem burocracia. 
-                  Você paga apenas pelo que usa.
-                </p>
-              </div>
+              ))}
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Quem pode se cadastrar */}
-      <div className="bg-white/60 backdrop-blur-sm py-20">
-        <div className="container mx-auto px-4">
+      <section className="relative z-10 py-16 sm:py-20">
+        <div className="container mx-auto px-4 sm:px-6">
           <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-8">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-6 sm:mb-8">
               Quem pode se cadastrar?
             </h2>
             
-            <div className="flex flex-wrap justify-center gap-3 mb-8">
-              <span className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full font-medium">
-                Terapeutas
-              </span>
-              <span className="bg-teal-100 text-teal-700 px-4 py-2 rounded-full font-medium">
-                Coaches
-              </span>
-              <span className="bg-cyan-100 text-cyan-700 px-4 py-2 rounded-full font-medium">
-                Psicólogos
-              </span>
-              <span className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full font-medium">
-                Tarólogos
-              </span>
-              <span className="bg-purple-100 text-purple-700 px-4 py-2 rounded-full font-medium">
-                Astrólogos
-              </span>
-              <span className="bg-pink-100 text-pink-700 px-4 py-2 rounded-full font-medium">
-                Consteladores
-              </span>
-              <span className="bg-amber-100 text-amber-700 px-4 py-2 rounded-full font-medium">
-                Terapeutas Florais
-              </span>
-              <span className="bg-gray-100 text-gray-700 px-4 py-2 rounded-full font-medium">
-                E mais...
-              </span>
+            <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mb-6 sm:mb-8">
+              {[
+                { nome: "Terapeutas", cor: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+                { nome: "Coaches", cor: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+                { nome: "Psicólogos", cor: "bg-sky-500/20 text-sky-400 border-sky-500/30" },
+                { nome: "Tarólogos", cor: "bg-violet-500/20 text-violet-400 border-violet-500/30" },
+                { nome: "Astrólogos", cor: "bg-rose-500/20 text-rose-400 border-rose-500/30" },
+                { nome: "Consteladores", cor: "bg-teal-500/20 text-teal-400 border-teal-500/30" },
+                { nome: "Terapeutas Florais", cor: "bg-pink-500/20 text-pink-400 border-pink-500/30" },
+                { nome: "E mais...", cor: "bg-slate-500/20 text-slate-400 border-slate-500/30" },
+              ].map((prof, i) => (
+                <span key={i} className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium border ${prof.cor}`}>
+                  {prof.nome}
+                </span>
+              ))}
             </div>
 
-            <p className="text-gray-600 mb-8">
+            <p className="text-slate-400 text-sm sm:text-base mb-8">
               Aceitamos profissionais de diversas áreas que trabalham com 
-              orientação em relacionamentos. Após o cadastro, nossa equipe 
-              analisa seu perfil em até 24h.
+              orientação em relacionamentos. Nossa equipe analisa seu perfil em até 24h.
             </p>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* CTA Final */}
-      <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 py-20">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center text-white">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">
+      <section className="relative z-10 py-16 sm:py-20 lg:py-28">
+        <div className="absolute inset-0 bg-gradient-to-t from-emerald-500/10 via-transparent to-transparent" />
+        
+        <div className="container mx-auto px-4 sm:px-6 relative">
+          <div className="max-w-3xl mx-auto text-center">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4 sm:mb-6">
               Comece a receber leads hoje
             </h2>
-            <p className="text-xl text-white/90 mb-8">
+            <p className="text-slate-400 text-base sm:text-lg mb-8 sm:mb-10">
               Cadastre-se gratuitamente e comece a receber leads qualificados 
               de pessoas buscando ajuda com relacionamentos.
             </p>
-            <Link href="/terapeuta/cadastro">
-              <Button
-                size="lg"
-                className="bg-white text-emerald-700 hover:bg-gray-100 px-10 py-7 text-xl font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all"
-              >
-                Criar minha conta grátis
-                <ArrowRight className="ml-2 h-6 w-6" />
-              </Button>
-            </Link>
-            <p className="text-white/70 mt-6 text-sm">
+            
+            <div className="relative inline-block">
+              {/* 2 camadas de ondas */}
+              <div className="absolute inset-0 -m-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 opacity-25 animate-cta-pulse" />
+              <div className="absolute inset-0 -m-4 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 opacity-15 animate-cta-pulse animation-delay-200" />
+              
+              <Link href="/terapeuta/cadastro" className="relative block">
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white px-8 sm:px-12 py-6 sm:py-7 text-lg sm:text-xl font-bold rounded-2xl shadow-2xl shadow-emerald-500/30"
+                >
+                  Criar minha conta grátis
+                  <ArrowRight className="ml-2 h-5 w-5 sm:h-6 sm:w-6" />
+                </Button>
+              </Link>
+            </div>
+            
+            <p className="text-slate-500 mt-6 text-xs sm:text-sm">
               Aprovação em até 24h • Cancele quando quiser
             </p>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Footer */}
-      <div className="bg-white/40 backdrop-blur-sm border-t border-white/20 py-12">
-        <div className="container mx-auto px-4">
+      <footer className="relative z-10 border-t border-slate-800 py-10 sm:py-12">
+        <div className="container mx-auto px-4 sm:px-6">
           <div className="max-w-3xl mx-auto">
-            <div className="text-center mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Dúvidas?</h3>
+            <div className="text-center mb-6 sm:mb-8">
+              <h3 className="text-base sm:text-lg font-semibold text-white mb-4">Dúvidas?</h3>
               <a
                 href="https://wa.me/5511937756627?text=Olá!%20Sou%20terapeuta%20e%20quero%20saber%20mais%20sobre%20o%20Radar%20Match"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="inline-flex items-center gap-2 sm:gap-3 bg-green-600 hover:bg-green-500 text-white px-5 sm:px-6 py-3 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl"
               >
                 <MessageCircle className="w-5 h-5" />
                 <span>Falar no WhatsApp</span>
               </a>
             </div>
 
-            <div className="text-center border-t border-gray-200 pt-6">
-              <div className="flex flex-wrap justify-center gap-8 text-sm text-gray-600">
-                <Link href="/" className="hover:text-emerald-600 transition">
-                  ← Voltar para usuários
-                </Link>
-                <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-emerald-600" />
-                  <span>Dados protegidos</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-emerald-600" />
-                  <span>Aprovação em 24h</span>
-                </div>
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-8 pt-6 border-t border-slate-800 text-xs sm:text-sm text-slate-500">
+              <Link href="/" className="hover:text-emerald-400 transition-colors">
+                ← Voltar para usuários
+              </Link>
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-emerald-500" />
+                <span>Dados protegidos</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-emerald-500" />
+                <span>Aprovação em 24h</span>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </footer>
 
-      {/* Modal de Agendamento de Demonstração */}
+      {/* Modal de Agendamento */}
       <DemoScheduler 
         isOpen={showDemoScheduler} 
         onClose={() => setShowDemoScheduler(false)} 
       />
+
+      {/* Custom Styles */}
+      <style jsx global>{`
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        @keyframes fade-in-up {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slide-in-right {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+        
+        .animate-fade-in {
+          animation: fade-in 0.6s ease-out forwards;
+        }
+        
+        .animate-fade-in-up {
+          animation: fade-in-up 0.6s ease-out forwards;
+        }
+        
+        .animate-slide-in-right {
+          animation: slide-in-right 0.3s ease-out forwards;
+        }
+        
+        .animation-delay-100 {
+          animation-delay: 0.1s;
+          opacity: 0;
+        }
+        
+        .animation-delay-150 {
+          animation-delay: 0.15s;
+        }
+        
+        .animation-delay-200 {
+          animation-delay: 0.2s;
+          opacity: 0;
+        }
+        
+        .animation-delay-300 {
+          animation-delay: 0.3s;
+          opacity: 0;
+        }
+        
+        .animation-delay-450 {
+          animation-delay: 0.45s;
+        }
+        
+        /* Animações de pulso para CTAs */
+        @keyframes cta-pulse {
+          0% { 
+            transform: scale(1);
+            opacity: 0.3;
+          }
+          50% { 
+            transform: scale(1.08);
+            opacity: 0;
+          }
+          100% { 
+            transform: scale(1.15);
+            opacity: 0;
+          }
+        }
+        
+        .animate-cta-pulse {
+          animation: cta-pulse 2s ease-out infinite;
+        }
+        
+        /* Animações do Logo - Zero Gravity */
+        @keyframes zero-gravity {
+          0% { transform: translateY(0) translateX(0) rotate(0deg); }
+          20% { transform: translateY(-2px) translateX(0.5px) rotate(0.3deg); }
+          40% { transform: translateY(-0.5px) translateX(1px) rotate(-0.3deg); }
+          60% { transform: translateY(-2.5px) translateX(-0.5px) rotate(0.2deg); }
+          80% { transform: translateY(-1px) translateX(-1px) rotate(-0.2deg); }
+          100% { transform: translateY(0) translateX(0) rotate(0deg); }
+        }
+        
+        @keyframes zero-gravity-glow {
+          0%, 100% { opacity: 0.1; transform: scale(1); }
+          50% { opacity: 0.15; transform: scale(1.05); }
+        }
+        
+        .animate-zero-gravity {
+          animation: zero-gravity 6s ease-in-out infinite;
+        }
+        
+        .animate-zero-gravity-glow {
+          animation: zero-gravity-glow 4s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   )
 }
