@@ -931,7 +931,7 @@ export default function AdminPage() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <Link href="/dashboard" className="flex items-center gap-3">
-              <Logo size="lg" variant="dark" disableShine />
+              <Logo size="lg" variant="dark" />
               <div className="flex flex-col">
                 <span className="text-sm md:text-base font-semibold text-purple-400">
                   Coach de Relacionamentos

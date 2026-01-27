@@ -310,7 +310,7 @@ export default function DashboardTerapeutaPage() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <Link href="/" className="flex items-center gap-3">
-              <Logo size="lg" variant="dark" disableShine />
+              <Logo size="lg" variant="dark" />
               <div className="flex flex-col">
                 <span className="text-sm font-semibold text-purple-400">Radar Match</span>
                 <span className="text-xs text-gray-500">Área do Terapeuta</span>
