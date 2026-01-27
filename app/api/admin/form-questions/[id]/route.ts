@@ -118,7 +118,7 @@ export async function PATCH(
           entity: 'FormQuestion',
           entityId: id,
           oldValue: currentQuestion,
-          newValue: finalQuestion,
+          newValue: finalQuestion ?? undefined,
           ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
           userAgent: request.headers.get('user-agent') || 'unknown'
         }

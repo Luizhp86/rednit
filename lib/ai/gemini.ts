@@ -144,7 +144,7 @@ function buildAnalysisPrompt(input: AnalysisInput, ruleBasedResult: AnalysisResu
 CONTEXTO DA ANÁLISE:
 ${input.nome_match ? `- Nome do match: "${input.nome_match}"` : ''}
 - Gênero do match: ${generoLabel}
-- Estágio: ${stageLabels[input.estagio]}
+- Estágio: ${input.estagio ? stageLabels[input.estagio] : 'Não informado'}
 - Objetivo do usuário: ${input.objetivo_usuario}
 - Ritmo desejado: ${input.ritmo_usuario}
 - Iniciativa: ${input.iniciativa === 'VOCE' ? 'Você sempre inicia' : input.iniciativa === 'MATCH' ? 'Match sempre inicia' : 'Equilibrado'}

@@ -108,6 +108,7 @@ export type AnalysisResult = {
     created_at: string
     stage: string
     completeness_score: number
+    question_weights_applied?: boolean
   }
   scores: Scores
   hypotheses_top3: HypothesisResult[]
@@ -1060,7 +1061,7 @@ function generatePremiumReport(
     },
     validation_checklist: validationChecklist.slice(0, 6),
     stage_plan: [{
-      stage: input.estagio,
+      stage: input.estagio || 'FIRST_CHAT',
       actions: currentStageConfig.actions,
       metrics: currentStageConfig.metrics
     }]

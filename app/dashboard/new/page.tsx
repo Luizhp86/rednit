@@ -199,7 +199,7 @@ export default function NewAnalysisPage() {
 
   const canProceed = () => {
     if (!currentQuestion.required) return true
-    const value = formData[currentQuestion.id]
+    const value = (formData as Record<string, unknown>)[currentQuestion.id]
     if (currentQuestion.type === 'number') {
       return typeof value === 'number' && value >= 0
     }
@@ -237,7 +237,7 @@ export default function NewAnalysisPage() {
     }
   }
 
-  const updateField = useCallback((field: keyof FormData, value: any) => {
+  const updateField = useCallback((field: string, value: any) => {
     if (isTransitioning) return
     
     if (transitionTimeoutRef.current) {
@@ -366,7 +366,7 @@ export default function NewAnalysisPage() {
   }
 
   const renderQuestion = () => {
-    const value = formData[currentQuestion.id]
+    const value = (formData as Record<string, unknown>)[currentQuestion.id]
 
     switch (currentQuestion.type) {
       case 'card-select':
