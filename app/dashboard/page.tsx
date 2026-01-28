@@ -514,7 +514,7 @@ export default function DashboardPage() {
                         </div>
                         
                         <button
-                          onClick={() => setShowTherapistDisclaimer(true)}
+                          onClick={() => setShowSpecialistModal(true)}
                           className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-6 py-3.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2.5 shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-[1.02] active:scale-[0.98]"
                         >
                           <MessageCircle className="w-5 h-5" />
