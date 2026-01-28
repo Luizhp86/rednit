@@ -71,13 +71,14 @@ if (databaseUrl && databaseUrl.startsWith('postgres')) {
       pool = new Pool({
         connectionString: databaseUrl,
         connectionTimeoutMillis: 5000,
-        idleTimeoutMillis: isDev ? 5000 : 30000, // Libera conexões idle rapidamente em dev
-        max: isDev ? 1 : 5, // Mínimo de conexões para evitar esgotamento
+        idleTimeoutMillis: isDev ? 5000 : 10000, // Libera conexões idle rapidamente
+        max: isDev ? 1 : 2, // Pool pequeno para evitar esgotar conexões do Supabase
+        min: 0, // Não manter conexões ociosas
         allowExitOnIdle: true, // Permite que o processo encerre quando idle
       })
       
       globalForPrisma.pgPool = pool
-      console.log('[PRISMA] Novo pool criado (max:', isDev ? 1 : 5, ')')
+      console.log('[PRISMA] Novo pool criado (max:', isDev ? 1 : 2, ')')
       
       // Registrar cleanup para quando o processo encerrar
       if (!globalForPrisma.cleanupRegistered) {
@@ -148,7 +149,8 @@ try {
       log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
     })
 
-  if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prismaInstance
+  // Sempre reutilizar instância para evitar criar múltiplas conexões
+  globalForPrisma.prisma = prismaInstance
   
   console.log('[PRISMA] PrismaClient criado com sucesso')
 } catch (error: any) {
