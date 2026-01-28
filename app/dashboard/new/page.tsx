@@ -15,6 +15,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { trackEvent } from '@/lib/tracking'
 import { ThemeSelector } from '@/components/theme-selector'
 import { FloatingLoader } from '@/components/floating-loader'
+import { QuestionTransitionLoader } from '@/components/question-transition-loader'
+import { PageLoader } from '@/components/page-loader'
 import { 
   Heart, Zap, Clock, MessageCircle, Calendar, 
   AlertTriangle, CheckCircle2, XCircle, 
@@ -96,6 +98,16 @@ export default function NewAnalysisPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [loading, setLoading] = useState(false)
   const [isTransitioning, setIsTransitioning] = useState(false)
+  const [showTransitionLoader, setShowTransitionLoader] = useState(false)
+  const [showLimitModal, setShowLimitModal] = useState(false)
+  const [limitModalLeadSubmitted, setLimitModalLeadSubmitted] = useState(false)
+  const [limitModalSubmitting, setLimitModalSubmitting] = useState(false)
+  const [userData, setUserData] = useState<{
+    name: string | null
+    email: string
+    phone: string | null
+    specialist: { whatsapp: string | null } | null
+  } | null>(null)
   const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
   const ALL_ALERT_SIGNS = [
@@ -122,6 +134,27 @@ export default function NewAnalysisPage() {
     inegociaveis: [],
     nome_match: '',
   })
+
+  // Carregar dados do usuário
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const res = await fetch('/api/me')
+        if (res.ok) {
+          const data = await res.json()
+          setUserData({
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            specialist: data.therapist || null,
+          })
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados do usuário:', error)
+      }
+    }
+    loadUserData()
+  }, [])
 
   // Carregar perguntas quando tema é selecionado
   useEffect(() => {
@@ -211,8 +244,12 @@ export default function NewAnalysisPage() {
     if (canProceed() && !isLastQuestion) {
       const nextIndex = safeIndex + 1
       if (nextIndex < visibleQuestions.length) {
-        setCurrentQuestionIndex(nextIndex)
-        window.scrollTo({ top: 0, behavior: 'smooth' })
+        setShowTransitionLoader(true)
+        setTimeout(() => {
+          setCurrentQuestionIndex(nextIndex)
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+          setTimeout(() => setShowTransitionLoader(false), 300)
+        }, 400)
       }
     }
   }
@@ -221,8 +258,12 @@ export default function NewAnalysisPage() {
     if (!isFirstQuestion) {
       const prevIndex = safeIndex - 1
       if (prevIndex >= 0) {
-        setCurrentQuestionIndex(prevIndex)
-        window.scrollTo({ top: 0, behavior: 'smooth' })
+        setShowTransitionLoader(true)
+        setTimeout(() => {
+          setCurrentQuestionIndex(prevIndex)
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+          setTimeout(() => setShowTransitionLoader(false), 300)
+        }, 400)
       }
     }
   }
@@ -231,8 +272,12 @@ export default function NewAnalysisPage() {
     if (!isLastQuestion) {
       const nextIndex = safeIndex + 1
       if (nextIndex < visibleQuestions.length) {
-        setCurrentQuestionIndex(nextIndex)
-        window.scrollTo({ top: 0, behavior: 'smooth' })
+        setShowTransitionLoader(true)
+        setTimeout(() => {
+          setCurrentQuestionIndex(nextIndex)
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+          setTimeout(() => setShowTransitionLoader(false), 300)
+        }, 400)
       }
     }
   }
@@ -256,6 +301,7 @@ export default function NewAnalysisPage() {
     const question = visibleQuestions[safeIndex]
     if (question?.autoAdvance && safeIndex < visibleQuestions.length - 1 && value) {
       setIsTransitioning(true)
+      setShowTransitionLoader(true)
       
       transitionTimeoutRef.current = setTimeout(() => {
         const updatedFormData = { ...formData, [field]: value }
@@ -284,8 +330,9 @@ export default function NewAnalysisPage() {
         
         setTimeout(() => {
           setIsTransitioning(false)
+          setShowTransitionLoader(false)
         }, 350)
-      }, 400)
+      }, 600)
     }
   }, [isTransitioning, formData, visibleQuestions, safeIndex])
 
@@ -349,7 +396,17 @@ export default function NewAnalysisPage() {
       if (!response.ok) {
         const error = await response.json()
         trackEvent('ANALYSIS_FAILED', { error: error.error })
-        alert(error.error || 'Erro ao processar análise')
+        const errorMessage = error.error || 'Erro ao processar análise'
+        
+        // Se for erro de limite de análises, mostrar modal bonito
+        if (errorMessage.includes('limite') || errorMessage.includes('Volte amanhã')) {
+          setLoading(false)
+          setShowLimitModal(true)
+          return
+        }
+        
+        alert(errorMessage)
+        setLoading(false)
         return
       }
 
@@ -360,7 +417,6 @@ export default function NewAnalysisPage() {
       console.error('Error:', error)
       trackEvent('ANALYSIS_FAILED', { error: 'unknown' })
       alert('Erro ao processar análise')
-    } finally {
       setLoading(false)
     }
   }
@@ -517,8 +573,20 @@ export default function NewAnalysisPage() {
     )
   }
 
+  // Se está enviando o formulário, mostrar loader
+  if (loading) {
+    return <PageLoader message="Analisando sua relação..." />
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50">
+      {/* Loader de transição temático */}
+      <QuestionTransitionLoader 
+        isVisible={showTransitionLoader}
+        currentQuestion={safeIndex + 1}
+        totalQuestions={visibleQuestions.length}
+      />
+
       {/* Header */}
       <nav className="bg-white/80 backdrop-blur-xl shadow-sm border-b border-purple-100/50 sticky top-0 z-40">
         <div className="container mx-auto px-4 py-3 sm:py-4">
@@ -664,6 +732,142 @@ export default function NewAnalysisPage() {
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* Modal de Limite de Análises */}
+      {showLimitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative bg-white rounded-3xl border border-purple-100 shadow-2xl max-w-md w-full p-7 sm:p-9 text-center overflow-hidden"
+          >
+            {/* Decorative gradient top */}
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500" />
+            
+            {limitModalLeadSubmitted ? (
+              /* Lead enviado com sucesso */
+              <>
+                <div className="relative inline-block mb-5">
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-green-400 rounded-full blur-xl opacity-30 animate-pulse" />
+                  <div className="relative text-6xl">💚</div>
+                </div>
+                
+                <h3 className="font-display text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+                  Perfeito!
+                </h3>
+                
+                <p className="text-gray-600 text-base mb-6 leading-relaxed">
+                  Um especialista entrará em contato com você em breve pelo WhatsApp ou telefone cadastrado.
+                </p>
+                
+                <button
+                  onClick={() => {
+                    setShowLimitModal(false)
+                    setLimitModalLeadSubmitted(false)
+                    router.push('/dashboard')
+                  }}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white px-6 py-4 rounded-2xl font-bold text-base transition-all shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40"
+                >
+                  Ver minhas análises
+                </button>
+              </>
+            ) : (
+              /* Modal padrão */
+              <>
+                {/* Emoji/Icon */}
+                <div className="relative inline-block mb-5">
+                  <div className="absolute inset-0 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full blur-xl opacity-30 animate-pulse" />
+                  <div className="relative text-6xl">😢</div>
+                </div>
+                
+                <h3 className="font-display text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+                  Ohh não!
+                </h3>
+                
+                <p className="text-gray-600 text-base sm:text-lg mb-2 leading-relaxed">
+                  Você atingiu seu limite de análises por hoje.
+                </p>
+                
+                <p className="text-gray-500 text-sm mb-6">
+                  Sabemos que você está ansioso(a) para entender melhor suas relações, mas precisamos de um tempinho para processar tudo. 
+                  <span className="text-purple-600 font-medium"> Volte amanhã</span> e continue sua jornada!
+                </p>
+                
+                {/* Destaque para especialista */}
+                <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-2xl p-5 mb-5 border border-emerald-200">
+                  <p className="text-sm text-emerald-800 font-medium mb-4 flex items-center justify-center gap-2">
+                    <Heart className="w-4 h-4 text-emerald-600" />
+                    Que tal conversar com um especialista agora?
+                  </p>
+                  
+                  {userData?.specialist?.whatsapp ? (
+                    /* Com especialista - WhatsApp direto */
+                    <a
+                      href={`https://wa.me/55${userData.specialist.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Vim do Radar Match e gostaria de conversar.')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setShowLimitModal(false)}
+                      className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-5 py-3.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                      Falar no WhatsApp
+                    </a>
+                  ) : (
+                    /* Sem especialista - Gerar lead */
+                    <button
+                      onClick={async () => {
+                        setLimitModalSubmitting(true)
+                        try {
+                          const response = await fetch('/api/lead/generate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              type: 'CTA',
+                              userEmail: userData?.email || '',
+                              userPhone: userData?.phone || '00000000000',
+                              userName: userData?.name || '',
+                            })
+                          })
+                          if (response.ok) {
+                            setLimitModalLeadSubmitted(true)
+                          }
+                        } catch (error) {
+                          console.error('Erro ao gerar lead:', error)
+                        } finally {
+                          setLimitModalSubmitting(false)
+                        }
+                      }}
+                      disabled={limitModalSubmitting}
+                      className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-5 py-3.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {limitModalSubmitting ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <MessageCircle className="w-5 h-5" />
+                          Quero ser contatado
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+                
+                {/* Opção secundária */}
+                <button
+                  onClick={() => {
+                    setShowLimitModal(false)
+                    router.push('/dashboard')
+                  }}
+                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-5 py-3 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Voltar para minhas análises
+                </button>
+              </>
+            )}
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }

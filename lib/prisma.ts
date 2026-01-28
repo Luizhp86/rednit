@@ -4,11 +4,15 @@ import { PrismaPg } from '@prisma/adapter-pg'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
+  pgPool: Pool | undefined
+  cleanupRegistered: boolean | undefined
 }
 
-console.log('[PRISMA] Inicializando Prisma Client...')
-console.log('[PRISMA] DATABASE_URL existe:', !!process.env.DATABASE_URL)
-console.log('[PRISMA] DATABASE_URL formato:', process.env.DATABASE_URL?.substring(0, 50) || 'não definido')
+// Só logar uma vez por inicialização
+if (!globalForPrisma.prisma) {
+  console.log('[PRISMA] Inicializando Prisma Client...')
+  console.log('[PRISMA] DATABASE_URL existe:', !!process.env.DATABASE_URL)
+}
 
 // Get database URL
 let databaseUrl = process.env.DATABASE_URL || ''
@@ -53,27 +57,58 @@ if (databaseUrl.startsWith('prisma+postgres://')) {
 let adapter: PrismaPg | undefined
 
 if (databaseUrl && databaseUrl.startsWith('postgres')) {
-  console.log('[PRISMA] Criando adapter PostgreSQL...')
-  console.log('[PRISMA] URL (mascarada):', databaseUrl.replace(/:[^:@]+@/, ':****@'))
   try {
-    const pool = new Pool({
-      connectionString: databaseUrl,
-      // Configurações de timeout e retry para melhorar resiliência
-      connectionTimeoutMillis: 10000,
-      idleTimeoutMillis: 30000,
-      max: 10,
-    })
-    adapter = new PrismaPg(pool)
-    console.log('[PRISMA] Adapter criado com sucesso')
+    // Em desenvolvimento, usar menos conexões para evitar "max clients reached"
+    const isDev = process.env.NODE_ENV === 'development'
     
-    // Testar conexão em modo desenvolvimento
-    if (process.env.NODE_ENV === 'development') {
+    // Reutilizar pool existente para evitar criar múltiplos pools durante hot reload
+    let pool: Pool
+    
+    if (globalForPrisma.pgPool) {
+      pool = globalForPrisma.pgPool
+      console.log('[PRISMA] Reutilizando pool existente')
+    } else {
+      pool = new Pool({
+        connectionString: databaseUrl,
+        connectionTimeoutMillis: 5000,
+        idleTimeoutMillis: isDev ? 5000 : 30000, // Libera conexões idle rapidamente em dev
+        max: isDev ? 1 : 5, // Mínimo de conexões para evitar esgotamento
+        allowExitOnIdle: true, // Permite que o processo encerre quando idle
+      })
+      
+      globalForPrisma.pgPool = pool
+      console.log('[PRISMA] Novo pool criado (max:', isDev ? 1 : 5, ')')
+      
+      // Registrar cleanup para quando o processo encerrar
+      if (!globalForPrisma.cleanupRegistered) {
+        globalForPrisma.cleanupRegistered = true
+        
+        const cleanup = async () => {
+          console.log('[PRISMA] Encerrando pool de conexões...')
+          if (globalForPrisma.pgPool) {
+            await globalForPrisma.pgPool.end()
+            globalForPrisma.pgPool = undefined
+          }
+          if (globalForPrisma.prisma) {
+            await globalForPrisma.prisma.$disconnect()
+            globalForPrisma.prisma = undefined
+          }
+        }
+        
+        process.on('beforeExit', cleanup)
+        process.on('SIGINT', () => { cleanup().then(() => process.exit(0)) })
+        process.on('SIGTERM', () => { cleanup().then(() => process.exit(0)) })
+      }
+    }
+    
+    adapter = new PrismaPg(pool)
+    
+    // Testar conexão apenas na primeira inicialização
+    if (!globalForPrisma.prisma) {
       pool.query('SELECT 1').then(() => {
-        console.log('[PRISMA] Conexão com banco testada com sucesso')
+        console.log('[PRISMA] Conexão com banco OK')
       }).catch((err) => {
-        console.warn('[PRISMA] AVISO: Não foi possível conectar ao banco:', err.message)
-        console.warn('[PRISMA] Se o banco Supabase estiver pausado, vá ao dashboard e reative-o')
-        console.warn('[PRISMA] A aplicação continuará funcionando, mas operações de banco falharão')
+        console.warn('[PRISMA] Banco indisponível:', err.message)
       })
     }
   } catch (error: any) {

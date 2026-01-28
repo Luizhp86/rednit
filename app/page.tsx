@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRight, Sparkles, Shield, Zap, MessageCircle, Bot, Target, Brain, CheckCircle2, AlertTriangle, TrendingUp, ChevronRight, Menu, X, Heart, Flame } from 'lucide-react'
+import { ArrowRight, Sparkles, Shield, Zap, MessageCircle, Bot, Target, Brain, CheckCircle2, AlertTriangle, TrendingUp, ChevronRight, Menu, X, Heart, Flame, User } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import { useState, useEffect } from 'react'
 
@@ -131,40 +131,53 @@ function AnimatedDemo() {
         
         {/* Conteúdo animado */}
         <div className="p-5 sm:p-6 min-h-[220px] sm:min-h-[240px] flex flex-col justify-center">
-          {/* Step 0: Pergunta */}
+          {/* Step 0: Pergunta com cards coloridos */}
           {step === 0 && (
             <div className="animate-fade-in-up">
-              <p className="text-[10px] sm:text-xs text-purple-500 font-semibold mb-2 uppercase tracking-wider">Pergunta 5 de 14</p>
-              <p className="font-display text-lg sm:text-xl font-bold text-gray-900 mb-5">Quem inicia as conversas?</p>
-              <div className="space-y-2.5">
-                {["Você sempre", "Equilibrado", "Match sempre"].map((opt, i) => (
-                  <div key={i} className="p-3 sm:p-3.5 rounded-xl border-2 border-gray-200 text-sm text-gray-600 flex items-center gap-3 hover:border-purple-300 hover:bg-purple-50/50 transition-all cursor-pointer">
-                    <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0"></div>
-                    {opt}
+              <p className="text-[10px] sm:text-xs text-purple-500 font-semibold mb-2 uppercase tracking-wider">Pergunta 1 de 14</p>
+              <p className="font-display text-lg sm:text-xl font-bold text-gray-900 mb-5">Sobre quem você quer analisar?</p>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Card Ela - Rosa */}
+                <div className="p-4 rounded-xl border-2 border-pink-200 bg-pink-50 hover:bg-pink-100 transition-all cursor-pointer flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center">
+                    <User className="w-5 h-5 text-white" />
                   </div>
-                ))}
+                  <span className="text-sm font-semibold text-pink-700">Ela</span>
+                </div>
+                {/* Card Ele - Azul */}
+                <div className="p-4 rounded-xl border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 transition-all cursor-pointer flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                    <User className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-semibold text-blue-700">Ele</span>
+                </div>
               </div>
             </div>
           )}
           
-          {/* Step 1: Selecionando resposta */}
+          {/* Step 1: Card selecionado */}
           {step === 1 && (
             <div className="animate-fade-in-up">
-              <p className="text-[10px] sm:text-xs text-purple-500 font-semibold mb-2 uppercase tracking-wider">Pergunta 5 de 14</p>
-              <p className="font-display text-lg sm:text-xl font-bold text-gray-900 mb-5">Quem inicia as conversas?</p>
-              <div className="space-y-2.5">
-                <div className="p-3 sm:p-3.5 rounded-xl border-2 border-purple-500 bg-purple-50 text-sm text-purple-700 font-semibold flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+              <p className="text-[10px] sm:text-xs text-purple-500 font-semibold mb-2 uppercase tracking-wider">Pergunta 1 de 14</p>
+              <p className="font-display text-lg sm:text-xl font-bold text-gray-900 mb-5">Sobre quem você quer analisar?</p>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Card Ela - Selecionado */}
+                <div className="p-4 rounded-xl border-2 border-pink-500 bg-pink-100 ring-2 ring-pink-300 transition-all cursor-pointer flex flex-col items-center gap-2 relative">
+                  <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
                     <CheckCircle2 className="w-3.5 h-3.5 text-white" />
                   </div>
-                  Você sempre
-                </div>
-                {["Equilibrado", "Match sempre"].map((opt, i) => (
-                  <div key={i} className="p-3 sm:p-3.5 rounded-xl border-2 border-gray-200 text-sm text-gray-400 flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full border-2 border-gray-200 flex-shrink-0"></div>
-                    {opt}
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center">
+                    <User className="w-5 h-5 text-white" />
                   </div>
-                ))}
+                  <span className="text-sm font-semibold text-pink-700">Ela</span>
+                </div>
+                {/* Card Ele - Não selecionado */}
+                <div className="p-4 rounded-xl border-2 border-gray-200 bg-gray-50 transition-all cursor-pointer flex flex-col items-center gap-2 opacity-50">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center">
+                    <User className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-semibold text-gray-500">Ele</span>
+                </div>
               </div>
             </div>
           )}
@@ -173,30 +186,25 @@ function AnimatedDemo() {
           {step === 2 && (
             <div className="animate-fade-in-up">
               <p className="text-[10px] sm:text-xs text-purple-500 font-semibold mb-4 uppercase tracking-wider">Resultado da análise</p>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-700">Risco de enrolação</span>
-                  <span className="text-xl font-bold text-gradient-primary">68%</span>
+              <div className="space-y-3">
+                {/* Score de Investimento */}
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <span className="text-sm font-medium text-gray-700">Investimento dela</span>
+                  <span className="text-lg font-bold text-orange-500">Baixo</span>
                 </div>
-                <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                  <div className="bg-gradient-to-r from-orange-400 via-orange-500 to-red-500 h-2.5 rounded-full transition-all duration-1000" style={{width: '68%'}}></div>
+                {/* Score de Reciprocidade */}
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <span className="text-sm font-medium text-gray-700">Reciprocidade</span>
+                  <span className="text-lg font-bold text-red-500">23%</span>
                 </div>
+                {/* Flag de Alerta */}
                 <div className="flex items-start gap-3 p-3.5 bg-red-50 rounded-2xl border border-red-200">
                   <div className="p-1.5 bg-red-100 rounded-lg">
                     <AlertTriangle className="w-4 h-4 text-red-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-red-700">Desequilíbrio de investimento</p>
+                    <p className="text-sm font-bold text-red-700">Desequilíbrio detectado</p>
                     <p className="text-xs text-red-600 mt-0.5">Você está investindo mais</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3.5 bg-purple-50 rounded-2xl border border-purple-200">
-                  <div className="p-1.5 bg-purple-100 rounded-lg">
-                    <Target className="w-4 h-4 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-purple-700">Hipótese: Explorando opções</p>
-                    <p className="text-xs text-purple-600 mt-0.5">Confiança média</p>
                   </div>
                 </div>
               </div>
@@ -326,7 +334,7 @@ export default function LandingPage() {
                     Sem viés. Sem julgamento.
                   </span>
                   <br />
-                  <span className="text-gray-900">Só a verdade.</span>
+                  <span className="text-gray-900">Te ajudo a entender os sinais.</span>
                 </h1>
 
                 {/* Subheadline */}
@@ -354,7 +362,7 @@ export default function LandingPage() {
                   
                   {/* Trust badges */}
                   <div className="flex flex-wrap justify-center lg:justify-start gap-x-5 gap-y-2 text-sm text-gray-500">
-                    {["2 minutos", "Sem prints", "Sem julgamento"].map((badge, i) => (
+                    {["100% Grátis", "2 minutos", "Sem julgamento"].map((badge, i) => (
                       <div key={i} className="flex items-center gap-2">
                         <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
@@ -691,7 +699,7 @@ export default function LandingPage() {
               Seu coach com base em <span className="text-gradient-primary">ciência</span>
             </h2>
             <p className="text-gray-600 text-base sm:text-lg lg:text-xl mb-10 leading-relaxed">
-              Um coach de relacionamentos que usa os mesmos padrões que terapeutas de casal — aplicados ao seu match, sem viés.
+              Um coach de relacionamentos que usa padrões de terapeutas de casal para te ajudar a enxergar com mais clareza.
             </p>
             <div className="flex flex-wrap justify-center gap-3 text-sm text-gray-600">
               {["Teoria do Apego (Bowlby)", "Pesquisas de Gottman", "Modelo de Investimento (Rusbult)"].map((item, i) => (
@@ -720,7 +728,7 @@ export default function LandingPage() {
               Tenha um coach de relacionamentos no bolso
             </h2>
             <p className="text-lg sm:text-xl text-white/90 mb-10 leading-relaxed">
-              Análise objetiva do seu match em 2 minutos — sem viés, sem julgamento, só a verdade.
+              Análise objetiva do seu match em 2 minutos — 100% grátis, sem julgamento.
             </p>
             <div className="relative inline-block">
               {/* Ondas de pulso - brancas */}
@@ -736,7 +744,7 @@ export default function LandingPage() {
               </Link>
             </div>
             <p className="text-white/70 mt-8 text-sm sm:text-base">
-              2 minutos • Sem prints • Sem julgamento
+              100% Grátis • 2 minutos • Sem julgamento
             </p>
           </div>
         </div>

@@ -924,7 +924,7 @@ export default function AdminPage() {
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, onClick: () => setActiveTab('dashboard') },
     { id: 'config', label: 'Config', icon: Settings, onClick: () => setActiveTab('config') },
     { id: 'users', label: 'Usuários', icon: Users, onClick: () => { setActiveTab('users'); loadUsers(1, ''); } },
-    { id: 'therapists', label: 'Terapeutas', icon: UserCheck, onClick: () => { setActiveTab('therapists'); loadTherapists(1, '', ''); } },
+    { id: 'therapists', label: 'Especialistas', icon: UserCheck, onClick: () => { setActiveTab('therapists'); loadTherapists(1, '', ''); } },
     { id: 'leads', label: 'Leads', icon: MessageCircle, onClick: () => { setActiveTab('leads'); loadAdminLeads(1, '', '', ''); loadAllTherapists(); } },
     { id: 'forms', label: 'Formulários', icon: Layers, onClick: () => setActiveTab('forms') },
     { id: 'demos', label: 'Demos', icon: Activity, onClick: () => { setActiveTab('demos'); loadDemos(1, ''); } },
@@ -1121,7 +1121,7 @@ export default function AdminPage() {
                     <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
                       <UserCheck className="w-5 h-5 text-emerald-400" />
                     </div>
-                    <span className="text-xs font-mono text-emerald-500/60 tracking-wider">TERAPEUTAS</span>
+                    <span className="text-xs font-mono text-emerald-500/60 tracking-wider">ESPECIALISTAS</span>
                   </div>
                   <p className="text-4xl font-bold text-white mb-1 tracking-tight">{stats.therapists?.total || 0}</p>
                   <div className="flex items-center gap-2 text-sm text-white/40">
@@ -1378,7 +1378,7 @@ export default function AdminPage() {
             <Card className="bg-gray-800 border-gray-700 p-6">
               <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-green-500" />
-                Preços de Planos de Terapeutas (B2B)
+                Preços de Planos de Especialistas (B2B)
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
@@ -3164,7 +3164,7 @@ export default function AdminPage() {
                       <p className="text-orange-200 font-semibold">
                         {leadStats.unassigned} lead{leadStats.unassigned > 1 ? 's' : ''} sem terapeuta atribuído
                       </p>
-                      <p className="text-orange-300/70 text-sm">Clique para filtrar e atribuir terapeutas</p>
+                      <p className="text-orange-300/70 text-sm">Clique para filtrar e atribuir especialistas</p>
                     </div>
                   </div>
                   <Button 
@@ -3208,7 +3208,7 @@ export default function AdminPage() {
                 onChange={(e) => { setLeadTherapistFilter(e.target.value); loadAdminLeads(1, leadTypeFilter, leadStatusFilter, e.target.value); }}
                 className="bg-gray-800 border-gray-700 text-white rounded-lg px-3 py-2"
               >
-                <option value="">Todos os terapeutas</option>
+                <option value="">Todos os especialistas</option>
                 <option value="unassigned">⚠️ Sem terapeuta</option>
                 {allTherapists.map(t => (
                   <option key={t.id} value={t.id}>{t.name}</option>
@@ -3438,7 +3438,7 @@ export default function AdminPage() {
               <Card className="bg-gray-800 border-gray-700 p-6">
                 <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-purple-500" />
-                  Top Terapeutas por Leads
+                  Top Especialistas por Leads
                 </h3>
                 <div className="space-y-3">
                   {leadStats.byTherapist.slice(0, 5).map((t: any, idx: number) => (

@@ -7,7 +7,8 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/logo'
 import { PhoneInputModal } from '@/components/phone-input-modal'
-import { BarChart3, TrendingUp, Brain, Shield, ArrowRight, Sparkles, Compass, X, AlertTriangle, CheckCircle2, MessageCircle, Heart, Phone, Menu, LogOut, User, ChevronRight, Flame, Target, Zap } from 'lucide-react'
+import { PageLoader } from '@/components/page-loader'
+import { BarChart3, TrendingUp, Brain, Shield, ArrowRight, Sparkles, Compass, X, AlertTriangle, CheckCircle2, MessageCircle, Heart, Phone, Menu, LogOut, User, ChevronRight, Flame, Target, Zap, Trash2 } from 'lucide-react'
 
 type Analysis = {
   id: string
@@ -45,18 +46,23 @@ export default function DashboardPage() {
   // Modelo B2B: Leads não têm planos - todos têm acesso completo
   const [routeCorrection, setRouteCorrection] = useState<RouteCorrection | null>(null)
   const [showMinAnalysesModal, setShowMinAnalysesModal] = useState(false)
-  const [showRouteCorrectionTooltip, setShowRouteCorrectionTooltip] = useState(false)
   const [showPhoneModal, setShowPhoneModal] = useState(false)
   const [userName, setUserName] = useState<string | null>(null)
-  const [therapist, setTherapist] = useState<{
+  const [userPhone, setUserPhone] = useState<string | null>(null)
+  const [specialist, setSpecialist] = useState<{
     id: string
     name: string
     whatsapp: string | null
     photoUrl: string | null
   } | null>(null)
-  const [showTherapistDisclaimer, setShowTherapistDisclaimer] = useState(false)
+  const [showSpecialistModal, setShowSpecialistModal] = useState(false)
+  const [leadSubmitted, setLeadSubmitted] = useState(false)
+  const [submittingLead, setSubmittingLead] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [hasFormsAvailable, setHasFormsAvailable] = useState<boolean | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [loadingRouteCorrection, setLoadingRouteCorrection] = useState(false)
 
   const stageLabels: Record<string, string> = {
     FIRST_CHAT: 'Primeira conversa',
@@ -94,12 +100,10 @@ export default function DashboardPage() {
       if (meRes.ok) {
         const meData = await meRes.json()
         setUserName(meData.name)
+        setUserPhone(meData.phone)
         
         if (meData.routeCorrection) {
           setRouteCorrection(meData.routeCorrection)
-          if (meData.routeCorrection.available) {
-            setShowRouteCorrectionTooltip(true)
-          }
         }
         
         if (!meData.phone) {
@@ -107,7 +111,7 @@ export default function DashboardPage() {
         }
         
         if (meData.therapist) {
-          setTherapist(meData.therapist)
+          setSpecialist(meData.therapist)
         }
       }
 
@@ -135,13 +139,36 @@ export default function DashboardPage() {
     router.push('/')
   }
 
-  const handleRouteCorrectionClick = () => {
+  const handleRouteCorrectionClick = async () => {
+    setLoadingRouteCorrection(true)
+    
+    // Simular tempo de análise para gerar expectativa
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    
     if (!routeCorrection?.available) {
+      setLoadingRouteCorrection(false)
       setShowMinAnalysesModal(true)
       return
     }
-    setShowRouteCorrectionTooltip(false)
     router.push('/dashboard/route-correction')
+  }
+
+  const handleDeleteAnalysis = async (id: string) => {
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/analyses/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setAnalyses((prev) => prev.filter((a) => a.id !== id))
+        setDeleteConfirm(null)
+      } else {
+        alert('Erro ao excluir análise')
+      }
+    } catch (error) {
+      console.error('Erro ao excluir:', error)
+      alert('Erro ao excluir análise')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   if (loading) {
@@ -181,6 +208,13 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 relative overflow-hidden grain-overlay">
+      {/* Loader de tela cheia para análise de comportamento */}
+      {loadingRouteCorrection && (
+        <div className="fixed inset-0 z-[100]">
+          <PageLoader message="Analisando seu comportamento..." />
+        </div>
+      )}
+
       {/* Background ambient effects */}
       <div className="fixed inset-0 pointer-events-none">
         {/* Main purple glow */}
@@ -209,6 +243,14 @@ export default function DashboardPage() {
                 <div className="relative">
                   <Logo size="lg" />
                 </div>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm md:text-base font-semibold text-purple-700">
+                  Radar Match
+                </span>
+                <span className="text-xs text-gray-500 hidden md:block">
+                  Seu coach de relacionamentos
+                </span>
               </div>
             </Link>
             
@@ -280,98 +322,68 @@ export default function DashboardPage() {
           <div>
             <p className="text-purple-500 font-semibold text-sm mb-2 tracking-wide uppercase">Dashboard</p>
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight">
-              Minhas <span className="text-gradient-primary">Análises</span>
+              Minhas <span className="text-gradient-primary">relações analisadas</span>
             </h1>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-3 animate-fade-in-up animation-delay-200">
-            {/* Backdrop para fechar tooltip ao clicar fora */}
-            {showRouteCorrectionTooltip && routeCorrection?.available && (
-              <div 
-                className="fixed inset-0 z-40" 
-                onClick={() => setShowRouteCorrectionTooltip(false)}
-              />
-            )}
-            
-            {/* Botão de Análise de Comportamento */}
-            {analyses.length >= 1 && (
-              <div className="relative">
-                {showRouteCorrectionTooltip && routeCorrection?.available && (
-                  <div className="absolute top-full right-0 mt-4 w-80 z-50">
-                    <div className="bg-gray-900 text-white text-sm rounded-2xl p-5 shadow-2xl relative">
-                      <button
-                        onClick={() => setShowRouteCorrectionTooltip(false)}
-                        className="absolute top-3 right-3 text-gray-400 hover:text-white transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="p-1.5 bg-yellow-500/20 rounded-lg">
-                          <Sparkles className="w-4 h-4 text-yellow-400" />
-                        </div>
-                        <span className="font-semibold text-yellow-400">Novidade!</span>
-                        <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
-                          Pro
-                        </span>
-                      </div>
-                      <p className="text-gray-300 text-sm leading-relaxed">
-                        Descubra se você está evoluindo na atração de pessoas com mesmas intenções!
-                      </p>
-                      <div className="absolute -top-2 right-12 w-4 h-4 bg-gray-900 rotate-45" />
-                    </div>
-                  </div>
-                )}
-                
+          {/* Botões de ação - só aparecem quando há análises */}
+          {analyses.length > 0 && (
+            <div className="flex flex-col sm:flex-row gap-3 animate-fade-in-up animation-delay-200">
+              {/* Botão de Análise de Comportamento */}
+              {analyses.length >= 1 && (
+                <div className="relative">
+                  <button
+                    onClick={handleRouteCorrectionClick}
+                    disabled={loadingRouteCorrection}
+                    className={`relative w-full sm:w-auto px-5 py-3.5 rounded-2xl font-semibold transition-all flex items-center justify-center gap-2.5 text-sm ${
+                      routeCorrection?.available
+                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-500 hover:to-pink-500 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98] ring-2 ring-purple-400/50 ring-offset-2 ring-offset-purple-50 disabled:opacity-70'
+                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <Compass className="w-5 h-5" />
+                    <span>Analisar comportamento</span>
+                    {routeCorrection?.available && (
+                      <span className="bg-white/20 text-xs px-2 py-0.5 rounded-full font-bold">
+                        {routeCorrection.activeAnalysesCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              )}
+              
+              {/* Botão Falar com Especialista - aparece quando tem análises */}
+              {analyses.length > 0 && (
                 <button
-                  onClick={handleRouteCorrectionClick}
-                  className={`relative w-full sm:w-auto px-5 py-3.5 rounded-2xl font-semibold transition-all flex items-center justify-center gap-2.5 text-sm ${
-                    routeCorrection?.available
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-500 hover:to-pink-500 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98] ring-2 ring-purple-400/50 ring-offset-2 ring-offset-purple-50'
-                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  }`}
+                  onClick={() => setShowSpecialistModal(true)}
+                  className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-5 py-3.5 rounded-2xl font-semibold transition-all flex items-center justify-center gap-2.5 shadow-lg shadow-green-500/20 hover:shadow-green-500/30 hover:scale-[1.02] active:scale-[0.98] text-sm"
                 >
-                  <Compass className="w-5 h-5" />
-                  <span>Analisar comportamento</span>
-                  {routeCorrection?.available && (
-                    <span className="bg-white/20 text-xs px-2 py-0.5 rounded-full font-bold">
-                      {routeCorrection.activeAnalysesCount}
-                    </span>
-                  )}
+                  <MessageCircle className="w-5 h-5" />
+                  <span>Falar com Especialista</span>
                 </button>
-              </div>
-            )}
-            
-            {/* Botão WhatsApp Terapeuta */}
-            {therapist?.whatsapp && (
-              <button
-                onClick={() => setShowTherapistDisclaimer(true)}
-                className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-5 py-3.5 rounded-2xl font-semibold transition-all flex items-center justify-center gap-2.5 shadow-lg shadow-green-500/20 hover:shadow-green-500/30 hover:scale-[1.02] active:scale-[0.98] text-sm"
-              >
-                <MessageCircle className="w-5 h-5" />
-                <span>Falar com Terapeuta</span>
-              </button>
-            )}
-            
-            {/* Botão Nova Análise */}
-            {hasFormsAvailable ? (
-              <Link
-                href="/dashboard/new"
-                className="group w-full sm:w-auto bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white px-6 py-3.5 rounded-2xl font-bold transition-all inline-flex items-center justify-center gap-2.5 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98] text-sm"
-              >
-                <Sparkles className="w-5 h-5" />
-                <span>Nova Análise</span>
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-            ) : (
-              <div 
-                className="w-full sm:w-auto bg-gray-200 text-gray-500 px-6 py-3.5 rounded-2xl font-semibold cursor-not-allowed inline-flex items-center justify-center gap-2.5 text-sm"
-                title="Nenhum formulário disponível no momento"
-              >
-                <Sparkles className="w-5 h-5" />
-                <span>Nova Análise</span>
-              </div>
-            )}
-          </div>
+              )}
+              
+              {/* Botão Nova Análise */}
+              {hasFormsAvailable ? (
+                <Link
+                  href="/dashboard/new"
+                  className="group w-full sm:w-auto bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white px-6 py-3.5 rounded-2xl font-bold transition-all inline-flex items-center justify-center gap-2.5 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98] text-sm"
+                >
+                  <Sparkles className="w-5 h-5" />
+                  <span>Nova Análise</span>
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+              ) : (
+                <div 
+                  className="w-full sm:w-auto bg-gray-200 text-gray-500 px-6 py-3.5 rounded-2xl font-semibold cursor-not-allowed inline-flex items-center justify-center gap-2.5 text-sm"
+                  title="Nenhum formulário disponível no momento"
+                >
+                  <Sparkles className="w-5 h-5" />
+                  <span>Nova Análise</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Empty State */}
@@ -387,26 +399,44 @@ export default function DashboardPage() {
                 <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500" />
                 
                 {/* Icon */}
-                <div className="relative inline-flex mb-8">
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl blur-2xl opacity-30 animate-pulse" />
-                  <div className="relative p-6 bg-gradient-to-br from-purple-100 to-pink-100 rounded-3xl border border-purple-200">
-                    <Target className="w-12 h-12 sm:w-14 sm:h-14 text-purple-600" />
+                <div className="relative inline-flex mb-5">
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl blur-xl opacity-30 animate-pulse" />
+                  <div className="relative p-3 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl border border-purple-200">
+                    <Target className="w-8 h-8 text-purple-600" />
                   </div>
                 </div>
                 
-                <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-5 tracking-tight">
-                  Pare de se <span className="text-gradient-primary">enganar</span>
+                <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 tracking-tight">
+                  Hora de analisar seu <span className="text-gradient-primary">crush</span>
                 </h2>
-                <p className="text-gray-600 text-base sm:text-lg leading-relaxed max-w-lg mx-auto mb-10">
-                  Faça uma análise <span className="text-purple-600 font-semibold">objetiva</span> do seu match baseada em estudos e dinâmicas atuais do Tinder.
+                <p className="text-gray-600 text-base sm:text-lg leading-relaxed max-w-2xl mx-auto mb-8">
+                  Responda algumas perguntas sobre seu match e receba uma <span className="text-purple-600 font-semibold">análise completa</span> com riscos, compatibilidade e dicas práticas.
                 </p>
                 
-                {/* Feature cards */}
+                {/* How it works - 3 steps */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
                   {[
-                    { icon: Brain, label: "Baseado em Estudos", color: "purple" },
-                    { icon: Zap, label: "Dinâmicas Atuais", color: "pink" },
-                    { icon: Shield, label: "100% Objetivo", color: "orange" },
+                    { 
+                      icon: MessageCircle, 
+                      step: "1", 
+                      label: "Conte sobre o match", 
+                      desc: "Perguntas rápidas sobre as conversas",
+                      color: "purple" 
+                    },
+                    { 
+                      icon: Brain, 
+                      step: "2", 
+                      label: "Análise inteligente", 
+                      desc: "IA identifica padrões e riscos",
+                      color: "pink" 
+                    },
+                    { 
+                      icon: Target, 
+                      step: "3", 
+                      label: "Resultado completo", 
+                      desc: "Scores, alertas e dicas práticas",
+                      color: "orange" 
+                    },
                   ].map((item, i) => (
                     <div 
                       key={i} 
@@ -417,30 +447,81 @@ export default function DashboardPage() {
                       }`}
                       style={{ animationDelay: `${400 + i * 100}ms` }}
                     >
+                      <div className="flex items-center justify-center gap-2 mb-3">
+                        <div className={`flex items-center justify-center w-6 h-6 rounded-full font-bold text-xs ${
+                          item.color === 'purple' ? 'bg-purple-600 text-white' :
+                          item.color === 'pink' ? 'bg-pink-600 text-white' : 'bg-orange-600 text-white'
+                        }`}>
+                          {item.step}
+                        </div>
+                      </div>
                       <item.icon className={`w-7 h-7 mx-auto mb-3 ${
                         item.color === 'purple' ? 'text-purple-600' :
                         item.color === 'pink' ? 'text-pink-600' : 'text-orange-600'
                       }`} />
-                      <p className="text-gray-800 font-semibold text-sm">{item.label}</p>
+                      <p className="text-gray-800 font-semibold text-sm mb-1">{item.label}</p>
+                      <p className="text-gray-500 text-xs">{item.desc}</p>
                     </div>
                   ))}
                 </div>
                 
                 {/* CTA Button */}
                 {hasFormsAvailable ? (
-                  <div className="relative inline-block animate-fade-in-up animation-delay-600">
-                    {/* Pulsing glow effect */}
-                    <div className="absolute inset-0 -m-3 rounded-3xl bg-gradient-to-r from-purple-500 to-pink-500 opacity-30 animate-cta-pulse blur-xl" />
-                    <div className="absolute inset-0 -m-5 rounded-3xl bg-gradient-to-r from-purple-400 to-pink-400 opacity-20 animate-cta-pulse animation-delay-150 blur-2xl" />
+                  <div className="text-center">
+                    <div className="relative inline-block animate-fade-in-up animation-delay-600">
+                      {/* Pulsing glow effect */}
+                      <div className="absolute inset-0 -m-3 rounded-3xl bg-gradient-to-r from-purple-500 to-pink-500 opacity-30 animate-cta-pulse blur-xl" />
+                      <div className="absolute inset-0 -m-5 rounded-3xl bg-gradient-to-r from-purple-400 to-pink-400 opacity-20 animate-cta-pulse animation-delay-150 blur-2xl" />
+                      
+                      <Link
+                        href="/dashboard/new"
+                        className="relative group inline-flex items-center gap-3 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 hover:from-purple-500 hover:via-pink-500 hover:to-orange-400 text-white px-10 py-5 rounded-2xl text-lg font-bold transition-all shadow-xl shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-[1.03] active:scale-[0.98]"
+                      >
+                        <Flame className="w-6 h-6" />
+                        <span>Analisar Agora</span>
+                        <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                      </Link>
+                    </div>
+                    <p className="text-gray-500 text-sm mt-4 animate-fade-in-up animation-delay-700">
+                      Leva menos de 3 minutos
+                    </p>
                     
-                    <Link
-                      href="/dashboard/new"
-                      className="relative group inline-flex items-center gap-3 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 hover:from-purple-500 hover:via-pink-500 hover:to-orange-400 text-white px-10 py-5 rounded-2xl text-lg font-bold transition-all shadow-xl shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-[1.03] active:scale-[0.98]"
-                    >
-                      <Flame className="w-6 h-6" />
-                      <span>Analisar Agora</span>
-                      <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-                    </Link>
+                    {/* Separador */}
+                    <div className="flex items-center gap-4 my-8 animate-fade-in-up animation-delay-800">
+                      <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
+                      <span className="text-gray-400 text-sm font-medium">ou</span>
+                      <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
+                    </div>
+                    
+                    {/* Opção Premium - Falar com Especialista */}
+                    <div className="animate-fade-in-up animation-delay-900">
+                      <div className="relative bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-2xl p-6 max-w-md mx-auto">
+                        {/* Badge Premium */}
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                          <span className="bg-gradient-to-r from-emerald-500 to-green-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg uppercase tracking-wide">
+                            Atendimento Premium
+                          </span>
+                        </div>
+                        
+                        <div className="mt-2 mb-4">
+                          <h3 className="text-gray-900 font-bold text-lg mb-2 flex items-center justify-center gap-2">
+                            <MessageCircle className="w-5 h-5 text-emerald-600" />
+                            Prefere falar com um especialista?
+                          </h3>
+                          <p className="text-gray-600 text-sm leading-relaxed">
+                            Receba orientação personalizada sobre relacionamentos direto com nosso time de especialistas.
+                          </p>
+                        </div>
+                        
+                        <button
+                          onClick={() => setShowTherapistDisclaimer(true)}
+                          className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-6 py-3.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2.5 shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                          <MessageCircle className="w-5 h-5" />
+                          <span>Falar com Especialista</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center">
@@ -544,11 +625,22 @@ export default function DashboardPage() {
                             )}
                           </div>
                           
-                          {/* Status badge - Modelo B2B: todos têm acesso completo */}
-                          <div className="flex-shrink-0">
+                          {/* Status badge e botão de excluir */}
+                          <div className="flex-shrink-0 flex items-center gap-2">
                             <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-semibold border border-emerald-200">
                               Completo
                             </span>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                setDeleteConfirm({ id: analysis.id, name: analysis.nome_match || 'Crush sem nome' })
+                              }}
+                              className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                              title="Excluir análise"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
                         
@@ -643,70 +735,215 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Modal Disclaimer Terapeuta */}
-        {showTherapistDisclaimer && (
+        {/* Modal Especialista */}
+        {showSpecialistModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
             <div className="relative bg-white rounded-3xl border border-gray-200 shadow-2xl max-w-md w-full p-7 sm:p-9 max-h-[90vh] overflow-y-auto animate-fade-in-up">
               <button
-                onClick={() => setShowTherapistDisclaimer(false)}
+                onClick={() => { setShowSpecialistModal(false); setLeadSubmitted(false); }}
                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-xl"
               >
                 <X className="w-5 h-5" />
               </button>
               
-              <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-purple-100 border border-purple-200 mb-5">
-                  <Shield className="w-8 h-8 text-purple-600" />
-                </div>
-                <h3 className="font-display text-xl font-bold text-gray-900 mb-4">Aviso Importante</h3>
-                
-                <div className="bg-gray-50 rounded-2xl p-4 mb-4 text-left border border-gray-200">
-                  <p className="text-gray-600 text-sm mb-3">
-                    Os especialistas parceiros oferecem <strong className="text-gray-900">orientação em relacionamentos</strong> e não substituem acompanhamento médico ou psicológico.
-                  </p>
-                  <p className="text-gray-600 text-sm">
-                    O Radar Match atua como <strong className="text-gray-900">intermediador</strong> e não se responsabiliza pelas orientações prestadas.
-                  </p>
-                </div>
-                
-                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <Heart className="w-5 h-5 text-red-500" />
-                    <span className="text-red-700 font-semibold text-sm">Precisa de ajuda urgente?</span>
+              {/* Com especialista vinculado - mostra disclaimer e WhatsApp */}
+              {specialist?.whatsapp ? (
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-purple-100 border border-purple-200 mb-5">
+                    <Shield className="w-8 h-8 text-purple-600" />
                   </div>
-                  <p className="text-red-600 text-sm mb-3">
-                    Se você está em crise emocional ou precisa de apoio imediato:
-                  </p>
-                  <a 
-                    href="tel:188" 
-                    className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors"
-                  >
-                    <Phone className="w-4 h-4" />
-                    CVV - Ligue 188
-                  </a>
-                  <p className="text-red-500 text-xs mt-2">
-                    Centro de Valorização da Vida • 24h • Gratuito
-                  </p>
+                  <h3 className="font-display text-xl font-bold text-gray-900 mb-4">Aviso Importante</h3>
+                  
+                  <div className="bg-gray-50 rounded-2xl p-4 mb-4 text-left border border-gray-200">
+                    <p className="text-gray-600 text-sm mb-3">
+                      Os especialistas parceiros oferecem <strong className="text-gray-900">orientação em relacionamentos</strong> e não substituem acompanhamento médico ou psicológico.
+                    </p>
+                    <p className="text-gray-600 text-sm">
+                      O Radar Match atua como <strong className="text-gray-900">intermediador</strong> e não se responsabiliza pelas orientações prestadas.
+                    </p>
+                  </div>
+                  
+                  <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <Heart className="w-5 h-5 text-red-500" />
+                      <span className="text-red-700 font-semibold text-sm">Precisa de ajuda urgente?</span>
+                    </div>
+                    <p className="text-red-600 text-sm mb-3">
+                      Se você está em crise emocional ou precisa de apoio imediato:
+                    </p>
+                    <a 
+                      href="tel:188" 
+                      className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors"
+                    >
+                      <Phone className="w-4 h-4" />
+                      CVV - Ligue 188
+                    </a>
+                    <p className="text-red-500 text-xs mt-2">
+                      Centro de Valorização da Vida • 24h • Gratuito
+                    </p>
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <button
+                      onClick={() => setShowSpecialistModal(false)}
+                      className="px-5 py-3 bg-gray-100 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                    >
+                      <X className="w-4 h-4" />
+                      Cancelar
+                    </button>
+                    <a
+                      href={`https://wa.me/55${specialist.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Vim do Radar Match e gostaria de conversar sobre minha análise.')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setShowSpecialistModal(false)}
+                      className="px-5 py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      Falar no WhatsApp
+                    </a>
+                  </div>
                 </div>
-                
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              ) : leadSubmitted ? (
+                /* Lead enviado com sucesso */
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-100 border border-emerald-200 mb-5">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                  </div>
+                  <h3 className="font-display text-xl font-bold text-gray-900 mb-3">Solicitação enviada!</h3>
+                  <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+                    Um especialista entrará em contato com você em breve pelo WhatsApp ou telefone cadastrado.
+                  </p>
                   <button
-                    onClick={() => setShowTherapistDisclaimer(false)}
-                    className="px-5 py-3 bg-gray-100 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                    onClick={() => { setShowSpecialistModal(false); setLeadSubmitted(false); }}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl font-semibold transition-all"
                   >
-                    <X className="w-4 h-4" />
+                    Entendi
+                  </button>
+                </div>
+              ) : (
+                /* Sem especialista - gerar lead CTA */
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-purple-100 border border-purple-200 mb-5">
+                    <Heart className="w-8 h-8 text-purple-600" />
+                  </div>
+                  <h3 className="font-display text-xl font-bold text-gray-900 mb-3">Falar com Especialista</h3>
+                  <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+                    Nosso time de especialistas em relacionamentos está pronto para te ajudar. Confirme seus dados e um especialista entrará em contato com você.
+                  </p>
+                  
+                  <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mb-6 text-left">
+                    <p className="text-purple-800 text-sm">
+                      <strong>Seus dados:</strong>
+                    </p>
+                    <p className="text-purple-700 text-sm mt-1">
+                      {userName || user?.user_metadata?.full_name || 'Usuário'}
+                    </p>
+                    <p className="text-purple-600 text-xs mt-0.5">
+                      {user?.email}
+                    </p>
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <button
+                      onClick={() => setShowSpecialistModal(false)}
+                      className="px-5 py-3 bg-gray-100 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                    >
+                      <X className="w-4 h-4" />
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setSubmittingLead(true)
+                        try {
+                          const response = await fetch('/api/lead/generate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              type: 'CTA',
+                              userEmail: user?.email || '',
+                              userPhone: userPhone || '00000000000',
+                              userName: userName || user?.user_metadata?.full_name || '',
+                            })
+                          })
+                          if (response.ok) {
+                            setLeadSubmitted(true)
+                          }
+                        } catch (error) {
+                          console.error('Erro ao gerar lead:', error)
+                        } finally {
+                          setSubmittingLead(false)
+                        }
+                      }}
+                      disabled={submittingLead}
+                      className="px-5 py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                    >
+                      {submittingLead ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <MessageCircle className="w-4 h-4" />
+                          Quero ser contatado
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  
+                  <div className="mt-6 pt-5 border-t border-gray-200">
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <Heart className="w-4 h-4 text-red-500" />
+                        <span className="text-red-700 font-semibold text-xs">Precisa de ajuda urgente?</span>
+                      </div>
+                      <a 
+                        href="tel:188" 
+                        className="text-red-600 text-xs font-medium hover:underline"
+                      >
+                        CVV - Ligue 188 (24h • Gratuito)
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Modal de confirmação de exclusão */}
+        {deleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <div className="relative bg-white rounded-3xl border border-gray-200 shadow-2xl max-w-sm w-full p-7 animate-fade-in-up">
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-red-100 border border-red-200 mb-5">
+                  <Trash2 className="w-7 h-7 text-red-600" />
+                </div>
+                <h3 className="font-display text-xl font-bold text-gray-900 mb-2">
+                  Excluir análise?
+                </h3>
+                <p className="text-gray-600 text-sm mb-6">
+                  Tem certeza que deseja excluir a análise de <strong className="text-gray-900">{deleteConfirm.name}</strong>? Esta ação não pode ser desfeita.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setDeleteConfirm(null)}
+                    disabled={deleting}
+                    className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all text-sm"
+                  >
                     Cancelar
                   </button>
-                  <a
-                    href={`https://wa.me/55${therapist?.whatsapp?.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Vim do Radar Match e gostaria de conversar.')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setShowTherapistDisclaimer(false)}
-                    className="px-5 py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm"
+                  <button
+                    onClick={() => handleDeleteAnalysis(deleteConfirm.id)}
+                    disabled={deleting}
+                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-500 transition-all text-sm flex items-center justify-center gap-2"
                   >
-                    <MessageCircle className="w-4 h-4" />
-                    Entendi, continuar
-                  </a>
+                    {deleting ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4" />
+                        Excluir
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>

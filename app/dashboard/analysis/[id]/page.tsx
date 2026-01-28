@@ -8,6 +8,7 @@ import { Logo } from '@/components/logo'
 import { SubscriptionPlans } from '@/components/subscription-plans'
 import { trackEvent } from '@/lib/tracking'
 import { X, Lock, Sparkles, TrendingUp, Shield, CheckCircle2, AlertTriangle, Eye, Zap, Heart, Crown, ArrowLeft, Menu, LogOut, User, ChevronRight } from 'lucide-react'
+import { PageLoader } from '@/components/page-loader'
 import { TherapistCta } from '@/components/therapist-cta'
 import { createClient } from '@/lib/supabase/client'
 
@@ -47,6 +48,7 @@ export default function AnalysisPage() {
   const [userData, setUserData] = useState<UserData | null>(null)
   const [showSubscriptionPlans, setShowSubscriptionPlans] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [navigating, setNavigating] = useState(false)
   const [subscriptionPrices, setSubscriptionPrices] = useState({
     monthly: 2990,
     quarterly: 7990,
@@ -180,35 +182,13 @@ export default function AnalysisPage() {
     }
   }
 
+  if (navigating) {
+    return <PageLoader message="Voltando para análises..." />
+  }
+
+  // Usa a mesma mensagem do formulário para transição suave
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 relative overflow-hidden">
-        {/* Ambient glow effects */}
-        <div className="fixed inset-0 pointer-events-none">
-          <div className="absolute -top-32 -right-32 w-[500px] h-[500px] bg-purple-200/40 rounded-full blur-[100px] animate-pulse" />
-          <div className="absolute bottom-0 -left-32 w-[400px] h-[400px] bg-pink-200/30 rounded-full blur-[80px] animate-pulse" />
-        </div>
-        
-        <nav className="relative z-40 bg-white/70 backdrop-blur-xl border-b border-purple-100/50 shadow-sm">
-          <div className="container mx-auto px-4 py-4 sm:py-5">
-            <div className="h-10 bg-purple-100/50 rounded-xl w-40 animate-pulse" />
-          </div>
-        </nav>
-        
-        <div className="relative z-10 container mx-auto px-4 py-10 sm:py-14 max-w-4xl">
-          <div className="h-6 bg-purple-100/50 rounded-xl w-40 mb-6 animate-pulse" />
-          <div className="h-10 bg-purple-100/50 rounded-xl w-72 mb-8 animate-pulse" />
-          <div className="space-y-5">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white/80 backdrop-blur-sm border border-purple-100 p-7 rounded-3xl shadow-lg animate-pulse">
-                <div className="h-6 bg-purple-100/50 rounded-lg w-48 mb-4" />
-                <div className="h-20 bg-purple-50 rounded-2xl" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    )
+    return <PageLoader message="Analisando sua relação..." />
   }
 
   if (!analysis) {
@@ -326,13 +306,16 @@ export default function AnalysisPage() {
 
       <div className="relative z-10 container mx-auto px-4 sm:px-6 py-6 sm:py-10 max-w-4xl">
         {/* Back Link */}
-        <Link
-          href="/dashboard"
+        <button
+          onClick={() => {
+            setNavigating(true)
+            router.push('/dashboard')
+          }}
           className="inline-flex items-center gap-2.5 text-purple-600 hover:text-purple-700 mb-6 sm:mb-8 text-sm font-medium hover:bg-purple-50 px-3 py-2 rounded-xl -ml-3 transition-all animate-fade-in-up"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Voltar para análises</span>
-        </Link>
+        </button>
 
         {/* Title */}
         <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-6 sm:mb-8 text-gray-900 tracking-tight animate-fade-in-up animation-delay-100">

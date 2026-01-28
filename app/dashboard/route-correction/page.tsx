@@ -24,7 +24,9 @@ import {
   X,
   LogOut,
   User,
-  ChevronRight
+  ChevronRight,
+  MessageCircle,
+  Heart
 } from 'lucide-react'
 
 type EvolutionTrend = 'IMPROVING' | 'STABLE' | 'DECLINING'
@@ -85,8 +87,17 @@ export default function RouteCorrectionPage() {
   const [correction, setCorrection] = useState<RouteCorrectionResult | null>(null)
   const [totalAnalyses, setTotalAnalyses] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [isLimitError, setIsLimitError] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const hasFetchedRef = useRef(false)
+  const [userData, setUserData] = useState<{
+    name?: string
+    email?: string
+    phone?: string
+    specialist?: { whatsapp?: string }
+  } | null>(null)
+  const [leadSubmitted, setLeadSubmitted] = useState(false)
+  const [submittingLead, setSubmittingLead] = useState(false)
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -99,10 +110,27 @@ export default function RouteCorrectionPage() {
     
     async function loadCorrection() {
       try {
+        // Buscar dados do usuário para a funcionalidade de especialista
+        const meRes = await fetch('/api/me')
+        if (meRes.ok) {
+          const meData = await meRes.json()
+          setUserData({
+            name: meData.name,
+            email: meData.email,
+            phone: meData.phone,
+            specialist: meData.therapist
+          })
+        }
+
         const res = await fetch('/api/route-correction')
         if (!res.ok) {
           const data = await res.json()
-          setError(data.error || 'Erro ao carregar análise de comportamento')
+          const errorMessage = data.error || 'Erro ao carregar análise de comportamento'
+          setError(errorMessage)
+          // Detectar se é erro de limite
+          if (errorMessage.includes('limite') || errorMessage.includes('Volte amanhã')) {
+            setIsLimitError(true)
+          }
           setLoading(false)
           return
         }
@@ -174,17 +202,99 @@ export default function RouteCorrectionPage() {
           <div className="relative">
             <div className="absolute -inset-4 bg-gradient-to-r from-yellow-400/20 to-orange-400/20 rounded-[2.5rem] blur-2xl" />
             <div className="relative bg-white/90 backdrop-blur-xl p-8 sm:p-10 rounded-3xl shadow-2xl border border-yellow-200 text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-yellow-100 border border-yellow-200 mb-6">
-                <AlertTriangle className="w-10 h-10 text-yellow-600" />
-              </div>
-              <h2 className="font-display text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Ops!</h2>
-              <p className="text-gray-600 mb-8 text-lg">{error}</p>
-              <Link href="/dashboard">
-                <button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white px-8 py-4 rounded-2xl font-bold transition-all inline-flex items-center gap-2.5 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98]">
-                  <ArrowLeft className="w-5 h-5" />
-                  Voltar para Dashboard
-                </button>
-              </Link>
+              {leadSubmitted ? (
+                /* Lead enviado com sucesso */
+                <>
+                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-emerald-100 border border-emerald-200 mb-6">
+                    <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+                  </div>
+                  <h2 className="font-display text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Perfeito!</h2>
+                  <p className="text-gray-600 mb-8 text-lg">
+                    Um especialista entrará em contato com você em breve pelo WhatsApp ou telefone cadastrado.
+                  </p>
+                  <Link href="/dashboard">
+                    <button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white px-8 py-4 rounded-2xl font-bold transition-all inline-flex items-center gap-2.5 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98]">
+                      Ver minhas análises
+                    </button>
+                  </Link>
+                </>
+              ) : (
+                /* Modal de erro padrão */
+                <>
+                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-yellow-100 border border-yellow-200 mb-6">
+                    <AlertTriangle className="w-10 h-10 text-yellow-600" />
+                  </div>
+                  <h2 className="font-display text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Ops!</h2>
+                  <p className="text-gray-600 mb-6 text-lg">{error}</p>
+                  
+                  {/* Opção de falar com especialista - apenas para erro de limite */}
+                  {isLimitError && (
+                    <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-2xl p-5 mb-6 border border-emerald-200">
+                      <p className="text-sm text-emerald-800 font-medium mb-4 flex items-center justify-center gap-2">
+                        <Heart className="w-4 h-4 text-emerald-600" />
+                        Que tal conversar com um especialista agora?
+                      </p>
+                      
+                      {userData?.specialist?.whatsapp ? (
+                        /* Com especialista - WhatsApp direto */
+                        <a
+                          href={`https://wa.me/55${userData.specialist.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Vim do Radar Match e gostaria de conversar.')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-5 py-3.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                        >
+                          <MessageCircle className="w-5 h-5" />
+                          Falar no WhatsApp
+                        </a>
+                      ) : (
+                        /* Sem especialista - Gerar lead */
+                        <button
+                          onClick={async () => {
+                            setSubmittingLead(true)
+                            try {
+                              const response = await fetch('/api/lead/generate', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  type: 'CTA',
+                                  userEmail: userData?.email || '',
+                                  userPhone: userData?.phone || '00000000000',
+                                  userName: userData?.name || '',
+                                })
+                              })
+                              if (response.ok) {
+                                setLeadSubmitted(true)
+                              }
+                            } catch (error) {
+                              console.error('Erro ao gerar lead:', error)
+                            } finally {
+                              setSubmittingLead(false)
+                            }
+                          }}
+                          disabled={submittingLead}
+                          className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-5 py-3.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          {submittingLead ? (
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <>
+                              <MessageCircle className="w-5 h-5" />
+                              Quero ser contatado
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  
+                  <Link href="/dashboard">
+                    <button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white px-8 py-4 rounded-2xl font-bold transition-all inline-flex items-center gap-2.5 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98]">
+                      <ArrowLeft className="w-5 h-5" />
+                      Voltar para Dashboard
+                    </button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
