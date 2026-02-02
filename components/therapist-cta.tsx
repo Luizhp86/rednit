@@ -235,63 +235,76 @@ export function TherapistCta({
     )
   }
 
-  // Modal de Disclaimer
+  // Modal de Disclaimer - agora como overlay fixo para melhor experiência mobile
   if (showDisclaimer) {
     return (
       <>
-        <Card className="relative overflow-hidden p-6 bg-gradient-to-br from-purple-900/50 via-purple-800/40 to-pink-900/30 border-2 border-purple-500/50 shadow-lg shadow-purple-500/20">
-          <div className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-600/30 mb-4">
-              <Shield className="w-8 h-8 text-purple-300" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-3">Aviso Importante</h3>
+        {/* Overlay fixo para garantir visibilidade em mobile */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-gradient-to-br from-purple-900 via-purple-800 to-pink-900 border-2 border-purple-500/50 shadow-2xl">
+            {/* Gradiente decorativo no topo */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 rounded-t-2xl"></div>
             
-            <div className="bg-gray-800/50 rounded-lg p-4 mb-4 text-left">
-              <p className="text-gray-300 text-sm mb-3">
-                Os especialistas parceiros do Radar Match oferecem <strong className="text-white">orientação em relacionamentos</strong> e não substituem acompanhamento médico ou psicológico profissional.
-              </p>
-              <p className="text-gray-300 text-sm">
-                O Radar Match atua apenas como <strong className="text-white">intermediador</strong> e não se responsabiliza pelo conteúdo das conversas ou orientações prestadas pelos especialistas.
-              </p>
-            </div>
-            
-            <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-4 mb-6">
-              <div className="flex items-center gap-2 mb-2">
-                <Heart className="w-5 h-5 text-red-400" />
-                <span className="text-red-300 font-semibold text-sm">Precisa de ajuda urgente?</span>
+            <div className="p-5 sm:p-6 text-center">
+              <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-purple-600/30 mb-4">
+                <Shield className="w-7 h-7 sm:w-8 sm:h-8 text-purple-300" />
               </div>
-              <p className="text-red-200 text-sm mb-2">
-                Se você está passando por uma crise emocional, pensamentos suicidas ou precisa de apoio imediato:
-              </p>
-              <a 
-                href="tel:188" 
-                className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold transition-colors"
-              >
-                <Phone className="w-4 h-4" />
-                CVV - Ligue 188
-              </a>
-              <p className="text-red-300 text-xs mt-2">
-                Centro de Valorização da Vida • 24 horas • Gratuito
-              </p>
+              <h3 className="text-lg sm:text-xl font-bold text-white mb-3">Aviso Importante</h3>
+              
+              <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 mb-4 text-left">
+                <p className="text-gray-300 text-xs sm:text-sm mb-3">
+                  Os especialistas parceiros do Radar Match oferecem <strong className="text-white">orientação em relacionamentos</strong> e não substituem acompanhamento médico ou psicológico profissional.
+                </p>
+                <p className="text-gray-300 text-xs sm:text-sm">
+                  O Radar Match atua apenas como <strong className="text-white">intermediador</strong> e não se responsabiliza pelo conteúdo das conversas ou orientações prestadas pelos especialistas.
+                </p>
+              </div>
+              
+              <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-3 sm:p-4 mb-5">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
+                  <span className="text-red-300 font-semibold text-xs sm:text-sm">Precisa de ajuda urgente?</span>
+                </div>
+                <p className="text-red-200 text-xs sm:text-sm mb-2">
+                  Se você está passando por uma crise emocional ou precisa de apoio imediato:
+                </p>
+                <a 
+                  href="tel:188" 
+                  className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 sm:px-4 py-2 rounded-lg font-bold text-sm transition-colors"
+                >
+                  <Phone className="w-4 h-4" />
+                  CVV - Ligue 188
+                </a>
+                <p className="text-red-300 text-[10px] sm:text-xs mt-2">
+                  Centro de Valorização da Vida • 24 horas • Gratuito
+                </p>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
+                <Button
+                  onClick={() => setShowDisclaimer(false)}
+                  variant="outline"
+                  className="w-full sm:w-auto border-gray-600 text-gray-300 hover:bg-gray-700 order-2 sm:order-1"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleConfirmDisclaimer}
+                  className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold order-1 sm:order-2"
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Entendi, continuar
+                </Button>
+              </div>
             </div>
-            
-            <div className="flex gap-3 justify-center">
-              <Button
-                onClick={() => setShowDisclaimer(false)}
-                variant="outline"
-                className="border-gray-600 text-gray-300 hover:bg-gray-700"
-              >
-                <X className="w-4 h-4 mr-2" />
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleConfirmDisclaimer}
-                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold"
-              >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Entendi, continuar
-              </Button>
-            </div>
+          </div>
+        </div>
+        
+        {/* Card placeholder para manter o layout */}
+        <Card className="relative overflow-hidden p-6 bg-gradient-to-br from-purple-900/50 via-purple-800/40 to-pink-900/30 border-2 border-purple-500/50 shadow-lg shadow-purple-500/20 opacity-50">
+          <div className="flex items-center justify-center py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-400 border-t-transparent" />
           </div>
         </Card>
       </>
