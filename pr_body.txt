@@ -1,0 +1,27 @@
+## 🎨 Melhorias de UX e Interface
+
+### ✨ Principais mudanças
+
+- **Carrossel de análise**: Implementação de slides fixos (520px) para apresentar a análise completa de forma progressiva
+- **Auto-avanço inteligente**: Slides avançam automaticamente a cada 9 segundos, com pausa no hover
+- **Primeira tela redesenhada**: Aplicação de técnicas avançadas de UX (curiosity gap, visual storytelling)
+- **Preview cards**: Cards com métricas principais (risco, compatibilidade, ações) com efeito blur/fade
+- **Destaque para especialista**: Slide dedicado com design emerald/teal e animações para CTA
+
+### 🎯 Técnicas de UX aplicadas
+
+- **Curiosity Gap**: Preview com conteúdo parcialmente oculto para gerar interesse
+- **Visual Storytelling**: Design dramático com fundo escuro e gradientes animados
+- **Progressive Disclosure**: Informações reveladas progressivamente através dos slides
+- **Micro-interações**: Animações sutis que guiam a atenção do usuário
+
+### 🔧 Detalhes técnicos
+
+- Altura fixa do carrossel (520px) para manter botões de navegação estáveis
+- Navegação com botões prev/next e indicadores de progresso (dots)
+- Animações suaves com framer-motion para transições entre slides
+- CTA destacado com shimmer effect e micro-animações
+
+### 📦 Tag
+
+Esta versão está marcada com a tag **v1.15**

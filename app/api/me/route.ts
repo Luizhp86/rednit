@@ -35,6 +35,7 @@ export async function GET() {
           id: user.id,
           email: user.email!,
           name: user.user_metadata?.full_name || user.email!,
+          hasSeenOnboarding: false, // Garantir que novos usuários vejam o onboarding
         },
         include: {
           entitlements: true,
@@ -96,6 +97,10 @@ export async function GET() {
     const isFirstTimeAvailable = isFirstTime && totalAnalyses === config.minAnalysesFirstTime
 
     // Modelo B2B: Leads não têm planos nem pagamentos
+    // NOTA: hasSeenOnboarding pode ser undefined se a migration ainda não foi executada
+    // Garantir que sempre retorne um boolean (false quando undefined)
+    const hasSeenOnboarding = (dbUser as any).hasSeenOnboarding ?? false
+    
     return NextResponse.json({
       id: dbUser.id,
       email: dbUser.email,
@@ -103,6 +108,7 @@ export async function GET() {
       phone: dbUser.phone,
       instagram: dbUser.instagram,
       facebook: dbUser.facebook,
+      hasSeenOnboarding: hasSeenOnboarding, // Sempre retorna boolean (false ou true)
       stats: {
         totalAnalyses,
       },
@@ -148,7 +154,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, phone, instagram, facebook } = body
+    const { name, phone, instagram, facebook, hasSeenOnboarding } = body
 
     // Verificar se é a primeira vez que o telefone está sendo adicionado
     const isFirstPhone = !dbUser.phone && phone
@@ -159,6 +165,7 @@ export async function PATCH(request: NextRequest) {
     if (phone) updateData.phone = phone
     if (instagram !== undefined) updateData.instagram = instagram || null
     if (facebook !== undefined) updateData.facebook = facebook || null
+    if (hasSeenOnboarding !== undefined) updateData.hasSeenOnboarding = hasSeenOnboarding
 
     const updatedUser = await prisma.user.update({
       where: { id: dbUser.id },
