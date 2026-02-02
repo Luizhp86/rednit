@@ -57,6 +57,16 @@ export async function GET(
     const resultJson = analysis.resultJson as any
     const inputJson = analysis.inputJson as any
     
+    // Extrair nome_match de várias fontes possíveis (prioridade: resultado > input)
+    const nomeMatch = resultJson.nome_match || 
+                      resultJson.meta?.nome_match || 
+                      resultJson.free_teaser?.nome_match ||
+                      resultJson.premium_report?.nome_match ||
+                      inputJson?.nome_match || 
+                      null
+    
+    console.log('[ANALYSES] nome_match extraído:', nomeMatch)
+    
     // Garantir que usuários free NUNCA recebam dados premium
     const response: any = {
       id: analysis.id,
@@ -65,11 +75,12 @@ export async function GET(
       createdAt: analysis.createdAt,
       free_teaser: {
         ...resultJson.free_teaser,
-        nome_match: resultJson.meta?.nome_match || resultJson.nome_match,
+        nome_match: nomeMatch,
         avatar_match: inputJson?.avatar_match,
       },
       has_access: hasAccess,
       avatar_match: inputJson?.avatar_match,
+      nome_match: nomeMatch, // Adicionar no nível raiz também
     }
     
     // Apenas adicionar premium se tiver acesso
@@ -77,8 +88,12 @@ export async function GET(
       response.premium = {
         ...resultJson.premium_report,
         scores: resultJson.scores, // Incluir scores completos no premium
-        nome_match: resultJson.meta?.nome_match || resultJson.nome_match,
+        nome_match: nomeMatch,
         avatar_match: inputJson?.avatar_match,
+        // Incluir mensagem de encorajamento se existir
+        encouragement_message: resultJson.encouragement_message,
+        // Incluir next_actions personalizadas
+        next_actions: resultJson.next_actions,
       }
     } else {
       response.premium = null

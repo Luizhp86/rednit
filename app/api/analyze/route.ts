@@ -7,6 +7,7 @@ import { generateLead } from '@/lib/lead-rotation'
 import { sendLeadAnalysisNotification } from '@/lib/email'
 import { getSystemConfig } from '@/lib/config'
 import { startOfDay } from 'date-fns'
+import { generatePersonalizedAnalysis, type ThemeQuestion, type PersonalizedAnalysisInput } from '@/lib/ai/gemini'
 
 // Simple in-memory rate limiting (for MVP)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -162,11 +163,24 @@ export async function POST(request: NextRequest) {
       ? themeAnalysisInputSchema.parse(bodyWithDefaults)
       : analysisInputSchema.parse(bodyWithDefaults)
 
-    // Buscar pesos das perguntas se themeId está presente
+    // Buscar pesos das perguntas e informações do tema se themeId está presente
     let questionWeights: Record<string, number> = {}
+    let themeQuestions: ThemeQuestion[] = []
+    let fixedQuestions: ThemeQuestion[] = []
+    let themeInfo: { name: string; displayName: string; description: string | null } | null = null
     
     if (themeId) {
       try {
+        // Buscar tema
+        const theme = await prisma.formTheme.findUnique({
+          where: { id: themeId },
+          select: { name: true, displayName: true, description: true }
+        })
+        if (theme) {
+          themeInfo = theme
+        }
+        
+        // Buscar perguntas do tema com opções
         const questions = await prisma.formQuestion.findMany({
           where: {
             OR: [
@@ -174,26 +188,97 @@ export async function POST(request: NextRequest) {
               { isFixed: true }
             ]
           },
-          select: {
-            key: true,
-            weight: true
-          }
+          include: {
+            options: {
+              select: { value: true, label: true },
+              orderBy: { order: 'asc' }
+            }
+          },
+          orderBy: { order: 'asc' }
         })
         
-        questionWeights = questions.reduce((acc, q) => {
-          acc[q.key] = q.weight
-          return acc
-        }, {} as Record<string, number>)
+        // Separar perguntas fixas e do tema
+        for (const q of questions) {
+          const questionData: ThemeQuestion = {
+            key: q.key,
+            label: q.label,
+            type: q.type,
+            weight: q.weight,
+            isFixed: q.isFixed,
+            options: q.options.map(o => ({ value: o.value, label: o.label }))
+          }
+          
+          if (q.isFixed) {
+            fixedQuestions.push(questionData)
+          } else {
+            themeQuestions.push(questionData)
+          }
+          
+          questionWeights[q.key] = q.weight
+        }
         
+        console.log('[ANALYZE] Tema:', themeInfo?.displayName)
+        console.log('[ANALYZE] Perguntas do tema:', themeQuestions.length)
+        console.log('[ANALYZE] Perguntas fixas:', fixedQuestions.length)
         console.log('[ANALYZE] Pesos carregados:', questionWeights)
       } catch (error) {
-        console.error('[ANALYZE] Erro ao buscar pesos:', error)
-        // Continuar sem pesos se houver erro
+        console.error('[ANALYZE] Erro ao buscar dados do tema:', error)
+        // Continuar sem dados do tema se houver erro
       }
     }
 
-    // Run rule-based analysis (sem IA para análises individuais)
-    const result = analyze(validatedInput as AnalysisInput, questionWeights)
+    // Run rule-based analysis primeiro (como base)
+    const ruleBasedResult = analyze(validatedInput as AnalysisInput, questionWeights)
+    
+    // Nome do match: usar "match" se não informado
+    const matchName = validatedInput.nome_match?.trim() || 'match'
+    
+    // SEMPRE gerar análise personalizada com IA
+    let result = ruleBasedResult
+    console.log('========================================')
+    console.log('[ANALYZE] ===== INICIANDO CHAMADA IA =====')
+    console.log('[ANALYZE] matchName:', matchName)
+    console.log('[ANALYZE] userName:', dbUser.name)
+    console.log('[ANALYZE] themeInfo:', themeInfo)
+    console.log('[ANALYZE] userObjective:', validatedInput.objetivo_usuario)
+    console.log('========================================')
+    
+    try {
+      const personalizedInput: PersonalizedAnalysisInput = {
+        formData: validatedInput as Record<string, any>,
+        userName: dbUser.name,
+        matchName: matchName,
+        matchGender: validatedInput.genero_match,
+        userObjective: validatedInput.objetivo_usuario || 'CONHECER',
+        themeName: themeInfo?.name || 'geral',
+        themeDisplayName: themeInfo?.displayName || 'Análise Geral',
+        themeDescription: themeInfo?.description || 'Análise de relacionamento',
+        questions: themeQuestions,
+        fixedQuestions: fixedQuestions,
+        ruleBasedResult: ruleBasedResult,
+      }
+      
+      console.log('[ANALYZE] Chamando generatePersonalizedAnalysis...')
+      result = await generatePersonalizedAnalysis(personalizedInput, dbUser.id)
+      console.log('[ANALYZE] ===== IA RETORNOU COM SUCESSO =====')
+      console.log('[ANALYZE] Headline gerada:', result.free_teaser?.headline)
+      console.log('[ANALYZE] Executive summary:', result.premium_report?.executive_summary?.slice(0, 2))
+      console.log('========================================')
+    } catch (error: any) {
+      console.error('========================================')
+      console.error('[ANALYZE] ===== ERRO NA CHAMADA IA =====')
+      console.error('[ANALYZE] Erro:', error.message)
+      console.error('[ANALYZE] Stack:', error.stack)
+      console.error('========================================')
+      // Fallback: usar análise baseada em regras (já tem o nome do match)
+      result = {
+        ...ruleBasedResult,
+        meta: { ...ruleBasedResult.meta, nome_match: matchName },
+        nome_match: matchName,
+        free_teaser: { ...ruleBasedResult.free_teaser, nome_match: matchName },
+        premium_report: { ...ruleBasedResult.premium_report, nome_match: matchName },
+      } as typeof ruleBasedResult & { nome_match: string }
+    }
 
     // Save analysis
     // Usar stage do input ou default 'TALKING' para formulários temáticos

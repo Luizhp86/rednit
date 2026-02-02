@@ -5,9 +5,35 @@ import type { AnalysisInput, AnalysisResult } from '../rules/engine'
 
 const apiKey = process.env.GEMINI_API_KEY
 if (!apiKey) {
-  console.error('[GEMINI] ERRO: GEMINI_API_KEY não configurada no .env')
+  console.error('[GEMINI] !!!! ERRO CRÍTICO: GEMINI_API_KEY não configurada no .env !!!!')
+} else {
+  console.log('[GEMINI] API Key configurada (primeiros 10 chars):', apiKey.substring(0, 10) + '...')
 }
 const genAI = new GoogleGenerativeAI(apiKey || '')
+
+// Tipos para análise personalizada
+export type ThemeQuestion = {
+  key: string
+  label: string
+  type: string
+  weight: number
+  isFixed: boolean
+  options?: Array<{ value: string; label: string }>
+}
+
+export type PersonalizedAnalysisInput = {
+  formData: Record<string, any>
+  userName: string | null
+  matchName: string
+  matchGender: 'ELE' | 'ELA'
+  userObjective: string
+  themeName: string
+  themeDisplayName: string
+  themeDescription: string | null
+  questions: ThemeQuestion[]
+  fixedQuestions: ThemeQuestion[]
+  ruleBasedResult: AnalysisResult
+}
 
 // Função para registrar uso do Gemini no banco de dados
 async function logGeminiUsage(params: {
@@ -54,8 +80,14 @@ export async function analyzeWithGemini(
   try {
     // Buscar modelo configurado no admin
     const config = await getSystemConfig()
-    const modelName = config.geminiModelAnalysis || 'gemini-1.5-flash'
-    console.log(`[GEMINI] Usando modelo configurado para análise: ${modelName}`)
+    // Usar gemini-2.0-flash como padrão (gemini-1.5-flash foi descontinuado)
+    let modelName = config.geminiModelAnalysis || 'gemini-2.0-flash'
+    // Corrigir modelos antigos que não existem mais
+    if (modelName === 'gemini-1.5-flash' || modelName === 'gemini-1.5-pro') {
+      console.log(`[GEMINI] Modelo ${modelName} descontinuado, usando gemini-2.0-flash`)
+      modelName = 'gemini-2.0-flash'
+    }
+    console.log(`[GEMINI] Usando modelo para análise: ${modelName}`)
     
     const model = genAI.getGenerativeModel({ 
       model: modelName,
@@ -136,7 +168,7 @@ function buildAnalysisPrompt(input: AnalysisInput, ruleBasedResult: AnalysisResu
 
   const alerts = input.sinais_alerta.map((a) => alertLabels[a] || a).join(', ') || 'Nenhum'
 
-  const matchName = input.nome_match || 'o match'
+  const matchName = input.nome_match?.trim() || 'match'
   const generoLabel = input.genero_match === 'ELE' ? 'ele' : 'ela'
   
   return `Você é um especialista em relacionamentos que analisa padrões comportamentais em relacionamentos modernos.
@@ -320,6 +352,358 @@ function mergeAnalysisResults(
     free_teaser: enhancedFreeTeaser,
     premium_report: enhancedPremium
   }
+}
+
+// ============================================
+// ANÁLISE PERSONALIZADA COM IA
+// ============================================
+
+export async function generatePersonalizedAnalysis(
+  input: PersonalizedAnalysisInput,
+  userId?: string
+): Promise<AnalysisResult> {
+  let inputTokens = 0
+  let outputTokens = 0
+  
+  console.log('========================================')
+  console.log('[GEMINI] ===== INICIANDO generatePersonalizedAnalysis =====')
+  console.log('[GEMINI] matchName:', input.matchName)
+  console.log('[GEMINI] userName:', input.userName)
+  console.log('[GEMINI] themeName:', input.themeName)
+  console.log('[GEMINI] userId:', userId)
+  console.log('========================================')
+  
+  try {
+    // Buscar modelo configurado no admin
+    console.log('[GEMINI] Buscando configuração do modelo...')
+    const config = await getSystemConfig()
+    // Usar gemini-2.0-flash como padrão (gemini-1.5-flash foi descontinuado)
+    let modelName = config.geminiModelAnalysis || 'gemini-2.0-flash'
+    // Corrigir modelos antigos que não existem mais
+    if (modelName === 'gemini-1.5-flash' || modelName === 'gemini-1.5-pro') {
+      console.log(`[GEMINI] Modelo ${modelName} descontinuado, usando gemini-2.0-flash`)
+      modelName = 'gemini-2.0-flash'
+    }
+    console.log(`[GEMINI] Modelo a ser usado: ${modelName}`)
+    
+    console.log('[GEMINI] Criando instância do modelo...')
+    const model = genAI.getGenerativeModel({ 
+      model: modelName,
+      generationConfig: {
+        maxOutputTokens: 4096,
+        temperature: 0.8,
+      },
+    })
+
+    console.log('[GEMINI] Construindo prompt...')
+    const prompt = buildPersonalizedAnalysisPrompt(input)
+    
+    inputTokens = Math.ceil(prompt.length / 4)
+    console.log(`[GEMINI] Prompt construído: ~${inputTokens} tokens (${prompt.length} chars)`)
+    console.log('[GEMINI] Primeiros 500 chars do prompt:', prompt.substring(0, 500))
+    
+    console.log('[GEMINI] ===== CHAMANDO API GEMINI =====')
+    const result = await model.generateContent(prompt)
+    console.log('[GEMINI] API Gemini respondeu!')
+    
+    const response = await result.response
+    const text = response.text()
+    
+    outputTokens = Math.ceil(text.length / 4)
+    console.log(`[GEMINI] Resposta recebida: ${text.length} chars (~${outputTokens} tokens)`)
+    console.log('[GEMINI] Primeiros 500 chars da resposta:', text.substring(0, 500))
+
+    // Registrar uso com sucesso
+    await logGeminiUsage({
+      userId,
+      endpoint: 'personalized-analysis',
+      tokensInput: inputTokens,
+      tokensOutput: outputTokens,
+      success: true,
+    })
+
+    // Parse e merge da resposta
+    console.log('[GEMINI] Fazendo parse da resposta...')
+    const aiEnhancements = parsePersonalizedResponse(text)
+    console.log('[GEMINI] aiEnhancements:', aiEnhancements ? 'OK' : 'NULL')
+    if (aiEnhancements) {
+      console.log('[GEMINI] Headline da IA:', aiEnhancements.personalized_headline)
+      console.log('[GEMINI] Executive summary itens:', aiEnhancements.executive_summary?.length)
+    }
+    
+    console.log('[GEMINI] Mesclando resultado...')
+    const finalResult = mergePersonalizedAnalysis(input.ruleBasedResult, aiEnhancements, input)
+    console.log('[GEMINI] ===== ANÁLISE PERSONALIZADA COMPLETA =====')
+    console.log('========================================')
+    
+    return finalResult
+  } catch (error: any) {
+    console.error('========================================')
+    console.error('[GEMINI] ===== ERRO NA ANÁLISE =====')
+    console.error('[GEMINI] Mensagem:', error.message)
+    console.error('[GEMINI] Nome:', error.name)
+    console.error('[GEMINI] Stack:', error.stack?.substring(0, 500))
+    console.error('========================================')
+    
+    // Registrar erro
+    await logGeminiUsage({
+      userId,
+      endpoint: 'personalized-analysis',
+      tokensInput: inputTokens,
+      tokensOutput: 0,
+      success: false,
+      errorMessage: error.message,
+    })
+    
+    // Fallback: retornar análise baseada em regras com personalização básica
+    console.log('[GEMINI] Usando fallback (motor de regras)...')
+    return addBasicPersonalization(input.ruleBasedResult, input)
+  }
+}
+
+function buildPersonalizedAnalysisPrompt(input: PersonalizedAnalysisInput): string {
+  const { formData, userName, matchName, matchGender, userObjective, themeName, themeDisplayName, themeDescription, questions, fixedQuestions, ruleBasedResult } = input
+  
+  const genderLabel = matchGender === 'ELE' ? 'ele' : 'ela'
+  const userLabel = userName || 'o usuário'
+  
+  // Construir resumo das respostas do formulário
+  const allQuestions = [...fixedQuestions, ...questions]
+  const answersContext = allQuestions.map(q => {
+    const answer = formData[q.key]
+    if (!answer) return null
+    
+    // Encontrar label da resposta se for uma opção
+    let answerLabel = answer
+    if (q.options && q.options.length > 0) {
+      const option = q.options.find(o => o.value === answer)
+      if (option) answerLabel = option.label
+    }
+    
+    return `- ${q.label}: ${answerLabel}`
+  }).filter(Boolean).join('\n')
+  
+  // Scores do motor de regras
+  const scores = ruleBasedResult.scores
+
+  return `Você é uma COACH de relacionamentos especializada em análise de comportamento em apps de namoro.
+Você está criando uma análise PROFUNDA, PERSONALIZADA e ÚNICA para ${userLabel} sobre ${matchName}.
+
+CONTEXTO DO TEMA: "${themeDisplayName}"
+${themeDescription ? `Descrição: ${themeDescription}` : ''}
+
+DADOS DO MATCH:
+- Nome: ${matchName}
+- Gênero: ${genderLabel}
+- O que ${userLabel} busca: ${userObjective === 'NAMORO' ? 'namoro sério' : userObjective === 'CASUAL' ? 'algo casual' : 'conhecer melhor'}
+
+RESPOSTAS DETALHADAS DO FORMULÁRIO:
+${answersContext}
+
+MÉTRICAS DE COMPORTAMENTO (calculadas com escala 10-90, nunca 0% ou 100%):
+- Reciprocidade (${scores.reciprocidade}/90): ${scores.reciprocidade >= 70 ? `${matchName} demonstra investimento equilibrado` : scores.reciprocidade >= 50 ? `${matchName} investe de forma moderada` : `${matchName} parece investir menos que ${userLabel}`}
+- Constância (${scores.constancia}/90): ${scores.constancia >= 70 ? `${matchName} mantém padrão consistente` : scores.constancia >= 50 ? `${matchName} tem altos e baixos` : `${matchName} é imprevisível`}
+- Ação no mundo real (${scores.acao_mundo_real}/90): ${scores.acao_mundo_real >= 70 ? `${matchName} demonstra interesse em encontros reais` : scores.acao_mundo_real >= 50 ? `${matchName} hesita em encontros` : `${matchName} evita sair do virtual`}
+- Respeito (${scores.respeito}/90): ${scores.respeito >= 70 ? `${matchName} respeita limites` : scores.respeito >= 50 ? `${matchName} às vezes ultrapassa limites` : `${matchName} não respeita limites adequadamente`}
+- Risco de ghosting: ${scores.risco_ghosting}% ${scores.risco_ghosting >= 60 ? '(ALTO - atenção!)' : scores.risco_ghosting >= 40 ? '(moderado)' : '(baixo)'} (mín 10%, máx 90%)
+- Risco de enrolação: ${scores.risco_enrolacao}% ${scores.risco_enrolacao >= 60 ? '(ALTO - atenção!)' : scores.risco_enrolacao >= 40 ? '(moderado)' : '(baixo)'} (mín 10%, máx 90%)
+- Compatibilidade com objetivo: ${scores.compat_objetivo}% ${scores.compat_objetivo >= 65 ? '(BOM)' : scores.compat_objetivo >= 45 ? '(parcial)' : '(BAIXO - incompatível)'} (mín 10%, máx 90%)
+
+IMPORTANTE: Os scores seguem escala de 10-90 porque nunca temos 100% de certeza (nem positiva nem negativa) sobre relacionamentos. Use esses valores proporcionalmente nas suas análises.
+
+HIPÓTESE IDENTIFICADA: ${ruleBasedResult.hypotheses_top3[0]?.key || 'A DEFINIR'}
+${ruleBasedResult.red_flags.length > 0 ? `RED FLAGS: ${ruleBasedResult.red_flags.map(f => f.title).join(', ')}` : ''}
+${ruleBasedResult.green_flags.length > 0 ? `GREEN FLAGS: ${ruleBasedResult.green_flags.map(f => f.title).join(', ')}` : ''}
+
+TAREFA:
+Crie uma análise RICA e DETALHADA que:
+1. Use o nome "${matchName}" em TODAS as frases (nunca use "o match", "essa pessoa", "ele/ela")
+2. Seja baseada ESPECIFICAMENTE nas respostas do formulário acima
+3. Forneça INSIGHTS ÚNICOS que só fazem sentido para esse caso específico
+4. Explique O PORQUÊ de cada conclusão (conecte aos dados)
+5. Seja empática mas HONESTA - não minimize red flags se existirem
+6. Inclua AÇÕES PRÁTICAS e específicas para ${userLabel}
+
+FORMATO DE RESPOSTA (JSON):
+{
+  "personalized_headline": "Headline impactante de no máximo 10 palavras que resume a situação com ${matchName}. Use emojis apropriados (💚 para positivo, ⚠️ para alerta, 🚨 para crítico). Exemplos: '💚 ${matchName} demonstra interesse genuíno', '⚠️ ${matchName} apresenta sinais mistos', '🚨 Cuidado: ${matchName} pode estar enrolando'",
+  
+  "executive_summary": [
+    "Análise principal sobre ${matchName} baseada nos dados (2-3 frases conectando as evidências)",
+    "Ponto de atenção ou destaque positivo específico sobre ${matchName}",
+    "O que os padrões de ${matchName} indicam sobre as intenções",
+    "Recomendação principal para ${userLabel} (seja específico)",
+    "Perspectiva sobre o potencial do relacionamento com ${matchName}"
+  ],
+  
+  "hypothesis_title": "Título curto e impactante da hipótese principal sobre ${matchName}",
+  
+  "hypothesis_description": "Descrição DETALHADA de 3-4 parágrafos explicando: (1) O que os comportamentos de ${matchName} indicam, (2) Por que isso é relevante dado o objetivo de ${userLabel}, (3) Quais evidências do formulário suportam essa hipótese, (4) O que isso significa na prática para o relacionamento",
+  
+  "risk_explanation": "Explicação detalhada dos riscos identificados em ${matchName}. Se risco de ghosting ou enrolação for alto, explique especificamente QUAIS comportamentos indicam isso. Se for baixo, explique o que ${matchName} faz de diferente. Seja específico e cite as respostas do formulário.",
+  
+  "compatibility_explanation": "Análise detalhada de compatibilidade entre o que ${userLabel} busca (${userObjective === 'NAMORO' ? 'namoro sério' : userObjective === 'CASUAL' ? 'algo casual' : 'conhecer melhor'}) e o que ${matchName} parece oferecer. Mencione pontos de alinhamento e desalinhamento específicos.",
+  
+  "validation_checklist": [
+    "Nas próximas 48h, observe se ${matchName} [comportamento específico baseado nas respostas]",
+    "Teste: [ação específica que ${userLabel} pode fazer para validar as intenções de ${matchName}]",
+    "Preste atenção quando ${matchName} [situação específica relacionada aos riscos identificados]",
+    "Avalie se ${matchName} [comportamento que confirma ou refuta a hipótese]",
+    "Observe como ${matchName} reage quando você [ação específica]"
+  ],
+  
+  "next_actions": [
+    "Ação imediata: [o que ${userLabel} deve fazer agora em relação a ${matchName}]",
+    "Ação de teste: [como testar as intenções de ${matchName} de forma prática]",
+    "Ação de proteção: [como ${userLabel} pode se proteger emocionalmente enquanto avalia ${matchName}]"
+  ],
+  
+  "encouragement_message": "Mensagem de 2-3 frases encorajando ${userLabel}. Se a análise for positiva, celebre. Se for negativa, seja acolhedor mas honesto. Sempre termine com uma nota de empoderamento sobre ${userLabel} merecer alguém alinhado com seus objetivos."
+}
+
+REGRAS CRÍTICAS:
+- NUNCA use "o match", "essa pessoa", "ele/ela" - SEMPRE use "${matchName}"
+- Cada campo deve ter conteúdo ÚNICO baseado nas respostas específicas
+- Seja ESPECÍFICO - cite os dados do formulário para justificar suas análises
+- Tom: profissional, empático, mas DIRETO quando houver red flags
+- Se os scores são baixos ou há red flags, NÃO minimize - seja honesto
+
+Responda APENAS com o JSON válido:`
+}
+
+function parsePersonalizedResponse(text: string): any {
+  console.log('[GEMINI PARSE] Iniciando parse da resposta...')
+  console.log('[GEMINI PARSE] Tamanho do texto:', text.length)
+  
+  try {
+    let jsonText = text.trim()
+    console.log('[GEMINI PARSE] Texto começa com:', jsonText.substring(0, 50))
+    
+    if (jsonText.startsWith('```json')) {
+      console.log('[GEMINI PARSE] Removendo markdown ```json')
+      jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '')
+    } else if (jsonText.startsWith('```')) {
+      console.log('[GEMINI PARSE] Removendo markdown ```')
+      jsonText = jsonText.replace(/```\n?/g, '')
+    }
+    
+    console.log('[GEMINI PARSE] JSON limpo começa com:', jsonText.substring(0, 100))
+    const parsed = JSON.parse(jsonText)
+    console.log('[GEMINI PARSE] Parse OK! Keys:', Object.keys(parsed))
+    return parsed
+  } catch (error: any) {
+    console.error('[GEMINI PARSE] ERRO no parse:', error.message)
+    console.error('[GEMINI PARSE] Texto que falhou:', text.substring(0, 1000))
+    return null
+  }
+}
+
+function mergePersonalizedAnalysis(
+  ruleBased: AnalysisResult,
+  aiEnhancements: any,
+  input: PersonalizedAnalysisInput
+): AnalysisResult {
+  console.log('[GEMINI MERGE] Iniciando merge...')
+  console.log('[GEMINI MERGE] aiEnhancements:', aiEnhancements ? 'presente' : 'null')
+  
+  if (!aiEnhancements) {
+    console.log('[GEMINI MERGE] Sem enhancements, usando basicPersonalization')
+    return addBasicPersonalization(ruleBased, input)
+  }
+  
+  const { matchName, userName } = input
+  
+  // Atualizar free teaser com headline personalizada
+  const enhancedFreeTeaser = {
+    ...ruleBased.free_teaser,
+    headline: aiEnhancements.personalized_headline || ruleBased.free_teaser.headline,
+    nome_match: matchName,
+  }
+  
+  // Atualizar hipóteses com textos personalizados
+  const enhancedHypotheses = ruleBased.hypotheses_top3.map((h, idx) => {
+    if (idx === 0 && aiEnhancements.hypothesis_title) {
+      return {
+        ...h,
+        title: aiEnhancements.hypothesis_title,
+        description: aiEnhancements.hypothesis_description || h.description
+      }
+    }
+    return h
+  })
+  
+  // Atualizar premium report
+  const enhancedPremium = {
+    ...ruleBased.premium_report,
+    executive_summary: aiEnhancements.executive_summary || ruleBased.premium_report.executive_summary,
+    hypothesis_1: enhancedHypotheses[0] || ruleBased.premium_report.hypothesis_1,
+    hypothesis_2: enhancedHypotheses[1] || ruleBased.premium_report.hypothesis_2,
+    hypothesis_3: enhancedHypotheses[2] || ruleBased.premium_report.hypothesis_3,
+    full_risk_map: {
+      ...ruleBased.premium_report.full_risk_map,
+      explanations: aiEnhancements.risk_explanation 
+        ? [aiEnhancements.risk_explanation, ...ruleBased.premium_report.full_risk_map.explanations.slice(1)]
+        : ruleBased.premium_report.full_risk_map.explanations
+    },
+    compatibility_explained: {
+      ...ruleBased.premium_report.compatibility_explained,
+      explanation: aiEnhancements.compatibility_explanation || ruleBased.premium_report.compatibility_explained.explanation
+    },
+    validation_checklist: aiEnhancements.validation_checklist || ruleBased.premium_report.validation_checklist,
+    nome_match: matchName,
+  }
+  
+  // Atualizar next_actions
+  const enhancedNextActions = aiEnhancements.next_actions || ruleBased.next_actions
+  
+  return {
+    ...ruleBased,
+    meta: {
+      ...ruleBased.meta,
+      nome_match: matchName,
+      user_name: userName,
+      personalized: true,
+    },
+    hypotheses_top3: enhancedHypotheses,
+    next_actions: enhancedNextActions,
+    free_teaser: enhancedFreeTeaser,
+    premium_report: enhancedPremium,
+    nome_match: matchName,
+    encouragement_message: aiEnhancements.encouragement_message,
+  } as AnalysisResult & { nome_match: string; encouragement_message?: string }
+}
+
+function addBasicPersonalization(
+  ruleBased: AnalysisResult,
+  input: PersonalizedAnalysisInput
+): AnalysisResult {
+  const { matchName, userName } = input
+  
+  // Personalização básica quando IA falha
+  const personalizedHeadline = ruleBased.free_teaser.headline.replace(
+    /o match|match|essa pessoa|ele\/ela/gi, 
+    matchName
+  )
+  
+  return {
+    ...ruleBased,
+    meta: {
+      ...ruleBased.meta,
+      nome_match: matchName,
+      user_name: userName,
+      personalized: false,
+    },
+    free_teaser: {
+      ...ruleBased.free_teaser,
+      headline: personalizedHeadline,
+      nome_match: matchName,
+    },
+    premium_report: {
+      ...ruleBased.premium_report,
+      nome_match: matchName,
+    },
+    nome_match: matchName,
+  } as AnalysisResult & { nome_match: string }
 }
 
 // ============================================
