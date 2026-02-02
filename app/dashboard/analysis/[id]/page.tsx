@@ -132,12 +132,31 @@ export default function AnalysisPage() {
     if (!analysis?.has_access || !analysis?.premium || autoAdvancePaused) return
     const total = getCarouselSlideCount(analysis.premium, userData)
     if (total <= 1) return
+    
+    // Calcular as keys dos slides para verificar se está no slide do terapeuta
+    const slideKeys = [
+      analysis.premium.executive_summary?.length && 'executive_summary',
+      analysis.premium.full_risk_map && 'risk_map',
+      analysis.premium.compatibility_explained && 'compatibility',
+      analysis.premium.validation_checklist?.length && 'checklist',
+      analysis.premium.stage_plan?.length && 'stage_plan',
+      [analysis.premium.hypothesis_1, analysis.premium.hypothesis_2, analysis.premium.hypothesis_3].filter(Boolean).length > 0 && 'hypotheses',
+      userData && 'therapist',
+    ].filter(Boolean) as string[]
+    
+    const currentKey = slideKeys[carouselIndex % slideKeys.length]
+    
+    // Parar o auto-advance quando chegar no slide do terapeuta
+    if (currentKey === 'therapist') {
+      return
+    }
+    
     const t = setInterval(() => {
       setCarouselDirection(1)
       setCarouselIndex((i) => (i + 1) % total)
     }, 9000)
     return () => clearInterval(t)
-  }, [analysis, autoAdvancePaused, userData])
+  }, [analysis, autoAdvancePaused, userData, carouselIndex])
 
   const handleUnlockWithCredit = async () => {
     setUnlocking(true)
@@ -944,22 +963,27 @@ export default function AnalysisPage() {
                       )}
 
                       {currentKey === 'checklist' && premium.validation_checklist && premium.validation_checklist.length > 0 && (
-              <div className="bg-white/80 backdrop-blur-sm border-2 border-blue-200 p-5 sm:p-6 rounded-3xl shadow-lg">
-                <h3 className="font-display text-lg font-bold mb-4 text-gray-900 flex items-center gap-2">
+              <div className="bg-white/80 backdrop-blur-sm border-2 border-blue-200 p-4 sm:p-5 rounded-3xl shadow-lg h-full flex flex-col">
+                <h3 className="font-display text-lg font-bold mb-2 text-gray-900 flex items-center gap-2">
                   ✅ O Que Fazer Agora
                 </h3>
-                <p className="text-gray-600 text-sm mb-4">Marque conforme for observando:</p>
-                <ul className="space-y-3">
-                  {premium.validation_checklist.map((item: string, idx: number) => (
-                    <li key={idx} className="flex items-start gap-3 p-3 bg-blue-50 rounded-2xl hover:bg-blue-100 transition-colors border border-blue-200">
+                <p className="text-gray-600 text-xs mb-3">Marque conforme for observando:</p>
+                <ul className="space-y-2 flex-1">
+                  {premium.validation_checklist.slice(0, 6).map((item: string, idx: number) => (
+                    <li key={idx} className="flex items-start gap-2 p-2.5 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors border border-blue-200">
                       <input 
                         type="checkbox" 
-                        className="mt-0.5 h-5 w-5 rounded border-2 border-blue-400 text-blue-600 focus:ring-blue-500 flex-shrink-0" 
+                        className="mt-0.5 h-4 w-4 rounded border-2 border-blue-400 text-blue-600 focus:ring-blue-500 flex-shrink-0" 
                       />
-                      <span className="text-gray-800 leading-relaxed text-sm sm:text-base">{item}</span>
+                      <span className="text-gray-800 leading-snug text-xs sm:text-sm line-clamp-2">{item}</span>
                     </li>
                   ))}
                 </ul>
+                {premium.validation_checklist.length > 6 && (
+                  <p className="text-blue-600 text-xs mt-2 text-center font-medium">
+                    +{premium.validation_checklist.length - 6} itens adicionais
+                  </p>
+                )}
               </div>
                       )}
 
@@ -1080,30 +1104,32 @@ export default function AnalysisPage() {
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.35 }}
-                className="relative overflow-hidden rounded-3xl border-2 border-emerald-400/70 bg-gradient-to-br from-emerald-500/15 via-teal-500/15 to-cyan-500/15 p-6 sm:p-8 shadow-2xl shadow-emerald-500/25 ring-2 ring-emerald-400/40"
+                className="h-full flex flex-col justify-center"
               >
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-400/15 via-transparent to-cyan-400/15 pointer-events-none" />
-                <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-400/25 rounded-full blur-3xl pointer-events-none animate-pulse" />
-                <div className="relative">
-                  <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">
-                    <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/50">
-                      <Heart className="w-5 h-5 text-emerald-600" />
-                    </span>
-                    <p className="text-emerald-800 font-display text-xl font-bold">Fale com um especialista</p>
-                  </div>
-                  <p className="text-gray-600 text-sm mb-6 text-center sm:text-left">Conte com apoio para entender melhor sua análise.</p>
-                  <div className="therapist-cta-highlight">
-                    <TherapistCta
-                    userId={userData.id}
-                    userName={userData.name || undefined}
-                    userEmail={userData.email}
-                    userPhone={userData.phone}
-                    analysisId={id}
-                    matchName={analysis.nome_match || premium?.nome_match || free_teaser?.nome_match}
-                    hasRedFlags={premium?.red_flags?.length > 0 || free_teaser?.red_flag}
-                    onPhoneUpdated={(phone) => setUserData(prev => prev ? { ...prev, phone } : null)}
-                    therapist={userData.therapist}
-                  />
+                <div className="relative overflow-hidden rounded-3xl border-2 border-emerald-400/70 bg-gradient-to-br from-emerald-500/15 via-teal-500/15 to-cyan-500/15 p-5 sm:p-6 shadow-2xl shadow-emerald-500/25 ring-2 ring-emerald-400/40">
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-400/15 via-transparent to-cyan-400/15 pointer-events-none" />
+                  <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-400/25 rounded-full blur-3xl pointer-events-none animate-pulse" />
+                  <div className="relative">
+                    <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">
+                      <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/50">
+                        <Heart className="w-5 h-5 text-emerald-600" />
+                      </span>
+                      <p className="text-emerald-800 font-display text-xl font-bold">Fale com um especialista</p>
+                    </div>
+                    <p className="text-gray-600 text-sm mb-4 text-center sm:text-left">Conte com apoio para entender melhor sua análise.</p>
+                    <div className="animate-cta-pulse-strong">
+                      <TherapistCta
+                      userId={userData.id}
+                      userName={userData.name || undefined}
+                      userEmail={userData.email}
+                      userPhone={userData.phone}
+                      analysisId={id}
+                      matchName={analysis.nome_match || premium?.nome_match || free_teaser?.nome_match}
+                      hasRedFlags={premium?.red_flags?.length > 0 || free_teaser?.red_flag}
+                      onPhoneUpdated={(phone) => setUserData(prev => prev ? { ...prev, phone } : null)}
+                      therapist={userData.therapist}
+                    />
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -1330,6 +1356,66 @@ export default function AnalysisPage() {
         
         .font-display {
           font-family: var(--font-playfair), Georgia, serif;
+        }
+        
+        @keyframes cta-pulse-strong {
+          0%, 100% {
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6),
+                        0 0 0 0 rgba(16, 185, 129, 0.4),
+                        0 0 30px 5px rgba(34, 197, 94, 0.3);
+          }
+          50% {
+            box-shadow: 0 0 40px 15px rgba(34, 197, 94, 0.5),
+                        0 0 80px 30px rgba(16, 185, 129, 0.3),
+                        0 0 120px 50px rgba(34, 197, 94, 0.2);
+          }
+        }
+        
+        .animate-cta-pulse-strong {
+          animation: cta-pulse-strong 1.5s ease-in-out infinite;
+          border-radius: 1rem;
+          position: relative;
+        }
+        
+        .animate-cta-pulse-strong::before {
+          content: '';
+          position: absolute;
+          inset: -4px;
+          border-radius: 1.25rem;
+          background: linear-gradient(90deg, #22c55e, #10b981, #22c55e);
+          background-size: 200% 100%;
+          animation: border-glow 1.5s ease-in-out infinite;
+          z-index: -1;
+          opacity: 0.7;
+        }
+        
+        @keyframes border-glow {
+          0%, 100% {
+            background-position: 0% 50%;
+            opacity: 0.5;
+          }
+          50% {
+            background-position: 100% 50%;
+            opacity: 1;
+          }
+        }
+        
+        .animate-cta-pulse-strong button {
+          animation: button-glow-strong 1s ease-in-out infinite;
+        }
+        
+        @keyframes button-glow-strong {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 10px 40px -5px rgba(34, 197, 94, 0.6),
+                        0 0 20px rgba(34, 197, 94, 0.4);
+          }
+          50% {
+            transform: scale(1.03);
+            box-shadow: 0 20px 60px -5px rgba(34, 197, 94, 0.8),
+                        0 0 50px rgba(34, 197, 94, 0.6),
+                        0 0 80px rgba(16, 185, 129, 0.4);
+          }
         }
       `}</style>
     </div>

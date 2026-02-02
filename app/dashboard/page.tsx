@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/logo'
 import { PhoneInputModal } from '@/components/phone-input-modal'
 import { PageLoader } from '@/components/page-loader'
+import { OnboardingTour, OnboardingStep } from '@/components/onboarding-tour'
 import { BarChart3, TrendingUp, Brain, Shield, ArrowRight, Sparkles, Compass, X, AlertTriangle, CheckCircle2, MessageCircle, Heart, Phone, Menu, LogOut, User, ChevronRight, Flame, Target, Zap, Trash2 } from 'lucide-react'
 
 type Analysis = {
@@ -59,10 +60,13 @@ export default function DashboardPage() {
   const [leadSubmitted, setLeadSubmitted] = useState(false)
   const [submittingLead, setSubmittingLead] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [hasFormsAvailable, setHasFormsAvailable] = useState<boolean | null>(null)
+  const [hasFormsAvailable, setHasFormsAvailable] = useState<boolean>(true) // Por padrão, assumir que há formulários (otimista)
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [loadingRouteCorrection, setLoadingRouteCorrection] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [totalAnalyses, setTotalAnalyses] = useState(0)
+  const [shouldShowOnboarding, setShouldShowOnboarding] = useState(false)
 
   const stageLabels: Record<string, string> = {
     FIRST_CHAT: 'Primeira conversa',
@@ -77,28 +81,104 @@ export default function DashboardPage() {
     return null
   }
 
+  // Mostrar onboarding APÓS o loading terminar e elementos estarem renderizados
+  useEffect(() => {
+    // Só tentar mostrar onboarding quando não estiver carregando
+    if (!loading && shouldShowOnboarding && !showOnboarding && !showPhoneModal) {
+      // O elemento existe tanto quando hasFormsAvailable é true quanto false
+      // (adicionamos o atributo no botão desabilitado também)
+      console.log('[DASHBOARD] ===== TENTANDO MOSTRAR ONBOARDING APÓS LOADING =====')
+      console.log('[DASHBOARD] hasFormsAvailable:', hasFormsAvailable)
+      console.log('[DASHBOARD] O elemento deve existir em ambos os casos (botão habilitado ou desabilitado)')
+      
+      let retryCount = 0
+      const maxRetries = 10
+      const delay = 300
+      
+      const attempt = () => {
+        retryCount++
+        console.log(`[DASHBOARD] Tentativa ${retryCount}/${maxRetries} - Procurando elemento...`)
+        
+        const targetElement = document.querySelector('[data-onboarding="nova-analise"]')
+        console.log(`[DASHBOARD] Elemento encontrado?`, !!targetElement)
+        console.log(`[DASHBOARD] analyses.length:`, analyses.length)
+        console.log(`[DASHBOARD] hasFormsAvailable:`, hasFormsAvailable)
+        
+        if (targetElement) {
+          console.log('[DASHBOARD] ✅ Elemento encontrado, mostrando onboarding!')
+          setShowOnboarding(true)
+        } else if (retryCount < maxRetries) {
+          console.log(`[DASHBOARD] ⏳ Elemento não encontrado, tentando novamente em ${delay}ms...`)
+          setTimeout(attempt, delay)
+        } else {
+          console.error('[DASHBOARD] ❌ Elemento não encontrado após todas as tentativas')
+          console.error('[DASHBOARD] Verificando elementos disponíveis...')
+          const allElements = document.querySelectorAll('[data-onboarding]')
+          console.error('[DASHBOARD] Elementos encontrados:', Array.from(allElements).map(el => el.getAttribute('data-onboarding')))
+          console.error('[DASHBOARD] ⚠️ O elemento deveria existir - pode ser problema de renderização')
+        }
+      }
+      
+      // Aguardar um pouco para garantir que o DOM está completamente renderizado
+      const timer = setTimeout(attempt, 1000)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [loading, shouldShowOnboarding, showOnboarding, showPhoneModal, analyses.length, hasFormsAvailable])
+  
+  // Monitorar mudanças de estado para debug
+  useEffect(() => {
+    console.log('[DASHBOARD STATE] ===== MUDANÇA DE ESTADO =====')
+    console.log('[DASHBOARD STATE] showOnboarding:', showOnboarding)
+    console.log('[DASHBOARD STATE] shouldShowOnboarding:', shouldShowOnboarding)
+    console.log('[DASHBOARD STATE] hasFormsAvailable:', hasFormsAvailable)
+    console.log('[DASHBOARD STATE] loading:', loading)
+    console.log('[DASHBOARD STATE] analyses.length:', analyses.length)
+    console.log('[DASHBOARD STATE] showPhoneModal:', showPhoneModal)
+    
+    // Verificar elementos do DOM quando não está carregando
+    if (!loading) {
+      const targetElement = document.querySelector('[data-onboarding="nova-analise"]')
+      console.log('[DASHBOARD STATE] Elemento [data-onboarding="nova-analise"] existe?', !!targetElement)
+      if (targetElement) {
+        console.log('[DASHBOARD STATE] Elemento encontrado:', targetElement)
+      }
+    }
+  }, [showOnboarding, shouldShowOnboarding, hasFormsAvailable, loading, analyses.length, showPhoneModal])
+
   useEffect(() => {
     async function loadData() {
+      console.log('[DASHBOARD] ===== INICIANDO CARREGAMENTO =====')
+      
       const {
         data: { user },
       } = await supabase.auth.getUser()
 
       if (!user) {
+        console.log('[DASHBOARD] Usuário não autenticado, redirecionando para login')
         router.push('/login')
         return
       }
 
+      console.log('[DASHBOARD] Usuário autenticado:', user.email)
       setUser(user)
 
       const res = await fetch('/api/analyses')
       if (res.ok) {
         const data = await res.json()
+        console.log('[DASHBOARD] Análises carregadas:', data.length)
         setAnalyses(data)
+      } else {
+        console.warn('[DASHBOARD] Erro ao carregar análises:', res.status)
       }
 
+      console.log('[DASHBOARD] Buscando dados do usuário em /api/me...')
       const meRes = await fetch('/api/me')
       if (meRes.ok) {
         const meData = await meRes.json()
+        console.log('[DASHBOARD] ===== DADOS DO USUÁRIO RECEBIDOS =====')
+        console.log('[DASHBOARD] meData completo:', JSON.stringify(meData, null, 2))
+        
         setUserName(meData.name)
         setUserPhone(meData.phone)
         
@@ -106,33 +186,99 @@ export default function DashboardPage() {
           setRouteCorrection(meData.routeCorrection)
         }
         
+        if (meData.stats?.totalAnalyses !== undefined) {
+          setTotalAnalyses(meData.stats.totalAnalyses)
+        }
+        
+        // Verificar se deve mostrar onboarding
+        console.log('[DASHBOARD] ===== VERIFICANDO ONBOARDING =====')
+        const hasSeenOnboardingFromDB = meData.hasSeenOnboarding ?? false
+        const hasSeenOnboardingFromStorage = localStorage.getItem('onboarding_completed_v1') === 'true'
+        
+        console.log('[DASHBOARD] hasSeenOnboarding do banco (raw):', meData.hasSeenOnboarding)
+        console.log('[DASHBOARD] hasSeenOnboarding do banco (processado):', hasSeenOnboardingFromDB)
+        console.log('[DASHBOARD] hasSeenOnboarding do localStorage:', hasSeenOnboardingFromStorage)
+        console.log('[DASHBOARD] Tipo de hasSeenOnboardingFromDB:', typeof hasSeenOnboardingFromDB)
+        
+        // Se o campo do banco é false, mostrar onboarding (mesmo que localStorage diga que completou)
+        // Se o campo do banco é true, não mostrar (mesmo que localStorage diga que não completou)
+        // Fallback para localStorage apenas se o campo do banco não existir (não deveria acontecer mais)
+        const hasSeenOnboarding = typeof hasSeenOnboardingFromDB === 'boolean'
+          ? hasSeenOnboardingFromDB
+          : hasSeenOnboardingFromStorage
+        
+        console.log('[DASHBOARD] hasSeenOnboarding final:', hasSeenOnboarding)
+        
+        const isFirstAccess = !hasSeenOnboarding
+        console.log('[DASHBOARD] isFirstAccess:', isFirstAccess)
+        setShouldShowOnboarding(isFirstAccess)
+        
+        if (isFirstAccess) {
+          console.log('[DASHBOARD] ✅ PRIMEIRO ACESSO DETECTADO - DEVE MOSTRAR ONBOARDING')
+          console.log('[DASHBOARD] Telefone do usuário:', meData.phone ? 'SIM' : 'NÃO')
+          // A lógica de mostrar onboarding será tratada em um useEffect separado
+          // que só executa quando loading for false
+        } else {
+          console.log('[DASHBOARD] ❌ Usuário já viu onboarding, não mostrar')
+        }
+        
+        // Mostrar modal de telefone se necessário
         if (!meData.phone) {
+          console.log('[DASHBOARD] Abrindo modal de telefone')
           setShowPhoneModal(true)
         }
         
         if (meData.therapist) {
           setSpecialist(meData.therapist)
         }
+      } else {
+        console.error('[DASHBOARD] ❌ Erro ao buscar dados do usuário:', meRes.status, meRes.statusText)
       }
 
+      console.log('[DASHBOARD] ===== VERIFICANDO FORMULÁRIOS DISPONÍVEIS =====')
       try {
         const formsRes = await fetch('/api/form-themes')
+        console.log('[DASHBOARD] Resposta de /api/form-themes:', formsRes.status, formsRes.statusText)
+        
         if (formsRes.ok) {
           const formsData = await formsRes.json()
+          console.log('[DASHBOARD] Formulários recebidos:', formsData.length)
+          console.log('[DASHBOARD] Dados dos formulários:', JSON.stringify(formsData, null, 2))
+          
           const hasThemesWithQuestions = formsData.some((theme: any) => theme._count?.questions > 0)
-          setHasFormsAvailable(hasThemesWithQuestions)
+          console.log('[DASHBOARD] Tem temas com perguntas?', hasThemesWithQuestions)
+          
+          // Log detalhado de cada tema
+          formsData.forEach((theme: any, index: number) => {
+            console.log(`[DASHBOARD] Tema ${index + 1}:`, theme.name, '- Perguntas:', theme._count?.questions || 0)
+          })
+          
+          // IMPORTANTE: Sempre manter como true se houver pelo menos 1 tema com perguntas
+          // Se não houver, só definir como false se realmente não houver nenhum formulário
+          const finalValue = hasThemesWithQuestions || formsData.length > 0
+          console.log('[DASHBOARD] Definindo hasFormsAvailable como:', finalValue)
+          setHasFormsAvailable(finalValue)
         } else {
-          setHasFormsAvailable(false)
+          // Se a requisição falhar, manter como true (otimista) para não bloquear o usuário
+          console.warn('[DASHBOARD] ⚠️ Erro ao buscar formulários, assumindo disponíveis')
+          console.warn('[DASHBOARD] Status:', formsRes.status)
+          console.warn('[DASHBOARD] StatusText:', formsRes.statusText)
+          setHasFormsAvailable(true) // Manter como true mesmo em caso de erro
         }
-      } catch {
-        setHasFormsAvailable(false)
+      } catch (error) {
+        // Se der erro, manter como true (otimista) para não bloquear o usuário
+        console.error('[DASHBOARD] ❌ Erro ao buscar formulários:', error)
+        setHasFormsAvailable(true) // Manter como true mesmo em caso de erro
       }
 
+      console.log('[DASHBOARD] Finalizando carregamento...')
       setLoading(false)
+      console.log('[DASHBOARD] ===== CARREGAMENTO FINALIZADO =====')
     }
 
     loadData()
   }, [router, supabase])
+
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -170,6 +316,113 @@ export default function DashboardPage() {
       setDeleting(false)
     }
   }
+
+  const handleOnboardingComplete = async () => {
+    console.log('[ONBOARDING] ✅ Onboarding completado pelo usuário')
+    
+    // IMPORTANTE: Atualizar shouldShowOnboarding primeiro para evitar loop
+    setShouldShowOnboarding(false)
+    setShowOnboarding(false)
+    
+    // Salvar também no localStorage como fallback
+    localStorage.setItem('onboarding_completed_v1', 'true')
+    console.log('[ONBOARDING] Salvo no localStorage')
+    
+    // Atualizar flag no banco de dados (se o campo existir)
+    try {
+      console.log('[ONBOARDING] Atualizando hasSeenOnboarding no banco...')
+      const res = await fetch('/api/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hasSeenOnboarding: true })
+      })
+      if (res.ok) {
+        console.log('[ONBOARDING] ✅ hasSeenOnboarding atualizado no banco com sucesso')
+      } else {
+        console.error('[ONBOARDING] ❌ Erro ao atualizar no banco:', res.status, res.statusText)
+      }
+    } catch (error) {
+      // Silenciosamente ignora erro se o campo não existe no banco ainda
+      console.warn('[ONBOARDING] ⚠️ Erro ao atualizar no banco:', error)
+      console.warn('[ONBOARDING] Usando localStorage (migration pendente)')
+    }
+  }
+
+  const handleOnboardingSkip = async () => {
+    console.log('[ONBOARDING] ⏭️ Onboarding pulado pelo usuário')
+    
+    // IMPORTANTE: Atualizar shouldShowOnboarding primeiro para evitar loop
+    setShouldShowOnboarding(false)
+    setShowOnboarding(false)
+    
+    // Salvar também no localStorage como fallback
+    localStorage.setItem('onboarding_completed_v1', 'true')
+    console.log('[ONBOARDING] Salvo no localStorage')
+    
+    // Atualizar flag no banco de dados (se o campo existir)
+    try {
+      console.log('[ONBOARDING] Atualizando hasSeenOnboarding no banco...')
+      const res = await fetch('/api/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hasSeenOnboarding: true })
+      })
+      if (res.ok) {
+        console.log('[ONBOARDING] ✅ hasSeenOnboarding atualizado no banco com sucesso')
+      } else {
+        console.error('[ONBOARDING] ❌ Erro ao atualizar no banco:', res.status, res.statusText)
+      }
+    } catch (error) {
+      // Silenciosamente ignora erro se o campo não existe no banco ainda
+      console.warn('[ONBOARDING] ⚠️ Erro ao atualizar no banco:', error)
+      console.warn('[ONBOARDING] Usando localStorage (migration pendente)')
+    }
+  }
+
+  // Steps do onboarding - adapta baseado no estado (com ou sem análises)
+  const onboardingSteps: OnboardingStep[] = analyses.length === 0 
+    ? [
+        // Empty state - apenas 2 steps
+        {
+          target: 'nova-analise',
+          title: 'Comece por aqui',
+          description: 'Crie sua primeira análise respondendo perguntas sobre seu match. Leva menos de 3 minutos e você recebe insights completos!',
+          position: 'right', // Ao lado direito do botão
+        },
+        {
+          target: 'area-analises',
+          title: 'Suas análises',
+          description: 'Aqui você verá todas as análises que fizer. Cada análise traz scores, alertas e dicas práticas para seus relacionamentos.',
+          position: 'right', // Ao lado direito da área
+        },
+      ]
+    : [
+        // Com análises - 4 steps completos
+        {
+          target: 'nova-analise',
+          title: 'Nova análise',
+          description: 'Crie novas análises sempre que quiser entender melhor seus matches.',
+          position: 'right', // Ao lado direito do botão
+        },
+        {
+          target: 'area-analises',
+          title: 'Suas análises',
+          description: 'Acesse o histórico completo de todas as suas análises. Clique em qualquer card para ver os detalhes.',
+          position: 'right', // Ao lado direito da área
+        },
+        {
+          target: 'evolucao-comportamento',
+          title: 'Evolução do comportamento',
+          description: 'Após 3 análises, desbloqueie insights sobre seus padrões de comportamento e receba orientações personalizadas.',
+          position: 'right', // Ao lado direito do botão
+        },
+        {
+          target: 'falar-especialista',
+          title: 'Fale com um especialista',
+          description: 'Receba orientação personalizada sobre relacionamentos direto com nosso time de especialistas.',
+          position: 'right', // Ao lado direito do botão
+        },
+      ]
 
   if (loading) {
     return (
@@ -328,23 +581,30 @@ export default function DashboardPage() {
           
           {/* Botões de ação - só aparecem quando há análises */}
           {analyses.length > 0 && (
-            <div className="flex flex-col sm:flex-row gap-3 animate-fade-in-up animation-delay-200">
+            <div className="flex flex-col sm:flex-row gap-4 animate-fade-in-up animation-delay-200">
               {/* Botão de Análise de Comportamento */}
               {analyses.length >= 1 && (
-                <div className="relative">
+                <div className="relative group">
+                  {/* Glow effect */}
+                  {routeCorrection?.available && (
+                    <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 rounded-2xl blur-lg opacity-40 group-hover:opacity-70 transition-opacity duration-300" />
+                  )}
                   <button
                     onClick={handleRouteCorrectionClick}
                     disabled={loadingRouteCorrection}
-                    className={`relative w-full sm:w-auto px-5 py-3.5 rounded-2xl font-semibold transition-all flex items-center justify-center gap-2.5 text-sm ${
+                    data-onboarding="evolucao-comportamento"
+                    className={`relative w-full sm:w-auto px-6 py-4 rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-3 text-sm ${
                       routeCorrection?.available
-                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-500 hover:to-pink-500 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98] ring-2 ring-purple-400/50 ring-offset-2 ring-offset-purple-50 disabled:opacity-70'
-                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        ? 'bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white border-2 border-purple-400/50 shadow-xl shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-70'
+                        : 'bg-gray-100 text-gray-400 border-2 border-gray-200 cursor-not-allowed'
                     }`}
                   >
-                    <Compass className="w-5 h-5" />
-                    <span>Analisar comportamento</span>
+                    <div className={`p-1.5 rounded-lg ${routeCorrection?.available ? 'bg-white/20' : 'bg-gray-200'}`}>
+                      <Compass className="w-4 h-4" />
+                    </div>
+                    <span>Analisar minha evolução</span>
                     {routeCorrection?.available && (
-                      <span className="bg-white/20 text-xs px-2 py-0.5 rounded-full font-bold">
+                      <span className="bg-white/25 backdrop-blur-sm text-xs px-2.5 py-1 rounded-full font-bold border border-white/30">
                         {routeCorrection.activeAnalysesCount}
                       </span>
                     )}
@@ -354,31 +614,51 @@ export default function DashboardPage() {
               
               {/* Botão Falar com Especialista - aparece quando tem análises */}
               {analyses.length > 0 && (
-                <button
-                  onClick={() => setShowSpecialistModal(true)}
-                  className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-5 py-3.5 rounded-2xl font-semibold transition-all flex items-center justify-center gap-2.5 shadow-lg shadow-green-500/20 hover:shadow-green-500/30 hover:scale-[1.02] active:scale-[0.98] text-sm"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  <span>Falar com Especialista</span>
-                </button>
+                <div className="relative group">
+                  {/* Glow effect */}
+                  <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 rounded-2xl blur-lg opacity-40 group-hover:opacity-70 transition-opacity duration-300" />
+                  <button
+                    onClick={() => setShowSpecialistModal(true)}
+                    data-onboarding="falar-especialista"
+                    className="relative w-full sm:w-auto bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 text-white px-6 py-4 rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-3 border-2 border-emerald-400/50 shadow-xl shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-[0.98] text-sm"
+                  >
+                    <div className="p-1.5 rounded-lg bg-white/20">
+                      <MessageCircle className="w-4 h-4" />
+                    </div>
+                    <span>Falar com Especialista</span>
+                  </button>
+                </div>
               )}
               
               {/* Botão Nova Análise */}
               {hasFormsAvailable ? (
-                <Link
-                  href="/dashboard/new"
-                  className="group w-full sm:w-auto bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white px-6 py-3.5 rounded-2xl font-bold transition-all inline-flex items-center justify-center gap-2.5 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98] text-sm"
-                >
-                  <Sparkles className="w-5 h-5" />
-                  <span>Nova Análise</span>
-                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                </Link>
+                <div className="relative group">
+                  {/* Animated glow effect */}
+                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-pink-500 to-orange-500 rounded-2xl blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-300 animate-pulse-slow" />
+                  <Link
+                    href="/dashboard/new"
+                    data-onboarding="nova-analise"
+                    className="relative group/btn w-full sm:w-auto bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white px-7 py-4 rounded-2xl font-bold transition-all duration-300 inline-flex items-center justify-center gap-3 border-2 border-purple-400/50 shadow-xl shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-[0.98] text-sm overflow-hidden"
+                  >
+                    {/* Shimmer effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700" />
+                    <div className="relative flex items-center gap-3">
+                      <div className="p-1.5 rounded-lg bg-white/20">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <span>Nova Análise</span>
+                      <ArrowRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-1" />
+                    </div>
+                  </Link>
+                </div>
               ) : (
                 <div 
-                  className="w-full sm:w-auto bg-gray-200 text-gray-500 px-6 py-3.5 rounded-2xl font-semibold cursor-not-allowed inline-flex items-center justify-center gap-2.5 text-sm"
+                  className="w-full sm:w-auto bg-gray-100 text-gray-400 px-7 py-4 rounded-2xl font-bold cursor-not-allowed inline-flex items-center justify-center gap-3 text-sm border-2 border-gray-200"
                   title="Nenhum formulário disponível no momento"
                 >
-                  <Sparkles className="w-5 h-5" />
+                  <div className="p-1.5 rounded-lg bg-gray-200">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
                   <span>Nova Análise</span>
                 </div>
               )}
@@ -388,7 +668,7 @@ export default function DashboardPage() {
 
         {/* Empty State */}
         {analyses.length === 0 ? (
-          <div className="animate-fade-in-up animation-delay-300">
+          <div className="animate-fade-in-up animation-delay-300" data-onboarding="area-analises">
             <div className="relative max-w-3xl mx-auto">
               {/* Decorative elements */}
               <div className="absolute -top-20 -left-20 w-40 h-40 bg-purple-300/30 rounded-full blur-3xl" />
@@ -465,82 +745,71 @@ export default function DashboardPage() {
                   ))}
                 </div>
                 
-                {/* CTA Button */}
-                {hasFormsAvailable ? (
-                  <div className="text-center">
-                    <div className="relative inline-block animate-fade-in-up animation-delay-600">
-                      {/* Pulsing glow effect */}
-                      <div className="absolute inset-0 -m-3 rounded-3xl bg-gradient-to-r from-purple-500 to-pink-500 opacity-30 animate-cta-pulse blur-xl" />
-                      <div className="absolute inset-0 -m-5 rounded-3xl bg-gradient-to-r from-purple-400 to-pink-400 opacity-20 animate-cta-pulse animation-delay-150 blur-2xl" />
-                      
-                      <Link
-                        href="/dashboard/new"
-                        className="relative group inline-flex items-center gap-3 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 hover:from-purple-500 hover:via-pink-500 hover:to-orange-400 text-white px-10 py-5 rounded-2xl text-lg font-bold transition-all shadow-xl shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-[1.03] active:scale-[0.98]"
-                      >
-                        <Flame className="w-6 h-6" />
-                        <span>Analisar Agora</span>
-                        <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-                      </Link>
-                    </div>
-                    <p className="text-gray-500 text-sm mt-4 animate-fade-in-up animation-delay-700">
-                      Leva menos de 3 minutos
-                    </p>
+                {/* CTA Button - Sempre habilitado */}
+                <div className="text-center">
+                  <div className="relative inline-block animate-fade-in-up animation-delay-600">
+                    {/* Pulsing glow effect */}
+                    <div className="absolute inset-0 -m-3 rounded-3xl bg-gradient-to-r from-purple-500 to-pink-500 opacity-30 animate-cta-pulse blur-xl" />
+                    <div className="absolute inset-0 -m-5 rounded-3xl bg-gradient-to-r from-purple-400 to-pink-400 opacity-20 animate-cta-pulse animation-delay-150 blur-2xl" />
                     
-                    {/* Separador */}
-                    <div className="flex items-center gap-4 my-8 animate-fade-in-up animation-delay-800">
-                      <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
-                      <span className="text-gray-400 text-sm font-medium">ou</span>
-                      <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
-                    </div>
-                    
-                    {/* Opção Premium - Falar com Especialista */}
-                    <div className="animate-fade-in-up animation-delay-900">
-                      <div className="relative bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-2xl p-6 max-w-md mx-auto">
-                        {/* Badge Premium */}
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                          <span className="bg-gradient-to-r from-emerald-500 to-green-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg uppercase tracking-wide">
-                            Atendimento Premium
-                          </span>
-                        </div>
-                        
-                        <div className="mt-2 mb-4">
-                          <h3 className="text-gray-900 font-bold text-lg mb-2 flex items-center justify-center gap-2">
-                            <MessageCircle className="w-5 h-5 text-emerald-600" />
-                            Prefere falar com um especialista?
-                          </h3>
-                          <p className="text-gray-600 text-sm leading-relaxed">
-                            Receba orientação personalizada sobre relacionamentos direto com nosso time de especialistas.
-                          </p>
-                        </div>
-                        
-                        <button
-                          onClick={() => setShowSpecialistModal(true)}
-                          className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-6 py-3.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2.5 shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-[1.02] active:scale-[0.98]"
-                        >
-                          <MessageCircle className="w-5 h-5" />
-                          <span>Falar com Especialista</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <div className="inline-flex items-center gap-3 bg-gray-200 text-gray-500 px-10 py-5 rounded-2xl text-lg font-bold cursor-not-allowed">
+                    <Link
+                      href="/dashboard/new"
+                      data-onboarding="nova-analise"
+                      className="relative group inline-flex items-center gap-3 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 hover:from-purple-500 hover:via-pink-500 hover:to-orange-400 text-white px-10 py-5 rounded-2xl text-lg font-bold transition-all shadow-xl shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-[1.03] active:scale-[0.98]"
+                      onClick={() => console.log('[DASHBOARD] Botão "Analisar Agora" clicado')}
+                    >
                       <Flame className="w-6 h-6" />
                       <span>Analisar Agora</span>
-                      <ArrowRight className="w-5 h-5" />
-                    </div>
-                    <p className="text-gray-500 text-sm mt-6">
-                      Nenhum formulário disponível no momento. Entre em contato com o suporte.
-                    </p>
+                      <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                    </Link>
                   </div>
-                )}
+                  <p className="text-gray-500 text-sm mt-4 animate-fade-in-up animation-delay-700">
+                    Leva menos de 3 minutos
+                  </p>
+                  
+                  {/* Separador */}
+                  <div className="flex items-center gap-4 my-8 animate-fade-in-up animation-delay-800">
+                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
+                    <span className="text-gray-400 text-sm font-medium">ou</span>
+                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
+                  </div>
+                  
+                  {/* Opção Premium - Falar com Especialista */}
+                  <div className="animate-fade-in-up animation-delay-900">
+                    <div className="relative bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-2xl p-6 max-w-md mx-auto">
+                      {/* Badge Premium */}
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <span className="bg-gradient-to-r from-emerald-500 to-green-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg uppercase tracking-wide">
+                          Atendimento Premium
+                        </span>
+                      </div>
+                      
+                      <div className="mt-2 mb-4">
+                        <h3 className="text-gray-900 font-bold text-lg mb-2 flex items-center justify-center gap-2">
+                          <MessageCircle className="w-5 h-5 text-emerald-600" />
+                          Prefere falar com um especialista?
+                        </h3>
+                        <p className="text-gray-600 text-sm leading-relaxed">
+                          Receba orientação personalizada sobre relacionamentos direto com nosso time de especialistas.
+                        </p>
+                      </div>
+                      
+                      <button
+                        onClick={() => setShowSpecialistModal(true)}
+                        className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-6 py-3.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2.5 shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-[1.02] active:scale-[0.98]"
+                      >
+                        <MessageCircle className="w-5 h-5" />
+                        <span>Falar com Especialista</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         ) : (
           /* Analysis Cards Grid */
-          <div className="grid gap-5">
+          <div className="grid gap-5" data-onboarding="area-analises">
             {analyses.map((analysis, index) => {
               const isRed = analysis.hasRedFlag
               const isGreen = analysis.hasGreenFlag
@@ -953,12 +1222,27 @@ export default function DashboardPage() {
         {/* Modal de telefone */}
         <PhoneInputModal
           isOpen={showPhoneModal}
-          onClose={() => setShowPhoneModal(false)}
-          onSave={(phone) => {
+          onClose={() => {
+            console.log('[DASHBOARD] Modal de telefone fechado (onClose)')
             setShowPhoneModal(false)
+            // O useEffect vai detectar a mudança e tentar mostrar o onboarding
+          }}
+          onSave={(phone) => {
+            console.log('[DASHBOARD] Telefone salvo:', phone)
+            setShowPhoneModal(false)
+            // O useEffect vai detectar a mudança e tentar mostrar o onboarding
           }}
           userName={userName}
         />
+
+        {/* Onboarding Tour */}
+        {showOnboarding && (
+          <OnboardingTour
+            steps={onboardingSteps}
+            onComplete={handleOnboardingComplete}
+            onSkip={handleOnboardingSkip}
+          />
+        )}
       </div>
 
       {/* Custom Styles */}
@@ -981,6 +1265,14 @@ export default function DashboardPage() {
         }
         .animation-delay-150 {
           animation-delay: 0.15s;
+        }
+        
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 0.7; }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 3s ease-in-out infinite;
         }
       `}</style>
     </div>

@@ -1,12 +1,359 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id                String       @id @default(uuid())
+  email             String       @unique
+  name              String?
+  plan              Plan         @default(FREE)
+  creditsFreeDaily  Int          @default(1)
+  creditsPaid       Int          @default(0)
+  proUntil          DateTime?
+  lastDailyReset    DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  facebook          String?
+  hasSeenOnboarding Boolean      @default(false)
+  instagram         String?
+  phone             String?
+  stripeCustomerId  String?      @unique
+  analyses          Analysis[]
+  entitlements      Entitlement?
+  leads             Lead[]
+  payments          Payment[]
+
+  @@map("users")
+}
+
+model Analysis {
+  id                    String        @id @default(uuid())
+  userId                String
+  stage                 AnalysisStage
+  inputJson             Json
+  resultJson            Json
+  isPaid                Boolean       @default(false)
+  createdAt             DateTime      @default(now())
+  usedInRouteCorrection Boolean       @default(false)
+  themeId               String?
+  theme                 FormTheme?    @relation(fields: [themeId], references: [id])
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leads                 Lead[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([usedInRouteCorrection])
+  @@index([themeId])
+  @@map("analyses")
+}
+
+model Payment {
+  id                 String              @id @default(uuid())
+  userId             String
+  provider           String              @default("asaas")
+  externalId         String
+  status             String
+  amountCents        Int
+  currency           String              @default("BRL")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  creditPackage      CreditPackage?
+  creditsGranted     Int?
+  subscriptionPeriod SubscriptionPeriod?
+  type               PaymentType
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([externalId])
+  @@index([status])
+  @@index([type])
+  @@map("payments")
+}
+
+model Entitlement {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  proUntil       DateTime?
+  lastDailyReset DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("entitlements")
+}
+
+model SystemConfig {
+  id                           String    @id @default("default")
+  minAnalysesFirstTime         Int       @default(3)
+  minNewAnalysesForUnlock      Int       @default(4)
+  freeCreditsDaily             Int       @default(10)
+  geminiDailyLimit             Int       @default(100)
+  geminiMonthlyBudgetCents     Int       @default(50000)
+  geminiCallsToday             Int       @default(0)
+  geminiLastResetDate          DateTime?
+  proPriceMonthly              Int       @default(2990)
+  proPriceYearly               Int       @default(29900)
+  maintenanceMode              Boolean   @default(false)
+  allowNewRegistrations        Boolean   @default(true)
+  createdAt                    DateTime  @default(now())
+  updatedAt                    DateTime  @updatedAt
+  creditPricePack3             Int       @default(2490)
+  creditPricePack5             Int       @default(3990)
+  creditPriceSingle            Int       @default(799)
+  proPriceQuarterly            Int       @default(7990)
+  enableLeadAnalysis           Boolean   @default(true)
+  enableLeadCta                Boolean   @default(true)
+  enableLeadSignup             Boolean   @default(true)
+  geminiModelAnalysis          String    @default("gemini-1.5-flash")
+  geminiModelRouteCorrection   String    @default("gemini-2.0-flash")
+  leadAnalysisPlans            String    @default("[\"INTERMEDIATE\",\"PRO\"]")
+  leadCooldownHours            Int       @default(24)
+  leadCtaPlans                 String    @default("[\"PRO\"]")
+  leadMaxAnalysesPerDay        Int       @default(50)
+  leadMaxAnalysisPerDay        Int       @default(10)
+  leadMaxCtaPerDay             Int       @default(5)
+  leadMaxRouteCorrectionPerDay Int       @default(3)
+  leadMaxSignupPerDay          Int       @default(20)
+  leadSignupPlans              String    @default("[\"BASIC\",\"INTERMEDIATE\",\"PRO\"]")
+  therapistLeadsPerDay         Int       @default(10)
+  therapistPriceBasic          Int       @default(7900)
+  therapistPriceIntermediate   Int       @default(14900)
+  therapistPricePro            Int       @default(24900)
+
+  @@map("system_config")
+}
+
+model Admin {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  role      String   @default("ADMIN")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@map("admins")
+}
+
+model GeminiUsageLog {
+  id            String   @id @default(uuid())
+  userId        String?
+  endpoint      String
+  tokensInput   Int      @default(0)
+  tokensOutput  Int      @default(0)
+  estimatedCost Int      @default(0)
+  success       Boolean  @default(true)
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([endpoint])
+  @@map("gemini_usage_logs")
+}
+
+model AdminLog {
+  id         String   @id @default(uuid())
+  adminEmail String
+  action     String
+  entity     String
+  entityId   String?
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([adminEmail])
+  @@index([action])
+  @@map("admin_logs")
+}
+
+model UserActivityLog {
+  id          String          @id @default(uuid())
+  userId      String?
+  sessionId   String
+  eventType   String
+  eventData   Json?
+  page        String?
+  duration    Int?
+  createdAt   DateTime        @default(now())
+  ipAddress   String?
+  journeyType UserJourneyType
+  referrer    String?
+  therapistId String?
+  userAgent   String?
+
+  @@index([createdAt])
+  @@index([journeyType])
+  @@index([userId])
+  @@index([therapistId])
+  @@index([sessionId])
+  @@index([eventType])
+  @@map("user_activity_logs")
+}
+
+model Therapist {
+  id                 String          @id @default(uuid())
+  email              String          @unique
+  password           String?
+  googleId           String?         @unique
+  name               String
+  type               TherapistType   @default(OUTRO)
+  plan               TherapistPlan   @default(BASIC)
+  crp                String?
+  whatsapp           String?
+  bio                String?
+  photoUrl           String?
+  instagram          String?
+  website            String?
+  specialties        String[]        @default(["relacionamentos"])
+  status             TherapistStatus @default(PENDING)
+  active             Boolean         @default(false)
+  profileCompleted   Boolean         @default(false)
+  stripeCustomerId   String?         @unique
+  subscriptionId     String?
+  subscriptionStatus String          @default("inactive")
+  leadsReceived      Int             @default(0)
+  leadsThisMonth     Int             @default(0)
+  leadsSignup        Int             @default(0)
+  leadsAnalysis      Int             @default(0)
+  leadsCta           Int             @default(0)
+  lastLeadAt         DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  approvedAt         DateTime?
+  approvedBy         String?
+  leads              Lead[]
+
+  @@index([status])
+  @@index([plan])
+  @@index([active])
+  @@index([lastLeadAt])
+  @@map("therapists")
+}
+
+model Demo {
+  id          String     @id @default(uuid())
+  name        String
+  email       String
+  phone       String
+  company     String?
+  scheduledAt DateTime
+  status      DemoStatus @default(PENDING)
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  confirmedAt DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+
+  @@index([scheduledAt])
+  @@index([status])
+  @@index([email])
+  @@map("demos")
+}
+
+model Lead {
+  id               String     @id @default(uuid())
+  type             LeadType   @default(SIGNUP)
+  status           LeadStatus @default(NEW)
+  userId           String?
+  userName         String?
+  userEmail        String
+  userPhone        String
+  analysisId       String?
+  matchName        String?
+  analysisData     Json?
+  therapistId      String?
+  emailSentAt      DateTime?
+  whatsappOpenedAt DateTime?
+  createdAt        DateTime   @default(now())
+  contactedAt      DateTime?
+  convertedAt      DateTime?
+  analysis         Analysis?  @relation(fields: [analysisId], references: [id])
+  therapist        Therapist? @relation(fields: [therapistId], references: [id])
+  user             User?      @relation(fields: [userId], references: [id])
+
+  @@index([type])
+  @@index([status])
+  @@index([therapistId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("leads")
+}
+
+model FormTheme {
+  id          String         @id @default(uuid())
+  name        String         @unique
+  displayName String
+  description String?
+  icon        String?
+  color       String         @default("purple")
+  active      Boolean        @default(true)
+  order       Int            @default(0)
+  seasonal    Boolean        @default(false)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  analyses    Analysis[]
+  questions   FormQuestion[]
+
+  @@index([active])
+  @@index([order])
+  @@index([seasonal])
+  @@map("form_themes")
+}
+
+model FormQuestion {
+  id            String                 @id @default(uuid())
+  themeId       String?
+  key           String
+  label         String
+  description   String?
+  type          QuestionType
+  required      Boolean                @default(false)
+  order         Int
+  weight        Int                    @default(50)
+  placeholder   String?
+  rows          Int?
+  autoAdvance   Boolean                @default(false)
+  showIf        Json?
+  isFixed       Boolean                @default(false)
+  fixedPosition FixedQuestionPosition?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  options       FormQuestionOption[]
+  theme         FormTheme?             @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@unique([themeId, key])
+  @@index([themeId, order])
+  @@index([isFixed])
+  @@map("form_questions")
+}
+
+model FormQuestionOption {
+  id         String       @id @default(uuid())
+  questionId String
+  value      String
+  label      String
+  hint       String?
+  icon       String?
+  color      String?
+  order      Int          @default(0)
+  createdAt  DateTime     @default(now())
+  question   FormQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, value])
+  @@index([questionId, order])
+  @@map("form_question_options")
 }
 
 enum Plan {
@@ -18,52 +365,6 @@ enum AnalysisStage {
   FIRST_CHAT
   TALKING
   POST_DATE
-}
-
-model User {
-  id                String    @id @default(uuid())
-  email             String    @unique
-  name              String?
-  phone             String?   // Telefone obrigatorio para gerar lead
-  instagram         String?   // Instagram do usuário (opcional)
-  facebook          String?   // Facebook do usuário (opcional)
-  plan              Plan      @default(FREE)
-  creditsFreeDaily  Int       @default(1)
-  creditsPaid       Int       @default(0)
-  proUntil          DateTime?
-  lastDailyReset    DateTime?
-  stripeCustomerId  String?   @unique
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  analyses     Analysis[]
-  payments     Payment[]
-  entitlements Entitlement?
-  leads        Lead[]        // Leads gerados por este usuario
-
-  @@map("users")
-}
-
-model Analysis {
-  id                     String         @id @default(uuid())
-  userId                 String
-  stage                  AnalysisStage
-  inputJson              Json
-  resultJson             Json
-  isPaid                 Boolean        @default(false)
-  usedInRouteCorrection  Boolean        @default(false)
-  themeId                String?        // Tema do formulário usado (null = formulário legado)
-  createdAt              DateTime       @default(now())
-
-  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  theme FormTheme? @relation(fields: [themeId], references: [id], onDelete: SetNull)
-  leads Lead[]     // Leads gerados a partir desta analise
-
-  @@index([userId])
-  @@index([createdAt])
-  @@index([usedInRouteCorrection])
-  @@index([themeId])
-  @@map("analyses")
 }
 
 enum PaymentType {
@@ -78,286 +379,52 @@ enum SubscriptionPeriod {
 }
 
 enum CreditPackage {
-  SINGLE    // 1 crédito
-  PACK_3    // 3 créditos
-  PACK_5    // 5 créditos
+  SINGLE
+  PACK_3
+  PACK_5
 }
 
-model Payment {
-  id                String            @id @default(uuid())
-  userId            String
-  provider          String            @default("asaas")
-  externalId        String
-  status            String            // PENDING, CONFIRMED, CANCELED, REFUNDED
-  amountCents       Int
-  currency          String            @default("BRL")
-  type              PaymentType
-  subscriptionPeriod SubscriptionPeriod? // MONTHLY, QUARTERLY, YEARLY (apenas para SUBSCRIPTION)
-  creditPackage     CreditPackage?    // SINGLE, PACK_3, PACK_5 (apenas para ONE_TIME)
-  creditsGranted    Int?              // Quantidade de créditos concedidos
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([externalId])
-  @@index([status])
-  @@index([type])
-  @@map("payments")
-}
-
-model Entitlement {
-  id            String   @id @default(uuid())
-  userId        String   @unique
-  proUntil      DateTime?
-  lastDailyReset DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("entitlements")
-}
-
-// Configurações do sistema (admin)
-model SystemConfig {
-  id        String   @id @default("default")
-  
-  // ============================================
-  // LIMITES DA JORNADA DO LEAD
-  // ============================================
-  
-  // Análises
-  leadMaxAnalysesPerDay        Int @default(50)  // Máximo de análises por lead/dia
-  
-  // Análise de comportamento (route correction)
-  leadMaxRouteCorrectionPerDay Int @default(3)   // Máximo de análises de comportamento por lead/dia
-  minAnalysesFirstTime         Int @default(3)   // Mínimo de análises para primeira análise de comportamento
-  minNewAnalysesForUnlock      Int @default(4)   // Mínimo de novas análises para desbloquear próxima
-  
-  // Configurações de créditos (legado - mantido por compatibilidade)
-  freeCreditsDaily         Int @default(10) // Créditos gratuitos por dia
-  
-  // Controle de gastos Gemini
-  geminiDailyLimit         Int @default(100)    // Limite diário de chamadas
-  geminiMonthlyBudgetCents Int @default(50000)  // Orçamento mensal em centavos (R$ 500)
-  geminiCallsToday         Int @default(0)      // Contador de chamadas hoje
-  geminiLastResetDate      DateTime?            // Última vez que resetou contador diário
-  
-  // Modelos Gemini configuráveis
-  geminiModelAnalysis       String @default("gemini-1.5-flash")  // Modelo para análise de matches
-  geminiModelRouteCorrection String @default("gemini-2.0-flash") // Modelo para correção de rota
-  
-  // Configurações de preços - Assinaturas Usuario (legado, manter por compatibilidade)
-  proPriceMonthly          Int @default(2990)   // Preço mensal PRO em centavos
-  proPriceQuarterly        Int @default(7990)   // Preço trimestral PRO em centavos
-  proPriceYearly           Int @default(29900)  // Preço anual PRO em centavos
-  
-  // Configurações de preços - Pacotes de créditos (legado)
-  creditPriceSingle        Int @default(799)    // Preço 1 crédito em centavos
-  creditPricePack3         Int @default(2490)   // Preço pacote 3 créditos em centavos
-  creditPricePack5         Int @default(3990)   // Preço pacote 5 créditos em centavos
-  
-  // ============================================
-  // CONFIGURAÇÕES B2B - TERAPEUTAS
-  // ============================================
-  
-  // Preços dos planos de terapeuta (em centavos)
-  therapistPriceBasic         Int @default(7900)   // R$ 79/mes
-  therapistPriceIntermediate  Int @default(14900)  // R$ 149/mes
-  therapistPricePro           Int @default(24900)  // R$ 249/mes
-  
-  // Limites de leads
-  therapistLeadsPerDay        Int @default(10)     // Limite de leads por terapeuta/dia
-  
-  // Feature flags B2B
-  enableLeadSignup            Boolean @default(true)  // Gerar lead no cadastro (telefone)
-  enableLeadAnalysis          Boolean @default(true)  // Gerar lead na análise (formulário)
-  enableLeadCta               Boolean @default(true)  // Gerar lead no CTA
-  
-  // ============================================
-  // REGRAS DE GERAÇÃO DE LEADS (configuráveis)
-  // ============================================
-  
-  // Quais planos recebem cada tipo de lead (JSON array de strings)
-  // Ex: ["BASIC", "INTERMEDIATE", "PRO"]
-  leadSignupPlans             String  @default("[\"BASIC\",\"INTERMEDIATE\",\"PRO\"]") // Leads de cadastro
-  leadAnalysisPlans           String  @default("[\"INTERMEDIATE\",\"PRO\"]")           // Leads de análise
-  leadCtaPlans                String  @default("[\"PRO\"]")                            // Leads de CTA (quentes)
-  
-  // Regra de cooldown entre leads do mesmo tipo (em horas)
-  leadCooldownHours           Int     @default(24)  // Padrão: 24h entre leads do mesmo tipo
-  
-  // Limites de leads por dia (por terapeuta)
-  leadMaxSignupPerDay         Int     @default(20)  // Máx leads SIGNUP por dia
-  leadMaxAnalysisPerDay       Int     @default(10)  // Máx leads ANALYSIS por dia
-  leadMaxCtaPerDay            Int     @default(5)   // Máx leads CTA por dia
-  
-  // Feature flags
-  maintenanceMode          Boolean @default(false)
-  allowNewRegistrations    Boolean @default(true)
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("system_config")
-}
-
-// ============================================
-// ADMINISTRADORES DO SISTEMA
-// ============================================
-
-model Admin {
-  id          String   @id @default(uuid())
-  email       String   @unique
-  name        String?
-  role        String   @default("ADMIN") // ADMIN, SUPER_ADMIN
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdBy   String?  // Email do admin que criou
-
-  @@map("admins")
-}
-
-// Log de uso do Gemini para controle de gastos
-model GeminiUsageLog {
-  id            String   @id @default(uuid())
-  userId        String?
-  endpoint      String   // "analyze", "route-correction", etc
-  tokensInput   Int      @default(0)
-  tokensOutput  Int      @default(0)
-  estimatedCost Int      @default(0) // Em centavos de dólar
-  success       Boolean  @default(true)
-  errorMessage  String?
-  createdAt     DateTime @default(now())
-
-  @@index([createdAt])
-  @@index([userId])
-  @@index([endpoint])
-  @@map("gemini_usage_logs")
-}
-
-// Log de alterações do sistema (audit trail)
-model AdminLog {
-  id          String   @id @default(uuid())
-  adminEmail  String
-  action      String   // CONFIG_UPDATE, USER_PLAN_UPDATE, USER_CREDITS_UPDATE
-  entity      String   // "SystemConfig", "User", etc
-  entityId    String?
-  oldValue    Json?
-  newValue    Json?
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
-
-  @@index([createdAt])
-  @@index([adminEmail])
-  @@index([action])
-  @@map("admin_logs")
-}
-
-// Tipo de usuário na jornada
 enum UserJourneyType {
-  LEAD              // Usuário comum fazendo análise
-  THERAPIST         // Terapeuta usando a plataforma
-  ADMIN             // Administrador
+  LEAD
+  THERAPIST
+  ADMIN
 }
 
-// Eventos da jornada do lead
 enum LeadJourneyEvent {
-  // Aquisição
-  LANDING_VIEW           // Visualizou landing page
-  LOGIN_START            // Iniciou login
-  LOGIN_SUCCESS          // Login com sucesso
-  SIGNUP_COMPLETE        // Cadastro completo (com telefone)
-  
-  // Engajamento
-  FORM_START             // Iniciou formulário de análise
-  FORM_STEP              // Avançou step do formulário
-  FORM_COMPLETE          // Completou formulário
-  ANALYSIS_VIEW          // Visualizou resultado da análise
-  
-  // Conversão
-  CTA_CLICK              // Clicou em "Falar com especialista"
-  PHONE_SUBMIT           // Enviou telefone
-  WHATSAPP_OPEN          // Abriu WhatsApp do terapeuta
-  
-  // Retenção
-  DASHBOARD_VIEW         // Visualizou dashboard
-  ANALYSIS_HISTORY       // Visualizou histórico
-  ROUTE_CORRECTION       // Usou correção de rota
-  
-  // Outros
-  LOGOUT                 // Fez logout
-  ACCOUNT_DELETE         // Deletou conta
+  LANDING_VIEW
+  LOGIN_START
+  LOGIN_SUCCESS
+  SIGNUP_COMPLETE
+  FORM_START
+  FORM_STEP
+  FORM_COMPLETE
+  ANALYSIS_VIEW
+  CTA_CLICK
+  PHONE_SUBMIT
+  WHATSAPP_OPEN
+  DASHBOARD_VIEW
+  ANALYSIS_HISTORY
+  ROUTE_CORRECTION
+  LOGOUT
+  ACCOUNT_DELETE
 }
 
-// Eventos da jornada do terapeuta
 enum TherapistJourneyEvent {
-  // Aquisição
-  LANDING_VIEW           // Visualizou landing page de terapeutas
-  REGISTER_START         // Iniciou cadastro
-  REGISTER_COMPLETE      // Completou cadastro
-  LOGIN_SUCCESS          // Login com sucesso
-  
-  // Ativação
-  PROFILE_UPDATE         // Atualizou perfil
-  SUBSCRIPTION_START     // Iniciou assinatura
-  SUBSCRIPTION_ACTIVE    // Assinatura ativada
-  
-  // Engajamento
-  DASHBOARD_VIEW         // Visualizou dashboard
-  LEAD_VIEW              // Visualizou lead
-  LEAD_CONTACT           // Marcou lead como contatado
-  LEAD_CONVERT           // Marcou lead como convertido
-  
-  // Receita
-  PLAN_UPGRADE           // Fez upgrade de plano
-  PLAN_DOWNGRADE         // Fez downgrade de plano
-  
-  // Outros
-  LOGOUT                 // Fez logout
+  LANDING_VIEW
+  REGISTER_START
+  REGISTER_COMPLETE
+  LOGIN_SUCCESS
+  PROFILE_UPDATE
+  SUBSCRIPTION_START
+  SUBSCRIPTION_ACTIVE
+  DASHBOARD_VIEW
+  LEAD_VIEW
+  LEAD_CONTACT
+  LEAD_CONVERT
+  PLAN_UPGRADE
+  PLAN_DOWNGRADE
+  LOGOUT
 }
-
-// Log de jornada do usuário (analytics)
-model UserActivityLog {
-  id            String           @id @default(uuid())
-  
-  // Identificação
-  journeyType   UserJourneyType  // LEAD, THERAPIST, ADMIN
-  userId        String?          // ID do usuário (se logado)
-  therapistId   String?          // ID do terapeuta (se for terapeuta)
-  sessionId     String           // Para agrupar eventos da mesma sessão
-  
-  // Evento
-  eventType     String           // Evento específico (LeadJourneyEvent ou TherapistJourneyEvent)
-  eventData     Json?            // Dados específicos do evento
-  
-  // Contexto
-  page          String?          // URL/rota da página
-  referrer      String?          // Página anterior
-  userAgent     String?          // Browser/dispositivo
-  ipAddress     String?          // IP (anonimizado)
-  
-  // Métricas
-  duration      Int?             // Tempo em ms (para PAGE_VIEW)
-  
-  createdAt     DateTime         @default(now())
-
-  @@index([createdAt])
-  @@index([journeyType])
-  @@index([userId])
-  @@index([therapistId])
-  @@index([sessionId])
-  @@index([eventType])
-  @@map("user_activity_logs")
-}
-
-// ============================================
-// MODELOS B2B - TERAPEUTAS E LEADS
-// ============================================
 
 enum TherapistType {
   TAROLOGO
@@ -366,266 +433,53 @@ enum TherapistType {
   ASTROLOGO
   TERAPEUTA_FLORAL
   CONSTELADOR
-  PSICOLOGO      // Fase 2
+  PSICOLOGO
   OUTRO
 }
 
 enum TherapistStatus {
-  PENDING        // Aguardando aprovacao
-  APPROVED       // Aprovado e pode entrar no pool
-  SUSPENDED      // Temporariamente suspenso
-  BLOCKED        // Bloqueado permanentemente
+  PENDING
+  APPROVED
+  SUSPENDED
+  BLOCKED
 }
 
 enum TherapistPlan {
-  BASIC          // R$ 79/mes - so leads SIGNUP (frios)
-  INTERMEDIATE   // R$ 149/mes - leads SIGNUP + ANALYSIS (frios + mornos)
-  PRO            // R$ 249/mes - todos os leads + WhatsApp direto
-}
-
-model Therapist {
-  id                 String           @id @default(uuid())
-  email              String           @unique
-  password           String?          // Hash da senha (se nao usar social login)
-  googleId           String?          @unique // ID do Google para OAuth
-  name               String
-  type               TherapistType    @default(OUTRO)
-  plan               TherapistPlan    @default(BASIC)
-  crp                String?          // Opcional (apenas psicologos)
-  whatsapp           String?          // Obrigatório apenas após completar cadastro
-  bio                String?
-  photoUrl           String?
-  instagram          String?
-  website            String?
-  specialties        String[]         @default(["relacionamentos"])
-  status             TherapistStatus  @default(PENDING)
-  active             Boolean          @default(false) // Ativo no pool de rotacao
-  profileCompleted   Boolean          @default(false) // Se completou o cadastro
-  
-  // Stripe
-  stripeCustomerId   String?          @unique
-  subscriptionId     String?
-  subscriptionStatus String           @default("inactive")
-  
-  // Contadores para rotacao justa
-  leadsReceived      Int              @default(0)
-  leadsThisMonth     Int              @default(0)
-  leadsSignup        Int              @default(0)
-  leadsAnalysis      Int              @default(0)
-  leadsCta           Int              @default(0)
-  lastLeadAt         DateTime?        // Ultimo lead recebido (para rotacao)
-  
-  // Timestamps
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  approvedAt         DateTime?
-  approvedBy         String?          // ID do admin que aprovou
-  
-  leads              Lead[]
-
-  @@index([status])
-  @@index([plan])
-  @@index([active])
-  @@index([lastLeadAt])
-  @@map("therapists")
+  BASIC
+  INTERMEDIATE
+  PRO
 }
 
 enum LeadType {
-  SIGNUP     // Lead de cadastro (frio) - só preencheu telefone
-  ANALYSIS   // Lead de análise (morno) - completou uma análise
-  CTA        // Lead de CTA (quente) - clicou para falar com especialista
+  SIGNUP
+  ANALYSIS
+  CTA
 }
 
 enum LeadStatus {
-  NEW           // Novo, ainda nao contatado
-  CONTACTED     // Terapeuta entrou em contato
-  CONVERTED     // Virou cliente
-  LOST          // Nao converteu
+  NEW
+  CONTACTED
+  CONVERTED
+  LOST
 }
-
-// ============================================
-// AGENDAMENTO DE DEMONSTRAÇÕES
-// ============================================
 
 enum DemoStatus {
-  PENDING       // Agendada, aguardando
-  CONFIRMED     // Confirmada
-  COMPLETED     // Realizada
-  CANCELLED     // Cancelada
-  NO_SHOW       // Não compareceu
-}
-
-model Demo {
-  id            String      @id @default(uuid())
-  
-  // Dados do interessado
-  name          String
-  email         String
-  phone         String
-  company       String?     // Nome da empresa/consultório
-  
-  // Agendamento
-  scheduledAt   DateTime    // Data e hora agendada
-  status        DemoStatus  @default(PENDING)
-  
-  // Notas
-  notes         String?     // Notas do admin
-  
-  // Timestamps
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  confirmedAt   DateTime?
-  completedAt   DateTime?
-  cancelledAt   DateTime?
-  
-  @@index([scheduledAt])
-  @@index([status])
-  @@index([email])
-  @@map("demos")
-}
-
-model Lead {
-  id           String      @id @default(uuid())
-  type         LeadType    @default(SIGNUP)
-  status       LeadStatus  @default(NEW)
-  
-  // Dados do lead (usuario)
-  userId       String?
-  user         User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  userName     String?
-  userEmail    String
-  userPhone    String
-  
-  // Dados da analise (para CTA)
-  analysisId   String?
-  analysis     Analysis?   @relation(fields: [analysisId], references: [id], onDelete: SetNull)
-  matchName    String?     // Nome do match analisado
-  analysisData Json?       // Dados da analise (red flags, hipoteses, etc)
-  
-  // Terapeuta que recebeu (opcional - pode ser atribuído depois)
-  therapistId  String?
-  therapist    Therapist?  @relation(fields: [therapistId], references: [id], onDelete: SetNull)
-  
-  // Notificacoes
-  emailSentAt    DateTime?
-  whatsappOpenedAt DateTime?
-  
-  // Timestamps
-  createdAt    DateTime    @default(now())
-  contactedAt  DateTime?   // Quando foi marcado como contatado
-  convertedAt  DateTime?   // Quando foi marcado como convertido
-
-  @@index([type])
-  @@index([status])
-  @@index([therapistId])
-  @@index([userId])
-  @@index([createdAt])
-  @@map("leads")
-}
-
-// ============================================
-// SISTEMA DE FORMULÁRIOS TEMÁTICOS
-// ============================================
-
-// Tema do formulário (ex: "Relacionamento", "Encontro de Carnaval")
-model FormTheme {
-  id          String   @id @default(uuid())
-  name        String   @unique  // Slug: "relacionamento-geral", "encontro-carnaval"
-  displayName String              // Nome para exibição: "Relacionamento Geral"
-  description String?             // Descrição do tema
-  icon        String?             // Nome do ícone (Lucide)
-  color       String   @default("purple") // Cor do tema (para UI)
-  active      Boolean  @default(true)     // Se está ativo e disponível
-  order       Int      @default(0)        // Ordem de exibição
-  
-  // Temas sazonais
-  seasonal    Boolean  @default(false)    // Se é um tema sazonal
-  startDate   DateTime?                   // Data de início (para sazonais)
-  endDate     DateTime?                   // Data de fim (para sazonais)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  questions   FormQuestion[]
-  analyses    Analysis[]
-  
-  @@index([active])
-  @@index([order])
-  @@index([seasonal])
-  @@map("form_themes")
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
 }
 
 enum QuestionType {
-  CARD_SELECT      // Seleção com cards
-  TEXTAREA         // Texto livre
-  AVATAR_SELECT    // Seleção com avatar (ex: nome do match)
-  NUMBER           // Número
-  MULTI_SELECT     // Múltipla escolha
+  CARD_SELECT
+  TEXTAREA
+  AVATAR_SELECT
+  NUMBER
+  MULTI_SELECT
 }
 
 enum FixedQuestionPosition {
-  BEFORE  // Antes das perguntas do tema
-  AFTER   // Depois das perguntas do tema
-}
-
-// Pergunta do formulário
-model FormQuestion {
-  id          String       @id @default(uuid())
-  themeId     String?                      // null = pergunta fixa (global)
-  theme       FormTheme?   @relation(fields: [themeId], references: [id], onDelete: Cascade)
-  
-  // Identificação
-  key         String                       // Chave única: "genero_match", "objetivo_usuario"
-  label       String                       // Texto da pergunta
-  description String?                      // Texto de ajuda/descrição
-  
-  // Tipo e configuração
-  type        QuestionType                 // Tipo de input
-  required    Boolean      @default(false) // Se é obrigatória
-  order       Int                          // Ordem de exibição no tema
-  
-  // Peso na análise (0-100)
-  weight      Int          @default(50)    // Importância para a análise
-  
-  // UI/UX
-  placeholder String?                      // Placeholder para inputs de texto
-  rows        Int?                         // Número de linhas para textarea
-  autoAdvance Boolean      @default(false) // Avança automaticamente após seleção
-  
-  // Lógica condicional
-  showIf      Json?                        // Condições para exibir: { field: "cancelou_encontro", value: "SIM" }
-  
-  // Perguntas fixas (aparecem em todos os temas)
-  isFixed         Boolean                   @default(false)
-  fixedPosition   FixedQuestionPosition?    // BEFORE ou AFTER (apenas se isFixed = true)
-  
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  
-  options     FormQuestionOption[]
-  
-  @@unique([themeId, key])
-  @@index([themeId, order])
-  @@index([isFixed])
-  @@map("form_questions")
-}
-
-// Opções de resposta para perguntas tipo card-select ou multi-select
-model FormQuestionOption {
-  id          String       @id @default(uuid())
-  questionId  String
-  question    FormQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  
-  value       String       // Valor: "ELE", "ELA", "CASUAL"
-  label       String       // Label para exibição: "Ele", "Ela", "Casual"
-  hint        String?      // Dica/subtítulo
-  icon        String?      // Nome do ícone (Lucide)
-  color       String?      // Cor da opção (blue, pink, etc)
-  order       Int          @default(0) // Ordem de exibição
-  
-  createdAt   DateTime     @default(now())
-  
-  @@unique([questionId, value])
-  @@index([questionId, order])
-  @@map("form_question_options")
+  BEFORE
+  AFTER
 }

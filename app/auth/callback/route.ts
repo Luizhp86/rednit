@@ -71,10 +71,19 @@ export async function GET(request: Request) {
           console.error('[AUTH CALLBACK] Erro ao fazer upsert no Prisma:', prismaMessage)
           console.error('[AUTH CALLBACK] Stack:', prismaError?.stack)
           console.error('[AUTH CALLBACK] Código do erro:', prismaError?.code)
+          
+          // Verificar se é erro de timeout ou conexão
+          const isTimeout = prismaMessage.includes('timeout') || 
+                           prismaMessage.includes('ETIMEDOUT') ||
+                           prismaError?.code === 'ETIMEDOUT'
+          const isConnectionError = prismaMessage.includes("Can't reach database server") ||
+                                   prismaMessage.includes('ECONNREFUSED') ||
+                                   prismaMessage.includes('ENOTFOUND')
+          
           // Em desenvolvimento, permite continuar sem banco quando a conexão falha
-          const isDbUnreachable = prismaMessage.includes("Can't reach database server")
-          if (process.env.NODE_ENV === 'development' && isDbUnreachable) {
-            console.warn('[AUTH CALLBACK] Banco indisponível; continuando sem sincronizar usuário')
+          if (process.env.NODE_ENV === 'development' && (isTimeout || isConnectionError)) {
+            console.warn('[AUTH CALLBACK] Banco indisponível ou timeout; continuando sem sincronizar usuário')
+            console.warn('[AUTH CALLBACK] Tipo de erro:', isTimeout ? 'TIMEOUT' : isConnectionError ? 'CONNECTION_ERROR' : 'UNKNOWN')
           } else {
             throw prismaError
           }

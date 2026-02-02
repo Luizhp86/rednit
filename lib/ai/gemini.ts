@@ -218,6 +218,11 @@ IMPORTANTE:
 - O free_teaser deve ser envolvente mas limitado, criando curiosidade
 - O premium deve ser completo, detalhado e acionável
 - Use os scores base como referência, mas enriqueça com insights contextuais
+- ATENÇÃO COM INFORMAÇÕES CONFLITANTES: Seus textos DEVEM ser coerentes com os scores. Por exemplo:
+  * Se risco de enrolação é ALTO, NÃO diga que ${matchName} "não está enrolando" ou "demonstra comprometimento"
+  * Se risco de ghosting é ALTO, NÃO diga que ${matchName} "está presente" ou "é constante"
+  * Se reciprocidade é BAIXA, NÃO diga que ${matchName} "demonstra interesse equilibrado"
+  * Sempre alinhe o tom e conteúdo dos textos com os valores numéricos dos scores
 
 FORMATO DE RESPOSTA (JSON):
 Você deve retornar APENAS melhorias de texto (title, description) para os elementos existentes. NÃO altere a estrutura.
@@ -465,7 +470,9 @@ function buildPersonalizedAnalysisPrompt(input: PersonalizedAnalysisInput): stri
   const { formData, userName, matchName, matchGender, userObjective, themeName, themeDisplayName, themeDescription, questions, fixedQuestions, ruleBasedResult } = input
   
   const genderLabel = matchGender === 'ELE' ? 'ele' : 'ela'
-  const userLabel = userName || 'o usuário'
+  // Usar apenas o primeiro nome do usuário para personalização
+  const userFirstName = userName ? userName.split(' ')[0] : null
+  const userLabel = userFirstName || 'o usuário'
   
   // Construir resumo das respostas do formulário
   const allQuestions = [...fixedQuestions, ...questions]
@@ -567,6 +574,11 @@ REGRAS CRÍTICAS:
 - Seja ESPECÍFICO - cite os dados do formulário para justificar suas análises
 - Tom: profissional, empático, mas DIRETO quando houver red flags
 - Se os scores são baixos ou há red flags, NÃO minimize - seja honesto
+- ATENÇÃO COM INFORMAÇÕES CONFLITANTES: Seus textos DEVEM ser coerentes com os scores calculados. Por exemplo:
+  * Se o risco de enrolação é ALTO, NÃO diga que ${matchName} "não está enrolando" ou "demonstra comprometimento"
+  * Se o risco de ghosting é ALTO, NÃO diga que ${matchName} "está presente" ou "é constante"
+  * Se a reciprocidade é BAIXA, NÃO diga que ${matchName} "demonstra interesse equilibrado"
+  * Sempre alinhe o tom e conteúdo dos textos com os valores numéricos dos scores
 
 Responda APENAS com o JSON válido:`
 }

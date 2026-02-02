@@ -73,16 +73,29 @@ if (databaseUrl && databaseUrl.startsWith('postgres')) {
       pool = new Pool({
         connectionString: databaseUrl,
 
-        connectionTimeoutMillis: 10000,
-        idleTimeoutMillis: 1000, // Liberar conexões idle em 1 segundo
-        max: 1, // Apenas 1 conexão por instância serverless
+        connectionTimeoutMillis: 30000, // Aumentado para 30 segundos
+        idleTimeoutMillis: 10000, // Aumentado para 10 segundos
+        max: isDev ? 2 : 5, // Permitir mais conexões para evitar bloqueios
         min: 0, // Não manter conexões ociosas
         allowExitOnIdle: true, // Permite que o processo encerre quando idle
+        // Configurações adicionais para melhorar estabilidade
+        keepAlive: true,
+        keepAliveInitialDelayMillis: 10000,
       })
       
       globalForPrisma.pgPool = pool
 
-      console.log('[PRISMA] Novo pool criado (max:', isDev ? 1 : 2, ')')
+      // Adicionar handlers de erro no pool
+      pool.on('error', (err) => {
+        console.error('[PRISMA] Erro no pool de conexões:', err.message)
+        // Não relançar o erro para evitar crash da aplicação
+      })
+
+      pool.on('connect', () => {
+        console.log('[PRISMA] Nova conexão estabelecida')
+      })
+
+      console.log('[PRISMA] Novo pool criado (max:', isDev ? 2 : 5, ')')
 
 
 
