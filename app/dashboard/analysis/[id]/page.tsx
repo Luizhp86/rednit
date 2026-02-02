@@ -7,7 +7,8 @@ import { motion } from 'framer-motion'
 import { Logo } from '@/components/logo'
 import { SubscriptionPlans } from '@/components/subscription-plans'
 import { trackEvent } from '@/lib/tracking'
-import { X, Lock, Sparkles, TrendingUp, Shield, CheckCircle2, AlertTriangle, Eye, Zap, Heart, Crown, ArrowLeft, Menu, LogOut, User, ChevronRight } from 'lucide-react'
+import { X, Lock, Sparkles, TrendingUp, Shield, CheckCircle2, AlertTriangle, Eye, Zap, Heart, Crown, ArrowLeft, Menu, LogOut, User, ChevronRight, ChevronLeft } from 'lucide-react'
+import { AnimatePresence } from 'framer-motion'
 import { PageLoader } from '@/components/page-loader'
 import { TherapistCta } from '@/components/therapist-cta'
 import { createClient } from '@/lib/supabase/client'
@@ -54,6 +55,9 @@ export default function AnalysisPage() {
     quarterly: 7990,
     yearly: 29900,
   })
+  const [carouselIndex, setCarouselIndex] = useState(0)
+  const [carouselDirection, setCarouselDirection] = useState(0)
+  const [autoAdvancePaused, setAutoAdvancePaused] = useState(false)
 
   const hypothesisLabels: Record<string, string> = {
     EXPLORANDO: 'Explorando possibilidades',
@@ -109,6 +113,30 @@ export default function AnalysisPage() {
     loadAnalysis()
     loadUserData()
   }, [id])
+
+  function getCarouselSlideCount(p: typeof premium, u: UserData | null): number {
+    if (!p) return 0
+    let n = 0
+    if (p.executive_summary?.length) n++
+    if (p.full_risk_map) n++
+    if (p.compatibility_explained) n++
+    if (p.validation_checklist?.length) n++
+    if (p.stage_plan?.length) n++
+    if ([p.hypothesis_1, p.hypothesis_2, p.hypothesis_3].filter(Boolean).length > 0) n++
+    if (u) n++
+    return n
+  }
+
+  useEffect(() => {
+    if (!analysis?.has_access || !analysis?.premium || autoAdvancePaused) return
+    const total = getCarouselSlideCount(analysis.premium, userData)
+    if (total <= 1) return
+    const t = setInterval(() => {
+      setCarouselDirection(1)
+      setCarouselIndex((i) => (i + 1) % total)
+    }, 9000)
+    return () => clearInterval(t)
+  }, [analysis, autoAdvancePaused, userData])
 
   const handleUnlockWithCredit = async () => {
     setUnlocking(true)
@@ -582,30 +610,214 @@ export default function AnalysisPage() {
           </div>
         )}
 
-        {/* Premium Content */}
-        {has_access && premium && (
-          <div className="space-y-5 sm:space-y-6 animate-fade-in-up">
-            <h2 className="font-display text-xl sm:text-2xl font-bold text-gray-900">Sua Análise Completa</h2>
+        {/* Premium Content - Carrossel */}
+        {has_access && premium && (() => {
+          const slideKeys = [
+            premium.executive_summary?.length && 'executive_summary',
+            premium.full_risk_map && 'risk_map',
+            premium.compatibility_explained && 'compatibility',
+            premium.validation_checklist?.length && 'checklist',
+            premium.stage_plan?.length && 'stage_plan',
+            [premium.hypothesis_1, premium.hypothesis_2, premium.hypothesis_3].filter(Boolean).length > 0 && 'hypotheses',
+            userData && 'therapist',
+          ].filter(Boolean) as string[]
+          const currentKey = slideKeys.length ? slideKeys[carouselIndex % slideKeys.length] : ''
+          return (
+            <div className="animate-fade-in-up">
+              <h2 className="font-display text-xl sm:text-2xl font-bold text-gray-900 mb-6">Sua Análise Completa</h2>
+              <div className="relative" onMouseEnter={() => setAutoAdvancePaused(true)} onMouseLeave={() => setAutoAdvancePaused(false)}>
+                <div className="h-[520px] overflow-hidden rounded-3xl flex flex-col">
+                  <AnimatePresence mode="wait" initial={false} custom={carouselDirection}>
+                    <motion.div
+                      key={currentKey}
+                      custom={carouselDirection}
+                      variants={{
+                        enter: (d: number) => ({ x: d > 0 ? 280 : -280, opacity: 0 }),
+                        center: { x: 0, opacity: 1 },
+                        exit: (d: number) => ({ x: d > 0 ? -280 : 280, opacity: 0 }),
+                      }}
+                      initial="enter"
+                      animate="center"
+                      exit="exit"
+                      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                      className="w-full h-full overflow-y-auto"
+                    >
+                      {currentKey === 'executive_summary' && (
+                        <div className="h-full min-h-[480px] flex flex-col">
+                          <div className="relative overflow-hidden rounded-3xl border border-gray-900/10 bg-gray-950 p-0 shadow-2xl flex-1 flex flex-col">
+                            {/* Animated gradient background */}
+                            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/60 via-gray-950 to-gray-950 pointer-events-none" />
+                            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-gradient-to-b from-purple-500/30 via-pink-500/20 to-transparent blur-3xl pointer-events-none" />
+                            <motion.div 
+                              className="absolute top-20 right-10 w-32 h-32 rounded-full bg-amber-500/20 blur-2xl pointer-events-none"
+                              animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+                              transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
+                            />
+                            <motion.div 
+                              className="absolute bottom-32 left-10 w-24 h-24 rounded-full bg-cyan-500/20 blur-2xl pointer-events-none"
+                              animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.4, 0.2] }}
+                              transition={{ repeat: Infinity, duration: 5, ease: 'easeInOut', delay: 1 }}
+                            />
 
-            {/* Executive Summary */}
-            {premium.executive_summary && premium.executive_summary.length > 0 && (
-              <div className="bg-white/80 backdrop-blur-sm border-2 border-purple-200 p-5 sm:p-6 rounded-3xl shadow-lg">
-                <h3 className="font-display text-lg font-bold mb-4 text-gray-900 flex items-center gap-2">
-                  📋 Resumo da Situação
-                </h3>
-                <ul className="space-y-3">
-                  {premium.executive_summary.map((item: string, idx: number) => (
-                    <li key={idx} className="flex items-start gap-3 text-gray-700 text-sm sm:text-base">
-                      <span className="text-base">{item.startsWith('✅') || item.startsWith('⚠️') || item.startsWith('🚨') || item.startsWith('🚩') || item.startsWith('💚') ? '' : '•'}</span>
-                      <span className="leading-relaxed">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+                            {/* Header */}
+                            <div className="relative px-6 sm:px-8 pt-6 sm:pt-8">
+                              <motion.div 
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="flex items-center gap-2 mb-3"
+                              >
+                                <span className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-400 text-xs font-bold uppercase tracking-wider">
+                                  Análise Personalizada
+                                </span>
+                                <motion.span 
+                                  className="w-2 h-2 rounded-full bg-emerald-500"
+                                  animate={{ opacity: [1, 0.4, 1] }}
+                                  transition={{ repeat: Infinity, duration: 1.5 }}
+                                />
+                              </motion.div>
+                              <motion.h3 
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.3 }}
+                                className="font-display text-2xl sm:text-3xl font-bold text-white mb-2"
+                              >
+                                Descobrimos <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-pink-400 to-purple-400">{slideKeys.length - 1} insights</span> sobre
+                              </motion.h3>
+                              <motion.p 
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.4 }}
+                                className="text-gray-400 text-base"
+                              >
+                                seu relacionamento com <span className="text-white font-semibold">{premium?.nome_match || 'seu match'}</span>
+                              </motion.p>
+                            </div>
 
-            {/* Mapa de Risco */}
-            {premium.full_risk_map && (
+                            {/* Preview Cards - Teaser */}
+                            <div className="relative flex-1 px-6 sm:px-8 py-6">
+                              <div className="grid grid-cols-3 gap-3">
+                                {/* Risk Preview */}
+                                <motion.div
+                                  initial={{ opacity: 0, y: 20 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: 0.5 }}
+                                  className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-500/20 p-4"
+                                >
+                                  <AlertTriangle className="w-5 h-5 text-orange-400 mb-2" />
+                                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Risco</p>
+                                  <p className="text-2xl font-bold text-white tabular-nums">
+                                    {premium?.full_risk_map?.risco_ghosting ?? '—'}
+                                    <span className="text-sm text-gray-500">%</span>
+                                  </p>
+                                  <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 via-transparent to-transparent pointer-events-none" />
+                                  <p className="absolute bottom-2 left-4 text-[10px] text-gray-600">Deslize para ver</p>
+                                </motion.div>
+
+                                {/* Compatibility Preview */}
+                                <motion.div
+                                  initial={{ opacity: 0, y: 20 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: 0.6 }}
+                                  className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 p-4"
+                                >
+                                  <Heart className="w-5 h-5 text-emerald-400 mb-2" />
+                                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Match</p>
+                                  <p className="text-2xl font-bold text-white tabular-nums">
+                                    {premium?.compatibility_explained?.score ?? '—'}
+                                    <span className="text-sm text-gray-500">%</span>
+                                  </p>
+                                  <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 via-transparent to-transparent pointer-events-none" />
+                                  <p className="absolute bottom-2 left-4 text-[10px] text-gray-600">Deslize para ver</p>
+                                </motion.div>
+
+                                {/* Actions Preview */}
+                                <motion.div
+                                  initial={{ opacity: 0, y: 20 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: 0.7 }}
+                                  className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 p-4"
+                                >
+                                  <Zap className="w-5 h-5 text-purple-400 mb-2" />
+                                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Ações</p>
+                                  <p className="text-2xl font-bold text-white tabular-nums">
+                                    {premium?.validation_checklist?.length ?? '—'}
+                                    <span className="text-sm text-gray-500"> itens</span>
+                                  </p>
+                                  <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 via-transparent to-transparent pointer-events-none" />
+                                  <p className="absolute bottom-2 left-4 text-[10px] text-gray-600">Deslize para ver</p>
+                                </motion.div>
+                              </div>
+
+                              {/* Blurred preview of content */}
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.8 }}
+                                className="mt-4 relative"
+                              >
+                                <div className="space-y-2 blur-[6px] select-none pointer-events-none">
+                                  {premium.executive_summary?.slice(0, 2).map((item: string, idx: number) => (
+                                    <div key={idx} className="flex items-start gap-2 text-gray-400 text-sm bg-white/5 rounded-xl p-3">
+                                      <span className="text-purple-400 mt-0.5">•</span>
+                                      <span className="line-clamp-1">{item}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <span className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white/90 text-sm font-medium">
+                                    + {(premium.executive_summary?.length || 0)} pontos para explorar
+                                  </span>
+                                </div>
+                              </motion.div>
+                            </div>
+
+                            {/* Footer CTA */}
+                            <motion.div 
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.9 }}
+                              className="relative px-6 sm:px-8 pb-6 sm:pb-8"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => { setCarouselDirection(1); setCarouselIndex(1); setAutoAdvancePaused(true); }}
+                                className="group w-full relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 p-[2px] shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-shadow"
+                              >
+                                <div className="relative rounded-[14px] bg-gray-950/80 backdrop-blur px-6 py-4 flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <motion.div
+                                      animate={{ rotate: [0, 10, -10, 0] }}
+                                      transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+                                    >
+                                      <Eye className="w-5 h-5 text-purple-400" />
+                                    </motion.div>
+                                    <span className="text-white font-semibold">Ver análise completa</span>
+                                  </div>
+                                  <motion.div
+                                    animate={{ x: [0, 4, 0] }}
+                                    transition={{ repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
+                                    className="flex items-center gap-1 text-purple-300"
+                                  >
+                                    <ChevronRight className="w-5 h-5" />
+                                    <ChevronRight className="w-5 h-5 -ml-3 opacity-60" />
+                                  </motion.div>
+                                </div>
+                                <motion.div
+                                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full"
+                                  animate={{ translateX: ['−100%', '100%'] }}
+                                  transition={{ repeat: Infinity, duration: 2, ease: 'linear', repeatDelay: 1 }}
+                                />
+                              </button>
+                              <p className="text-center text-gray-600 text-xs mt-3">
+                                Ou aguarde — o próximo slide carrega automaticamente
+                              </p>
+                            </motion.div>
+                          </div>
+                        </div>
+                      )}
+
+                      {currentKey === 'risk_map' && premium.full_risk_map && (
               <div className="bg-white/80 backdrop-blur-sm border-2 border-orange-200 p-5 sm:p-6 rounded-3xl shadow-lg">
                 <h3 className="font-display text-lg font-bold mb-5 text-gray-900 flex items-center gap-2">
                   🎯 Mapa de Risco
@@ -690,10 +902,9 @@ export default function AnalysisPage() {
                   </div>
                 )}
               </div>
-            )}
+                      )}
 
-            {/* Compatibilidade */}
-            {premium.compatibility_explained && (
+                      {currentKey === 'compatibility' && premium.compatibility_explained && (
               <div className={`p-5 sm:p-6 rounded-3xl shadow-lg border-2 backdrop-blur-sm ${
                 premium.compatibility_explained.alignment === 'ALINHADO'
                   ? 'bg-emerald-50/80 border-emerald-300'
@@ -729,10 +940,9 @@ export default function AnalysisPage() {
                   {premium.compatibility_explained.explanation}
                 </p>
               </div>
-            )}
+                      )}
 
-            {/* Checklist */}
-            {premium.validation_checklist && premium.validation_checklist.length > 0 && (
+                      {currentKey === 'checklist' && premium.validation_checklist && premium.validation_checklist.length > 0 && (
               <div className="bg-white/80 backdrop-blur-sm border-2 border-blue-200 p-5 sm:p-6 rounded-3xl shadow-lg">
                 <h3 className="font-display text-lg font-bold mb-4 text-gray-900 flex items-center gap-2">
                   ✅ O Que Fazer Agora
@@ -750,10 +960,9 @@ export default function AnalysisPage() {
                   ))}
                 </ul>
               </div>
-            )}
+                      )}
 
-            {/* Plano por Estágio */}
-            {premium.stage_plan && premium.stage_plan.length > 0 && (
+                      {currentKey === 'stage_plan' && premium.stage_plan && premium.stage_plan.length > 0 && (
               <div className="bg-white/80 backdrop-blur-sm border-2 border-purple-200 p-5 sm:p-6 rounded-3xl shadow-lg">
                 <h3 className="font-display text-lg font-bold mb-4 text-gray-900 flex items-center gap-2">
                   📍 Plano para seu Momento
@@ -801,11 +1010,10 @@ export default function AnalysisPage() {
                   )
                 })}
               </div>
-            )}
+                      )}
 
-            {/* Hipóteses Detalhadas */}
-            {[premium.hypothesis_1, premium.hypothesis_2, premium.hypothesis_3].filter(Boolean).length > 0 && (
-              <details className="bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-3xl shadow-lg overflow-hidden group">
+                      {currentKey === 'hypotheses' && [premium.hypothesis_1, premium.hypothesis_2, premium.hypothesis_3].filter(Boolean).length > 0 && (
+              <details className="bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-3xl shadow-lg overflow-hidden group" open>
                 <summary className="p-5 sm:p-6 cursor-pointer hover:bg-gray-50 transition-colors list-none">
                   <div className="flex items-center justify-between">
                     <span className="font-display text-lg font-bold text-gray-900">
@@ -866,24 +1074,82 @@ export default function AnalysisPage() {
               </details>
             )}
 
-            {/* CTA Terapeuta */}
-            {userData && (
-              <div className="mt-8">
-                <TherapistCta
-                  userId={userData.id}
-                  userName={userData.name || undefined}
-                  userEmail={userData.email}
-                  userPhone={userData.phone}
-                  analysisId={id}
-                  matchName={premium?.nome_match || free_teaser?.nome_match}
-                  hasRedFlags={premium?.red_flags?.length > 0 || free_teaser?.red_flag}
-                  onPhoneUpdated={(phone) => setUserData(prev => prev ? { ...prev, phone } : null)}
-                  therapist={userData.therapist}
-                />
+                      {currentKey === 'therapist' && userData && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.35 }}
+                className="relative overflow-hidden rounded-3xl border-2 border-emerald-400/70 bg-gradient-to-br from-emerald-500/15 via-teal-500/15 to-cyan-500/15 p-6 sm:p-8 shadow-2xl shadow-emerald-500/25 ring-2 ring-emerald-400/40"
+              >
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-400/15 via-transparent to-cyan-400/15 pointer-events-none" />
+                <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-400/25 rounded-full blur-3xl pointer-events-none animate-pulse" />
+                <div className="relative">
+                  <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">
+                    <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/50">
+                      <Heart className="w-5 h-5 text-emerald-600" />
+                    </span>
+                    <p className="text-emerald-800 font-display text-xl font-bold">Fale com um especialista</p>
+                  </div>
+                  <p className="text-gray-600 text-sm mb-6 text-center sm:text-left">Conte com apoio para entender melhor sua análise.</p>
+                  <div className="therapist-cta-highlight">
+                    <TherapistCta
+                    userId={userData.id}
+                    userName={userData.name || undefined}
+                    userEmail={userData.email}
+                    userPhone={userData.phone}
+                    analysisId={id}
+                    matchName={premium?.nome_match || free_teaser?.nome_match}
+                    hasRedFlags={premium?.red_flags?.length > 0 || free_teaser?.red_flag}
+                    onPhoneUpdated={(phone) => setUserData(prev => prev ? { ...prev, phone } : null)}
+                    therapist={userData.therapist}
+                  />
+                  </div>
+                </div>
+              </motion.div>
+                      )}
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+                {slideKeys.length > 1 && (
+                  <div className="flex flex-col items-center gap-3 mt-6">
+                    <span className="text-sm font-medium text-gray-500 tabular-nums">
+                      Slide {carouselIndex % slideKeys.length + 1} de {slideKeys.length}
+                    </span>
+                    <div className="flex items-center justify-between gap-4 w-full max-w-xs">
+                    <button
+                      type="button"
+                      onClick={() => { setCarouselDirection(-1); setCarouselIndex(i => (i - 1 + slideKeys.length) % slideKeys.length); setAutoAdvancePaused(true); }}
+                      className="flex items-center justify-center w-12 h-12 rounded-2xl bg-white/90 backdrop-blur border-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-300 transition-all shadow-lg"
+                      aria-label="Anterior"
+                    >
+                      <ChevronLeft className="w-6 h-6" />
+                    </button>
+                    <div className="flex items-center gap-2">
+                      {slideKeys.map((_, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => { setCarouselDirection(i > carouselIndex ? 1 : -1); setCarouselIndex(i); setAutoAdvancePaused(true); }}
+                          className={`h-2.5 rounded-full transition-all ${i === carouselIndex % slideKeys.length ? 'w-8 bg-purple-600' : 'w-2.5 bg-purple-200 hover:bg-purple-300'}`}
+                          aria-label={`Slide ${i + 1}`}
+                        />
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setCarouselDirection(1); setCarouselIndex(i => (i + 1) % slideKeys.length); setAutoAdvancePaused(true); }}
+                      className="flex items-center justify-center w-12 h-12 rounded-2xl bg-white/90 backdrop-blur border-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-300 transition-all shadow-lg"
+                      aria-label="Próximo"
+                    >
+                      <ChevronRight className="w-6 h-6" />
+                    </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )
+        })()}
 
         {/* Final Unlock CTA */}
         {!has_access && (

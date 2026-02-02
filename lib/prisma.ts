@@ -72,6 +72,7 @@ if (databaseUrl && databaseUrl.startsWith('postgres')) {
       // Recomendação: usar Supabase Pooler (porta 6543) para melhor performance
       pool = new Pool({
         connectionString: databaseUrl,
+
         connectionTimeoutMillis: 10000,
         idleTimeoutMillis: 1000, // Liberar conexões idle em 1 segundo
         max: 1, // Apenas 1 conexão por instância serverless
@@ -80,7 +81,11 @@ if (databaseUrl && databaseUrl.startsWith('postgres')) {
       })
       
       globalForPrisma.pgPool = pool
-      console.log('[PRISMA] Novo pool criado (max: 1)')
+
+      console.log('[PRISMA] Novo pool criado (max:', isDev ? 1 : 2, ')')
+
+
+
       
       // Registrar cleanup para quando o processo encerrar
       if (!globalForPrisma.cleanupRegistered) {
