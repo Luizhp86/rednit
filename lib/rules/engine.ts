@@ -118,6 +118,7 @@ export type AnalysisResult = {
   signals_fired: SignalFired[]
   free_teaser: FreeTeaser
   premium_report: PremiumReport
+  nome_match?: string
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -1356,7 +1357,6 @@ export function analyze(
       stage: input.estagio || 'TALKING', // Default para TALKING se não informado
       completeness_score: completenessScore,
       question_weights_applied: Object.keys(questionWeights).length > 0,
-      nome_match: matchName // Incluir nome do match no meta
     },
     scores,
     hypotheses_top3: hypotheses,
