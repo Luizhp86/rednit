@@ -67,6 +67,9 @@ export default function DashboardPage() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [totalAnalyses, setTotalAnalyses] = useState(0)
   const [shouldShowOnboarding, setShouldShowOnboarding] = useState(false)
+  const [showPostFirstAnalysisOnboarding, setShowPostFirstAnalysisOnboarding] = useState(false)
+  const [shouldShowPostFirstAnalysisOnboarding, setShouldShowPostFirstAnalysisOnboarding] = useState(false)
+  const [highlightSpecialistButton, setHighlightSpecialistButton] = useState(false)
 
   const stageLabels: Record<string, string> = {
     FIRST_CHAT: 'Primeira conversa',
@@ -146,6 +149,54 @@ export default function DashboardPage() {
     }
   }, [showOnboarding, shouldShowOnboarding, hasFormsAvailable, loading, analyses.length, showPhoneModal])
 
+  // Mostrar onboarding pós-primeira análise APÓS o loading terminar e elementos estarem renderizados
+  useEffect(() => {
+    // Só tentar mostrar onboarding pós-primeira análise quando:
+    // - Não estiver carregando
+    // - Deve mostrar (shouldShowPostFirstAnalysisOnboarding)
+    // - Não está mostrando ainda (showPostFirstAnalysisOnboarding)
+    // - Não está mostrando o modal de telefone
+    // - Não está mostrando o onboarding inicial
+    if (!loading && shouldShowPostFirstAnalysisOnboarding && !showPostFirstAnalysisOnboarding && !showPhoneModal && !showOnboarding) {
+      console.log('[DASHBOARD] ===== TENTANDO MOSTRAR ONBOARDING PÓS-PRIMEIRA ANÁLISE =====')
+      console.log('[DASHBOARD] analyses.length:', analyses.length)
+      
+      let retryCount = 0
+      const maxRetries = 10
+      const delay = 300
+      
+      const attempt = () => {
+        retryCount++
+        console.log(`[DASHBOARD POST-FIRST] Tentativa ${retryCount}/${maxRetries} - Procurando elementos...`)
+        
+        // Verificar se os elementos alvo existem
+        const evolucaoElement = document.querySelector('[data-onboarding="evolucao-comportamento"]')
+        const especialistaElement = document.querySelector('[data-onboarding="falar-especialista"]')
+        
+        console.log(`[DASHBOARD POST-FIRST] Elemento evolucao encontrado?`, !!evolucaoElement)
+        console.log(`[DASHBOARD POST-FIRST] Elemento especialista encontrado?`, !!especialistaElement)
+        
+        if (evolucaoElement && especialistaElement) {
+          console.log('[DASHBOARD POST-FIRST] ✅ Elementos encontrados, mostrando onboarding!')
+          setShowPostFirstAnalysisOnboarding(true)
+        } else if (retryCount < maxRetries) {
+          console.log(`[DASHBOARD POST-FIRST] ⏳ Elementos não encontrados, tentando novamente em ${delay}ms...`)
+          setTimeout(attempt, delay)
+        } else {
+          console.error('[DASHBOARD POST-FIRST] ❌ Elementos não encontrados após todas as tentativas')
+          console.error('[DASHBOARD POST-FIRST] Verificando elementos disponíveis...')
+          const allElements = document.querySelectorAll('[data-onboarding]')
+          console.error('[DASHBOARD POST-FIRST] Elementos encontrados:', Array.from(allElements).map(el => el.getAttribute('data-onboarding')))
+        }
+      }
+      
+      // Aguardar um pouco para garantir que o DOM está completamente renderizado
+      const timer = setTimeout(attempt, 1000)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [loading, shouldShowPostFirstAnalysisOnboarding, showPostFirstAnalysisOnboarding, showPhoneModal, showOnboarding, analyses.length])
+
   useEffect(() => {
     async function loadData() {
       console.log('[DASHBOARD] ===== INICIANDO CARREGAMENTO =====')
@@ -162,6 +213,20 @@ export default function DashboardPage() {
 
       console.log('[DASHBOARD] Usuário autenticado:', user.email)
       setUser(user)
+
+      // Verificar se acabou de voltar da tela de análise de comportamento
+      const justCompletedRouteCorrection = localStorage.getItem('just_completed_route_correction') === 'true'
+      if (justCompletedRouteCorrection) {
+        console.log('[DASHBOARD] Usuário voltou da análise de comportamento - destacando botão especialista')
+        setHighlightSpecialistButton(true)
+        localStorage.removeItem('just_completed_route_correction')
+        
+        // Remover destaque após 10 segundos
+        setTimeout(() => {
+          setHighlightSpecialistButton(false)
+          console.log('[DASHBOARD] Removendo destaque do botão especialista')
+        }, 10000)
+      }
 
       const res = await fetch('/api/analyses')
       if (res.ok) {
@@ -220,6 +285,33 @@ export default function DashboardPage() {
           // que só executa quando loading for false
         } else {
           console.log('[DASHBOARD] ❌ Usuário já viu onboarding, não mostrar')
+        }
+        
+        // Verificar se deve mostrar onboarding pós-primeira análise
+        console.log('[DASHBOARD] ===== VERIFICANDO ONBOARDING PÓS-PRIMEIRA ANÁLISE =====')
+        const hasSeenPostFirstAnalysisOnboardingFromDB = meData.hasSeenPostFirstAnalysisOnboarding ?? false
+        const hasSeenPostFirstAnalysisOnboardingFromStorage = localStorage.getItem('post_first_analysis_onboarding_completed_v1') === 'true'
+        
+        console.log('[DASHBOARD] hasSeenPostFirstAnalysisOnboarding do banco:', hasSeenPostFirstAnalysisOnboardingFromDB)
+        console.log('[DASHBOARD] hasSeenPostFirstAnalysisOnboarding do localStorage:', hasSeenPostFirstAnalysisOnboardingFromStorage)
+        console.log('[DASHBOARD] totalAnalyses:', meData.stats?.totalAnalyses)
+        
+        const hasSeenPostFirstAnalysisOnboarding = typeof hasSeenPostFirstAnalysisOnboardingFromDB === 'boolean'
+          ? hasSeenPostFirstAnalysisOnboardingFromDB
+          : hasSeenPostFirstAnalysisOnboardingFromStorage
+        
+        // Mostrar onboarding pós-primeira análise se:
+        // 1. Usuário tem exatamente 1 análise
+        // 2. Ainda não viu o onboarding pós-primeira análise
+        // 3. Já viu o onboarding inicial (para não conflitar)
+        const shouldShowPostFirstAnalysis = meData.stats?.totalAnalyses === 1 && !hasSeenPostFirstAnalysisOnboarding && hasSeenOnboarding
+        console.log('[DASHBOARD] shouldShowPostFirstAnalysis:', shouldShowPostFirstAnalysis)
+        setShouldShowPostFirstAnalysisOnboarding(shouldShowPostFirstAnalysis)
+        
+        if (shouldShowPostFirstAnalysis) {
+          console.log('[DASHBOARD] ✅ PRIMEIRA ANÁLISE COMPLETA - DEVE MOSTRAR ONBOARDING PÓS-PRIMEIRA ANÁLISE')
+        } else {
+          console.log('[DASHBOARD] ❌ Não deve mostrar onboarding pós-primeira análise')
         }
         
         // Mostrar modal de telefone se necessário
@@ -296,6 +388,9 @@ export default function DashboardPage() {
       setShowMinAnalysesModal(true)
       return
     }
+    
+    // Marcar que está indo para route correction
+    localStorage.setItem('visiting_route_correction', 'true')
     router.push('/dashboard/route-correction')
   }
 
@@ -379,6 +474,68 @@ export default function DashboardPage() {
     }
   }
 
+  const handlePostFirstAnalysisOnboardingComplete = async () => {
+    console.log('[ONBOARDING POST-FIRST] ✅ Onboarding pós-primeira análise completado')
+    
+    // IMPORTANTE: Atualizar shouldShow primeiro para evitar loop
+    setShouldShowPostFirstAnalysisOnboarding(false)
+    setShowPostFirstAnalysisOnboarding(false)
+    
+    // Salvar no localStorage como fallback
+    localStorage.setItem('post_first_analysis_onboarding_completed_v1', 'true')
+    console.log('[ONBOARDING POST-FIRST] Salvo no localStorage')
+    
+    // Atualizar flag no banco de dados
+    try {
+      console.log('[ONBOARDING POST-FIRST] Atualizando hasSeenPostFirstAnalysisOnboarding no banco...')
+      const res = await fetch('/api/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hasSeenPostFirstAnalysisOnboarding: true })
+      })
+      if (res.ok) {
+        console.log('[ONBOARDING POST-FIRST] ✅ hasSeenPostFirstAnalysisOnboarding atualizado no banco com sucesso')
+      } else {
+        console.error('[ONBOARDING POST-FIRST] ❌ Erro ao atualizar no banco:', res.status, res.statusText)
+        console.error('[ONBOARDING POST-FIRST] 💡 Dica: Reinicie o servidor (npm run dev) para atualizar o Prisma Client')
+      }
+    } catch (error) {
+      console.warn('[ONBOARDING POST-FIRST] ⚠️ Erro ao atualizar no banco:', error)
+      console.warn('[ONBOARDING POST-FIRST] Usando localStorage como fallback')
+    }
+  }
+
+  const handlePostFirstAnalysisOnboardingSkip = async () => {
+    console.log('[ONBOARDING POST-FIRST] ⏭️ Onboarding pós-primeira análise pulado')
+    
+    // IMPORTANTE: Atualizar shouldShow primeiro para evitar loop
+    setShouldShowPostFirstAnalysisOnboarding(false)
+    setShowPostFirstAnalysisOnboarding(false)
+    
+    // Salvar no localStorage como fallback
+    localStorage.setItem('post_first_analysis_onboarding_completed_v1', 'true')
+    console.log('[ONBOARDING POST-FIRST] Salvo no localStorage')
+    
+    // Atualizar flag no banco de dados
+    try {
+      console.log('[ONBOARDING POST-FIRST] Atualizando hasSeenPostFirstAnalysisOnboarding no banco...')
+      const res = await fetch('/api/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hasSeenPostFirstAnalysisOnboarding: true })
+      })
+      if (res.ok) {
+        console.log('[ONBOARDING POST-FIRST] ✅ hasSeenPostFirstAnalysisOnboarding atualizado no banco com sucesso')
+      } else {
+        console.error('[ONBOARDING POST-FIRST] ❌ Erro ao atualizar no banco:', res.status, res.statusText)
+        console.error('[ONBOARDING POST-FIRST] 💡 Dica: Reinicie o servidor (npm run dev) para atualizar o Prisma Client')
+      }
+    } catch (error) {
+      console.warn('[ONBOARDING POST-FIRST] ⚠️ Erro ao atualizar no banco:', error)
+      console.warn('[ONBOARDING POST-FIRST] Usando localStorage como fallback')
+    }
+  }
+
   // Steps do onboarding - adapta baseado no estado (com ou sem análises)
   const onboardingSteps: OnboardingStep[] = analyses.length === 0 
     ? [
@@ -424,6 +581,22 @@ export default function DashboardPage() {
         },
       ]
 
+  // Steps do onboarding pós-primeira análise (aparece quando o usuário tem exatamente 1 análise)
+  const postFirstAnalysisOnboardingSteps: OnboardingStep[] = [
+    {
+      target: 'evolucao-comportamento',
+      title: 'Analisar minha evolução',
+      description: 'Após 3 análises completas, você poderá desbloquear uma análise especial sobre seus padrões de comportamento nos relacionamentos. Isso te ajudará a entender melhor suas escolhas e decisões!',
+      position: 'bottom',
+    },
+    {
+      target: 'falar-especialista',
+      title: 'Falar com um especialista',
+      description: 'Tem dúvidas sobre sua análise ou quer uma orientação mais personalizada? Clique aqui para falar via whatsapp com nosso time de especialistas em relacionamentos. Estamos aqui para te ajudar!',
+      position: 'bottom',
+    },
+  ]
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 relative overflow-hidden">
@@ -464,7 +637,7 @@ export default function DashboardPage() {
       {/* Loader de tela cheia para análise de comportamento */}
       {loadingRouteCorrection && (
         <div className="fixed inset-0 z-[100]">
-          <PageLoader message="Analisando seu comportamento..." />
+          <PageLoader message="Analisando sua evolução..." />
         </div>
       )}
 
@@ -585,9 +758,16 @@ export default function DashboardPage() {
               {/* Botão de Análise de Comportamento */}
               {analyses.length >= 1 && (
                 <div className="relative group">
-                  {/* Glow effect */}
+                  {/* Multi-layer pulsing glow effect quando desbloqueado */}
                   {routeCorrection?.available && (
-                    <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 rounded-2xl blur-lg opacity-40 group-hover:opacity-70 transition-opacity duration-300" />
+                    <>
+                      {/* Outer glow - pulsa lentamente */}
+                      <div className="absolute -inset-3 bg-gradient-to-r from-purple-600 via-fuchsia-500 to-pink-600 rounded-2xl blur-2xl opacity-60 animate-pulse-glow" />
+                      {/* Middle glow - pulsa médio */}
+                      <div className="absolute -inset-2 bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 rounded-2xl blur-xl opacity-70 animate-pulse-glow-fast" />
+                      {/* Inner glow - sempre visível */}
+                      <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 rounded-2xl blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-300" />
+                    </>
                   )}
                   <button
                     onClick={handleRouteCorrectionClick}
@@ -595,18 +775,24 @@ export default function DashboardPage() {
                     data-onboarding="evolucao-comportamento"
                     className={`relative w-full sm:w-auto px-6 py-4 rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-3 text-sm ${
                       routeCorrection?.available
-                        ? 'bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white border-2 border-purple-400/50 shadow-xl shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-70'
+                        ? 'bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white border-2 border-purple-400/50 shadow-xl shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-[1.05] hover:-translate-y-1 active:scale-[0.98] disabled:opacity-70 animate-subtle-bounce'
                         : 'bg-gray-100 text-gray-400 border-2 border-gray-200 cursor-not-allowed'
                     }`}
                   >
                     <div className={`p-1.5 rounded-lg ${routeCorrection?.available ? 'bg-white/20' : 'bg-gray-200'}`}>
-                      <Compass className="w-4 h-4" />
+                      <Compass className={`w-4 h-4 ${routeCorrection?.available ? 'animate-spin-slow' : ''}`} />
                     </div>
                     <span>Analisar minha evolução</span>
                     {routeCorrection?.available && (
-                      <span className="bg-white/25 backdrop-blur-sm text-xs px-2.5 py-1 rounded-full font-bold border border-white/30">
-                        {routeCorrection.activeAnalysesCount}
-                      </span>
+                      <>
+                        <span className="bg-white/25 backdrop-blur-sm text-xs px-2.5 py-1 rounded-full font-bold border border-white/30 animate-pulse">
+                          {routeCorrection.activeAnalysesCount}
+                        </span>
+                        {/* Badge "NOVO!" pulsante */}
+                        <span className="absolute -top-2 -right-2 bg-gradient-to-r from-orange-500 to-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider shadow-lg animate-bounce-subtle">
+                          Novo!
+                        </span>
+                      </>
                     )}
                   </button>
                 </div>
@@ -615,17 +801,39 @@ export default function DashboardPage() {
               {/* Botão Falar com Especialista - aparece quando tem análises */}
               {analyses.length > 0 && (
                 <div className="relative group">
-                  {/* Glow effect */}
-                  <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 rounded-2xl blur-lg opacity-40 group-hover:opacity-70 transition-opacity duration-300" />
+                  {/* Multi-layer pulsing glow effect quando destacado */}
+                  {highlightSpecialistButton ? (
+                    <>
+                      {/* Outer glow - pulsa lentamente */}
+                      <div className="absolute -inset-3 bg-gradient-to-r from-emerald-600 via-green-500 to-teal-600 rounded-2xl blur-2xl opacity-60 animate-pulse-glow" />
+                      {/* Middle glow - pulsa médio */}
+                      <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 rounded-2xl blur-xl opacity-70 animate-pulse-glow-fast" />
+                      {/* Inner glow - sempre visível */}
+                      <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 rounded-2xl blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-300" />
+                    </>
+                  ) : (
+                    /* Glow effect normal */
+                    <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 rounded-2xl blur-lg opacity-40 group-hover:opacity-70 transition-opacity duration-300" />
+                  )}
                   <button
                     onClick={() => setShowSpecialistModal(true)}
                     data-onboarding="falar-especialista"
-                    className="relative w-full sm:w-auto bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 text-white px-6 py-4 rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-3 border-2 border-emerald-400/50 shadow-xl shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-[0.98] text-sm"
+                    className={`relative w-full sm:w-auto bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 text-white px-6 py-4 rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-3 border-2 border-emerald-400/50 shadow-xl shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-[0.98] text-sm ${
+                      highlightSpecialistButton ? 'animate-subtle-bounce' : ''
+                    }`}
                   >
                     <div className="p-1.5 rounded-lg bg-white/20">
-                      <MessageCircle className="w-4 h-4" />
+                      <MessageCircle className={`w-4 h-4 ${highlightSpecialistButton ? 'animate-pulse' : ''}`} />
                     </div>
                     <span>Falar com Especialista</span>
+                    {highlightSpecialistButton && (
+                      <>
+                        {/* Badge "RECOMENDADO!" pulsante */}
+                        <span className="absolute -top-2 -right-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider shadow-lg animate-bounce-subtle">
+                          Recomendado!
+                        </span>
+                      </>
+                    )}
                   </button>
                 </div>
               )}
@@ -1243,6 +1451,15 @@ export default function DashboardPage() {
             onSkip={handleOnboardingSkip}
           />
         )}
+
+        {/* Onboarding Tour Pós-Primeira Análise */}
+        {showPostFirstAnalysisOnboarding && (
+          <OnboardingTour
+            steps={postFirstAnalysisOnboardingSteps}
+            onComplete={handlePostFirstAnalysisOnboardingComplete}
+            onSkip={handlePostFirstAnalysisOnboardingSkip}
+          />
+        )}
       </div>
 
       {/* Custom Styles */}
@@ -1273,6 +1490,71 @@ export default function DashboardPage() {
         }
         .animate-pulse-slow {
           animation: pulse-slow 3s ease-in-out infinite;
+        }
+        
+        /* Animações para botão "Analisar minha evolução" desbloqueado */
+        @keyframes pulse-glow {
+          0%, 100% { 
+            opacity: 0.6; 
+            transform: scale(1);
+          }
+          50% { 
+            opacity: 0.9; 
+            transform: scale(1.05);
+          }
+        }
+        .animate-pulse-glow {
+          animation: pulse-glow 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-glow-fast {
+          0%, 100% { 
+            opacity: 0.7; 
+            transform: scale(1);
+          }
+          50% { 
+            opacity: 1; 
+            transform: scale(1.08);
+          }
+        }
+        .animate-pulse-glow-fast {
+          animation: pulse-glow-fast 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes subtle-bounce {
+          0%, 100% { 
+            transform: translateY(0);
+          }
+          50% { 
+            transform: translateY(-2px);
+          }
+        }
+        .animate-subtle-bounce {
+          animation: subtle-bounce 2s ease-in-out infinite;
+        }
+        
+        @keyframes bounce-subtle {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-3px);
+          }
+        }
+        .animate-bounce-subtle {
+          animation: bounce-subtle 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin-slow {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        .animate-spin-slow {
+          animation: spin-slow 3s linear infinite;
         }
       `}</style>
     </div>

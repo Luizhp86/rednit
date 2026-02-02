@@ -640,17 +640,18 @@ function calculateScores(
 
   // ============================================
   // CLAMP FINAL: Todos entre 10-90 (nunca certeza absoluta)
+  // Arredondar para inteiros (sem casas decimais)
   // ============================================
   const clamped: Scores = {
-    reciprocidade: clamp(baseScores.reciprocidade, 10, 90),
-    constancia: clamp(baseScores.constancia, 10, 90),
-    acao_mundo_real: clamp(baseScores.acao_mundo_real, 10, 90),
-    respeito: clamp(baseScores.respeito, 10, 90),
-    coerencia: clamp(baseScores.coerencia, 10, 90),
-    disponibilidade: clamp(baseScores.disponibilidade, 10, 90),
-    risco_ghosting: clamp(baseScores.risco_ghosting, 10, 90),
-    risco_enrolacao: clamp(baseScores.risco_enrolacao, 10, 90),
-    compat_objetivo: clamp(baseScores.compat_objetivo, 10, 90)
+    reciprocidade: Math.round(clamp(baseScores.reciprocidade, 10, 90)),
+    constancia: Math.round(clamp(baseScores.constancia, 10, 90)),
+    acao_mundo_real: Math.round(clamp(baseScores.acao_mundo_real, 10, 90)),
+    respeito: Math.round(clamp(baseScores.respeito, 10, 90)),
+    coerencia: Math.round(clamp(baseScores.coerencia, 10, 90)),
+    disponibilidade: Math.round(clamp(baseScores.disponibilidade, 10, 90)),
+    risco_ghosting: Math.round(clamp(baseScores.risco_ghosting, 10, 90)),
+    risco_enrolacao: Math.round(clamp(baseScores.risco_enrolacao, 10, 90)),
+    compat_objetivo: Math.round(clamp(baseScores.compat_objetivo, 10, 90))
   }
 
   return clamped

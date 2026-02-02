@@ -16,7 +16,13 @@ import {
   Menu,
   X,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  Instagram,
+  Facebook,
+  Edit2,
+  Check,
+  XCircle,
+  Phone
 } from 'lucide-react'
 import { PageLoader } from '@/components/page-loader'
 
@@ -39,6 +45,9 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [editingField, setEditingField] = useState<string | null>(null)
+  const [editingValue, setEditingValue] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -84,6 +93,49 @@ export default function AccountPage() {
       alert('Erro ao excluir conta')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleEditField = (field: string, currentValue: string) => {
+    setEditingField(field)
+    setEditingValue(currentValue || '')
+  }
+
+  const handleCancelEdit = () => {
+    setEditingField(null)
+    setEditingValue('')
+  }
+
+  const handleSaveField = async () => {
+    if (!editingField || !user) return
+
+    setSaving(true)
+    try {
+      const body: any = {}
+      body[editingField] = editingValue.trim() || null
+
+      const res = await fetch('/api/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+
+      if (res.ok) {
+        const updatedUserRes = await fetch('/api/me')
+        if (updatedUserRes.ok) {
+          const updatedUser = await updatedUserRes.json()
+          setUser(updatedUser)
+        }
+        setEditingField(null)
+        setEditingValue('')
+      } else {
+        alert('Erro ao salvar')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Erro ao salvar')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -263,23 +315,140 @@ export default function AccountPage() {
             </h2>
             
             <div className="space-y-4">
+              {/* Nome */}
               <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-100">
                 <div className="p-2.5 bg-white rounded-xl shadow-sm">
                   <User className="w-5 h-5 text-purple-600" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Nome</p>
                   <p className="text-gray-900 font-medium">{user.name || 'Não informado'}</p>
                 </div>
               </div>
               
+              {/* Email */}
               <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-100">
                 <div className="p-2.5 bg-white rounded-xl shadow-sm">
                   <Mail className="w-5 h-5 text-purple-600" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Email</p>
                   <p className="text-gray-900 font-medium">{user.email}</p>
+                </div>
+              </div>
+
+              {/* Telefone */}
+              {user.phone && (
+                <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-100">
+                  <div className="p-2.5 bg-white rounded-xl shadow-sm">
+                    <Phone className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Telefone</p>
+                    <p className="text-gray-900 font-medium">{user.phone}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Instagram */}
+              <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-pink-50 to-rose-50 rounded-2xl border border-pink-100">
+                <div className="p-2.5 bg-white rounded-xl shadow-sm">
+                  <Instagram className="w-5 h-5 text-pink-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Instagram</p>
+                  {editingField === 'instagram' ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="text"
+                        value={editingValue}
+                        onChange={(e) => setEditingValue(e.target.value)}
+                        placeholder="@seu_usuario"
+                        className="flex-1 px-3 py-1.5 text-sm border border-pink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleSaveField}
+                        disabled={saving}
+                        className="p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                        title="Salvar"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        disabled={saving}
+                        className="p-1.5 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                        title="Cancelar"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <p className="text-gray-900 font-medium flex-1">
+                        {user.instagram || 'Não informado'}
+                      </p>
+                      <button
+                        onClick={() => handleEditField('instagram', user.instagram || '')}
+                        className="p-1.5 text-pink-600 hover:bg-pink-100 rounded-lg transition-colors"
+                        title="Editar Instagram"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Facebook */}
+              <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
+                <div className="p-2.5 bg-white rounded-xl shadow-sm">
+                  <Facebook className="w-5 h-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Facebook</p>
+                  {editingField === 'facebook' ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="text"
+                        value={editingValue}
+                        onChange={(e) => setEditingValue(e.target.value)}
+                        placeholder="seu.perfil"
+                        className="flex-1 px-3 py-1.5 text-sm border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleSaveField}
+                        disabled={saving}
+                        className="p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                        title="Salvar"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        disabled={saving}
+                        className="p-1.5 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                        title="Cancelar"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <p className="text-gray-900 font-medium flex-1">
+                        {user.facebook || 'Não informado'}
+                      </p>
+                      <button
+                        onClick={() => handleEditField('facebook', user.facebook || '')}
+                        className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                        title="Editar Facebook"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
