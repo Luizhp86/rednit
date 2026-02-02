@@ -226,19 +226,26 @@ export default function TerapeutaLandingPage() {
               </div>
             </div>
 
+            {/* Você coach, terapeuta... */}
+            <p className="text-base sm:text-lg text-slate-400 text-center mb-4 animate-fade-in-up">
+              Você <span className="text-emerald-400 font-medium">coach</span>, <span className="text-amber-400 font-medium">terapeuta</span>, <span className="text-sky-400 font-medium">psicólogo</span>, <span className="text-violet-400 font-medium">mentor</span>...
+            </p>
+
             {/* Headline */}
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-center leading-tight mb-6 sm:mb-8 animate-fade-in-up">
-              <span className="text-white">Receba leads de pessoas</span>
+              <span className="text-white">Receba contatos de pessoas</span>
               <br />
               <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
-                buscando ajuda profissional
+                que pediram ajuda profissional
               </span>
+              <br />
+              <span className="text-white text-2xl sm:text-3xl md:text-4xl lg:text-5xl">sobre relacionamentos</span>
             </h1>
 
             {/* Subheadline */}
             <p className="text-base sm:text-lg lg:text-xl text-slate-400 text-center mb-8 sm:mb-10 max-w-2xl mx-auto px-4 animate-fade-in-up animation-delay-100">
-              Conectamos você com usuários que acabaram de analisar um relacionamento 
-              e estão prontos para orientação especializada.
+              Conectamos você com pessoas que acabaram de fazer uma análise de relacionamento 
+              e autorizaram que você entre em contato.
             </p>
 
             {/* CTA Principal com 4 camadas de ondas */}
@@ -277,6 +284,23 @@ export default function TerapeutaLandingPage() {
                 <div className="flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                   <span>Cancele quando quiser</span>
+                </div>
+              </div>
+
+              {/* Explicação rápida - O que é lead */}
+              <div className="mt-8 max-w-2xl mx-auto bg-slate-900/50 backdrop-blur-sm border border-slate-800/50 rounded-xl p-4 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-emerald-500/10 rounded-lg flex-shrink-0">
+                    <MessageCircle className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm sm:text-base text-slate-300 mb-1">
+                      <strong className="text-white">Lead = contato autorizado.</strong> Você recebe nome, WhatsApp e contexto (análise que a pessoa fez).
+                    </p>
+                    <p className="text-xs sm:text-sm text-slate-400">
+                      É como receber uma indicação quente: a pessoa já sabe que você vai entrar em contato.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -322,6 +346,106 @@ export default function TerapeutaLandingPage() {
         </div>
       </section>
 
+      {/* O que são Leads - Em português claro */}
+      <section className="relative z-10 py-16 sm:py-20 lg:py-28">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="max-w-5xl mx-auto">
+            {/* Section Header */}
+            <div className="text-center mb-12 sm:mb-16">
+              <span className="inline-block text-cyan-400 text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3">
+                Entenda em 1 minuto
+              </span>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4">
+                O que são leads? (em português claro)
+              </h2>
+              <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto">
+                Sem jargões de marketing. Veja exatamente o que você recebe e como funciona.
+              </p>
+            </div>
+
+            {/* Cards Explicativos */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 mb-10">
+              {/* O que É */}
+              <div className="bg-slate-900/50 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-slate-800">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">O que É</h3>
+                </div>
+                <p className="text-slate-300 text-sm sm:text-base leading-relaxed mb-4">
+                  Lead é uma <strong className="text-white">pessoa que pediu ajuda e autorizou que você entre em contato</strong>. Simples assim.
+                </p>
+                <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+                  <p className="text-xs sm:text-sm text-slate-400 mb-2">
+                    <strong className="text-emerald-400">Você recebe:</strong>
+                  </p>
+                  <ul className="space-y-2 text-xs sm:text-sm text-slate-300">
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      Nome e WhatsApp da pessoa
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      Resumo da situação (análise que fez)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      Nível de interesse (básico/análise/premium)
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* O que NÃO É */}
+              <div className="bg-slate-900/50 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-slate-800">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
+                    <X className="w-6 h-6 text-red-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">O que NÃO É</h3>
+                </div>
+                <p className="text-slate-300 text-sm sm:text-base leading-relaxed mb-4">
+                  Não é "lista fria", não é spam. A pessoa <strong className="text-white">sabe que você vai ligar/chamar</strong>.
+                </p>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 text-xs sm:text-sm text-slate-400">
+                    <X className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    <span>Não é ligação/mensagem fria para desconhecidos</span>
+                  </div>
+                  <div className="flex items-start gap-3 text-xs sm:text-sm text-slate-400">
+                    <X className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    <span>Não é garantia de cliente (é oportunidade qualificada)</span>
+                  </div>
+                  <div className="flex items-start gap-3 text-xs sm:text-sm text-slate-400">
+                    <X className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    <span>Não é banco de dados — cada lead é distribuído 1x</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Consentimento e Privacidade */}
+            <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-blue-500/30">
+              <div className="flex items-start gap-4">
+                <div className="p-2.5 bg-blue-500/20 rounded-lg flex-shrink-0">
+                  <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-white text-base sm:text-lg mb-2">
+                    Consentimento e privacidade
+                  </h4>
+                  <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+                    Todos os usuários <strong className="text-white">forneceram o contato voluntariamente e autorizaram</strong> 
+                    que especialistas entrem em contato. Seguimos a LGPD.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Como Funciona */}
       <section className="relative z-10 py-16 sm:py-20 lg:py-28">
         <div className="container mx-auto px-4 sm:px-6">
@@ -335,7 +459,7 @@ export default function TerapeutaLandingPage() {
                 Como funciona
               </h2>
               <p className="text-slate-400 text-sm sm:text-base max-w-xl mx-auto">
-                Leads qualificados chegam automaticamente. Sem prospecção, sem cold calling.
+                Contatos qualificados chegam automaticamente. Sem prospecção, sem ligações frias para desconhecidos.
               </p>
             </div>
 
@@ -376,14 +500,14 @@ export default function TerapeutaLandingPage() {
                     <Users className="w-6 h-6 sm:w-8 sm:h-8 text-teal-400" />
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-white mb-3">
-                    Lead é distribuído
+                    Você recebe o contato
                   </h3>
                   <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
-                    Quando demonstra interesse em ajuda profissional, distribuímos o lead para você.
+                    Quando a pessoa demonstra interesse, você recebe <strong className="text-white">nome, WhatsApp e contexto</strong> por email e notificação.
                   </p>
                   <div className="mt-4 pt-4 border-t border-slate-800">
                     <span className="text-xs sm:text-sm text-teal-400 font-medium">
-                      Sistema de rodízio justo
+                      Distribuição justa e equilibrada
                     </span>
                   </div>
                 </div>
@@ -407,7 +531,7 @@ export default function TerapeutaLandingPage() {
                     Você entra em contato
                   </h3>
                   <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
-                    Receba os dados por email e WhatsApp. Entre em contato e converta em cliente.
+                    Chame no WhatsApp e ofereça uma conversa inicial. Atendimento 100% online, de onde você estiver.
                   </p>
                   <div className="mt-4 pt-4 border-t border-emerald-500/30">
                     <span className="text-xs sm:text-sm text-emerald-400 font-medium">
@@ -423,7 +547,7 @@ export default function TerapeutaLandingPage() {
               {[
                 { value: "2min", label: "Tempo médio de análise", color: "emerald" },
                 { value: "24h", label: "Para aprovação", color: "teal" },
-                { value: "100%", label: "Leads qualificados", color: "cyan" },
+                { value: "100%", label: "Contatos com consentimento", color: "cyan" },
                 { value: "∞", label: "Potencial de conversão", color: "violet" },
               ].map((stat, i) => (
                 <div 
@@ -451,28 +575,28 @@ export default function TerapeutaLandingPage() {
                 Níveis de qualificação
               </span>
               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4">
-                3 tipos de leads
+                3 tipos de contatos
               </h2>
               <p className="text-slate-400 text-sm sm:text-base">
-                Quanto mais quente, maior a chance de conversão
+                Quanto maior a intenção da pessoa, maior a chance de conversão
               </p>
             </div>
 
             {/* Lead Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-              {/* Lead Frio */}
+              {/* Contato Básico */}
               <div className="bg-slate-900/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-slate-800">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-sky-500/20 flex items-center justify-center">
                     <Mail className="w-5 h-5 sm:w-6 sm:h-6 text-sky-400" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-base sm:text-lg">Lead Básico</h3>
-                    <span className="text-xs text-sky-400 font-medium">Cadastrou telefone</span>
+                    <h3 className="font-bold text-white text-base sm:text-lg">Contato Básico</h3>
+                    <span className="text-xs text-sky-400 font-medium">Se cadastrou na plataforma</span>
                   </div>
                 </div>
                 <p className="text-slate-400 text-sm mb-4">
-                  Usuário se cadastrou e deixou o telefone. Demonstrou interesse inicial.
+                  Pessoa se cadastrou e deixou o telefone. Demonstrou interesse inicial em autoconhecimento.
                 </p>
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1">
@@ -480,23 +604,23 @@ export default function TerapeutaLandingPage() {
                     <div className="w-2 h-2 rounded-full bg-slate-700" />
                     <div className="w-2 h-2 rounded-full bg-slate-700" />
                   </div>
-                  <span className="text-xs text-slate-500">Frio</span>
+                  <span className="text-xs text-slate-500">Interesse inicial</span>
                 </div>
               </div>
 
-              {/* Lead Morno */}
+              {/* Contato de Análise */}
               <div className="bg-slate-900/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border-2 border-amber-500/50">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
                     <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-base sm:text-lg">Lead de Análise</h3>
-                    <span className="text-xs text-amber-400 font-medium">Completou análise</span>
+                    <h3 className="font-bold text-white text-base sm:text-lg">Contato de Análise</h3>
+                    <span className="text-xs text-amber-400 font-medium">Completou análise de relacionamento</span>
                   </div>
                 </div>
                 <p className="text-slate-400 text-sm mb-4">
-                  Completou análise de match. Você recebe os dados (red flags, scores).
+                  Completou análise completa. Você recebe o contexto (padrões identificados, situação) para personalizar abordagem.
                 </p>
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1">
@@ -504,11 +628,11 @@ export default function TerapeutaLandingPage() {
                     <div className="w-2 h-2 rounded-full bg-amber-500" />
                     <div className="w-2 h-2 rounded-full bg-slate-700" />
                   </div>
-                  <span className="text-xs text-slate-500">Morno</span>
+                  <span className="text-xs text-slate-500">Engajado</span>
                 </div>
               </div>
 
-              {/* Lead Quente */}
+              {/* Contato Premium */}
               <div className="relative bg-gradient-to-br from-orange-500/20 to-rose-500/20 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border-2 border-orange-500/50">
                 <div className="absolute -top-3 right-4 bg-gradient-to-r from-orange-500 to-rose-500 text-white text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full">
                   PREMIUM
@@ -518,12 +642,12 @@ export default function TerapeutaLandingPage() {
                     <Phone className="w-5 h-5 sm:w-6 sm:h-6 text-orange-400" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-base sm:text-lg">Lead Premium</h3>
-                    <span className="text-xs text-orange-400 font-medium">Quer falar com especialista</span>
+                    <h3 className="font-bold text-white text-base sm:text-lg">Contato Premium</h3>
+                    <span className="text-xs text-orange-400 font-medium">Pediu para falar com especialista</span>
                   </div>
                 </div>
                 <p className="text-slate-400 text-sm mb-4">
-                  Clicou em "Falar com especialista". Altíssima intenção. WhatsApp direto.
+                  Clicou em "Falar com especialista" após a análise. Altíssima intenção de buscar orientação. Notificação imediata.
                 </p>
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1">
@@ -531,7 +655,168 @@ export default function TerapeutaLandingPage() {
                     <div className="w-2 h-2 rounded-full bg-orange-500" />
                     <div className="w-2 h-2 rounded-full bg-orange-500" />
                   </div>
-                  <span className="text-xs text-slate-500">Quente</span>
+                  <span className="text-xs text-slate-500">Alta intenção</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Como transformar leads em clientes - Playbook WhatsApp */}
+      <section className="relative z-10 py-16 sm:py-20 lg:py-28">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="max-w-5xl mx-auto">
+            {/* Section Header */}
+            <div className="text-center mb-12 sm:mb-16">
+              <span className="inline-block text-green-400 text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3">
+                Mão na massa
+              </span>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4">
+                Como transformar leads em clientes
+              </h2>
+              <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto">
+                Roteiro prático de WhatsApp + dicas de conversão. Atendimento 100% online.
+              </p>
+            </div>
+
+            {/* Regra de Velocidade */}
+            <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 border-2 border-green-500/50 mb-8">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-green-500/20 rounded-xl flex-shrink-0">
+                  <Zap className="w-6 h-6 sm:w-7 sm:h-7 text-green-400" />
+                </div>
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
+                    Regra #1: Responder rápido aumenta conversão
+                  </h3>
+                  <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+                    Leads atendidos nas <strong className="text-green-400">primeiras 2 horas</strong> têm 
+                    até 3x mais chance de conversão. Configure notificações no WhatsApp e email.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Mensagens Prontas */}
+            <div className="mb-8">
+              <h3 className="text-xl sm:text-2xl font-bold text-white mb-6 text-center">
+                3 mensagens prontas (copie e personalize)
+              </h3>
+              
+              <div className="space-y-6">
+                {/* Mensagem 1 - Primeiro Contato */}
+                <div className="bg-slate-900/50 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-slate-800">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold">
+                      1
+                    </div>
+                    <h4 className="font-bold text-white text-base sm:text-lg">
+                      Primeiro contato (imediato)
+                    </h4>
+                  </div>
+                  <div className="bg-green-900/20 border border-green-700/30 rounded-xl p-4">
+                    <p className="text-sm sm:text-base text-slate-200 leading-relaxed whitespace-pre-line">
+                      {`Olá, [NOME]! Tudo bem? 😊
+
+Meu nome é [SEU NOME], sou [sua profissão] especializado(a) em relacionamentos.
+
+Vi que você fez uma análise no Radar Match e pode estar buscando orientação. Estou aqui para ajudar!
+
+Que tal conversarmos 10 minutos por chamada? Sem compromisso, só para eu entender sua situação e ver como posso te apoiar.
+
+Qual horário funciona melhor pra você hoje ou amanhã?`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Mensagem 2 - Follow-up 24h */}
+                <div className="bg-slate-900/50 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-slate-800">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold">
+                      2
+                    </div>
+                    <h4 className="font-bold text-white text-base sm:text-lg">
+                      Follow-up 24h (se não respondeu)
+                    </h4>
+                  </div>
+                  <div className="bg-amber-900/20 border border-amber-700/30 rounded-xl p-4">
+                    <p className="text-sm sm:text-base text-slate-200 leading-relaxed whitespace-pre-line">
+                      {`Oi, [NOME]!
+
+Imagino que você deve estar ocupado(a). Mas queria deixar mais uma mensagem porque vi na sua análise que [mencione algo específico - ex: "você identificou alguns sinais que te deixaram confusa"].
+
+Já passei por muitos casos parecidos e sei que pode ajudar bastante conversar sobre isso.
+
+Se quiser, me chama aqui no WhatsApp. Estou por aqui! 💬`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Mensagem 3 - Follow-up 72h */}
+                <div className="bg-slate-900/50 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-slate-800">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center text-violet-400 font-bold">
+                      3
+                    </div>
+                    <h4 className="font-bold text-white text-base sm:text-lg">
+                      Follow-up 72h (fechamento leve)
+                    </h4>
+                  </div>
+                  <div className="bg-violet-900/20 border border-violet-700/30 rounded-xl p-4">
+                    <p className="text-sm sm:text-base text-slate-200 leading-relaxed whitespace-pre-line">
+                      {`[NOME], tudo bem?
+
+Essa é minha última mensagem por aqui para não te incomodar! 😊
+
+Se em algum momento você quiser conversar sobre relacionamentos ou tiver dúvidas, é só me chamar. Vou deixar meu contato salvo aqui.
+
+Desejo tudo de bom pra você! 🌟`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Checklist de Conversão */}
+            <div className="bg-slate-900/50 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-slate-800">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2.5 bg-cyan-500/20 rounded-lg">
+                  <CheckCircle2 className="w-6 h-6 text-cyan-400" />
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold text-white">
+                  Checklist antes de entrar em contato
+                </h3>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-white font-medium text-sm sm:text-base">Revise o contexto do lead</p>
+                    <p className="text-slate-400 text-xs sm:text-sm">Leia a análise que a pessoa fez</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-white font-medium text-sm sm:text-base">Tenha horários disponíveis</p>
+                    <p className="text-slate-400 text-xs sm:text-sm">Ofereça 2-3 opções concretas</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-white font-medium text-sm sm:text-base">Link de agendamento pronto</p>
+                    <p className="text-slate-400 text-xs sm:text-sm">Calendly, Google Calendar ou similar</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-white font-medium text-sm sm:text-base">Proposta clara</p>
+                    <p className="text-slate-400 text-xs sm:text-sm">Chamada de 10min ou sessão inicial</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -556,7 +841,7 @@ export default function TerapeutaLandingPage() {
                 Invista no seu crescimento
               </h2>
               <p className="text-slate-400 text-sm sm:text-base max-w-xl mx-auto">
-                Quanto maior o plano, mais tipos de leads qualificados você recebe.
+                Quanto maior o plano, mais tipos de contatos qualificados você recebe.
                 <strong className="text-white"> Comece hoje e cancele quando quiser.</strong>
               </p>
             </div>
@@ -577,21 +862,21 @@ export default function TerapeutaLandingPage() {
                     <span className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white">R$ 79</span>
                     <span className="text-slate-500">/mês</span>
                   </div>
-                  <p className="text-slate-500 text-sm mt-1">Para começar a receber leads</p>
+                  <p className="text-slate-500 text-sm mt-1">Para começar a receber contatos</p>
                 </div>
                 
                 <ul className="space-y-3 sm:space-y-4 mb-8">
                   <li className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                    <span className="text-slate-300 text-sm sm:text-base">Leads básicos (cadastro)</span>
+                    <span className="text-slate-300 text-sm sm:text-base">Contatos básicos (cadastros)</span>
                   </li>
                   <li className="flex items-center gap-3 opacity-40">
                     <div className="w-5 h-5 rounded-full border-2 border-slate-600 flex-shrink-0" />
-                    <span className="text-slate-500 text-sm sm:text-base">Leads de análise</span>
+                    <span className="text-slate-500 text-sm sm:text-base">Contatos de análise</span>
                   </li>
                   <li className="flex items-center gap-3 opacity-40">
                     <div className="w-5 h-5 rounded-full border-2 border-slate-600 flex-shrink-0" />
-                    <span className="text-slate-500 text-sm sm:text-base">Leads premium (CTA)</span>
+                    <span className="text-slate-500 text-sm sm:text-base">Contatos premium (alta intenção)</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
@@ -636,15 +921,15 @@ export default function TerapeutaLandingPage() {
                   <ul className="space-y-3 sm:space-y-4 mb-8">
                     <li className="flex items-center gap-3">
                       <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                      <span className="text-slate-300 text-sm sm:text-base">Leads básicos (cadastro)</span>
+                      <span className="text-slate-300 text-sm sm:text-base">Contatos básicos (cadastros)</span>
                     </li>
                     <li className="flex items-center gap-3">
                       <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                      <span className="text-white font-medium text-sm sm:text-base">Leads de análise</span>
+                      <span className="text-white font-medium text-sm sm:text-base">Contatos de análise</span>
                     </li>
                     <li className="flex items-center gap-3 opacity-40">
                       <div className="w-5 h-5 rounded-full border-2 border-slate-600 flex-shrink-0" />
-                      <span className="text-slate-500 text-sm sm:text-base">Leads premium (CTA)</span>
+                      <span className="text-slate-500 text-sm sm:text-base">Contatos premium (alta intenção)</span>
                     </li>
                     <li className="flex items-center gap-3">
                       <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
@@ -679,21 +964,21 @@ export default function TerapeutaLandingPage() {
                     <span className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white">R$ 249</span>
                     <span className="text-slate-500">/mês</span>
                   </div>
-                  <p className="text-violet-400 text-sm font-medium mt-1">Todos os tipos de leads</p>
+                  <p className="text-violet-400 text-sm font-medium mt-1">Todos os tipos de contatos</p>
                 </div>
                 
                 <ul className="space-y-3 sm:space-y-4 mb-8">
                   <li className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-violet-500 flex-shrink-0" />
-                    <span className="text-slate-300 text-sm sm:text-base">Leads básicos (cadastro)</span>
+                    <span className="text-slate-300 text-sm sm:text-base">Contatos básicos (cadastros)</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-violet-500 flex-shrink-0" />
-                    <span className="text-slate-300 text-sm sm:text-base">Leads de análise</span>
+                    <span className="text-slate-300 text-sm sm:text-base">Contatos de análise</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-violet-500 flex-shrink-0" />
-                    <span className="text-white font-bold text-sm sm:text-base">Leads premium (CTA)</span>
+                    <span className="text-white font-bold text-sm sm:text-base">Contatos premium (alta intenção)</span>
                   </li>
                   <li className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-violet-500 flex-shrink-0" />
@@ -734,10 +1019,10 @@ export default function TerapeutaLandingPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {[
-                { icon: Target, color: "emerald", title: "Leads pré-qualificados", desc: "Usuários já demonstraram interesse ao fazer análises e buscar ajuda. Não é cold calling." },
-                { icon: Heart, color: "rose", title: "Contexto completo", desc: "Receba dados da análise (red flags, padrões) para personalizar sua abordagem." },
-                { icon: Zap, color: "amber", title: "Distribuição justa", desc: "Sistema de rodízio garante distribuição equilibrada entre todos os profissionais." },
-                { icon: Shield, color: "violet", title: "Sem compromisso", desc: "Cancele quando quiser. Sem multas, sem burocracia. Você paga apenas pelo que usa." },
+                { icon: Target, color: "emerald", title: "Contatos pré-qualificados", desc: "Pessoas que já demonstraram interesse em ajuda profissional. Não são ligações frias para desconhecidos." },
+                { icon: Heart, color: "rose", title: "Contexto completo", desc: "Você recebe os dados da análise (padrões identificados, situação) para personalizar sua abordagem." },
+                { icon: Zap, color: "amber", title: "Distribuição justa", desc: "Sistema automático garante que todos os profissionais ativos recebam oportunidades de forma equilibrada." },
+                { icon: Shield, color: "violet", title: "Sem compromisso", desc: "Cancele quando quiser. Sem multas, sem burocracia. Você paga apenas enquanto estiver ativo." },
               ].map((item, i) => (
                 <div key={i} className="bg-slate-900/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-slate-800 hover:border-slate-700 transition-all">
                   <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-${item.color}-500/20 flex items-center justify-center mb-4`}>
@@ -785,6 +1070,133 @@ export default function TerapeutaLandingPage() {
         </div>
       </section>
 
+      {/* FAQ - Perguntas Frequentes */}
+      <section className="relative z-10 py-16 sm:py-20 lg:py-28 bg-slate-900/50">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="max-w-4xl mx-auto">
+            {/* Section Header */}
+            <div className="text-center mb-12 sm:mb-16">
+              <span className="inline-block text-violet-400 text-xs sm:text-sm font-semibold uppercase tracking-wider mb-3">
+                Dúvidas comuns
+              </span>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4">
+                Perguntas frequentes
+              </h2>
+              <p className="text-slate-400 text-sm sm:text-base">
+                Respostas diretas para as principais dúvidas dos profissionais
+              </p>
+            </div>
+
+            {/* FAQ Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+              {/* FAQ 1 */}
+              <div className="bg-slate-900/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-slate-800">
+                <h3 className="font-bold text-white text-base sm:text-lg mb-3">
+                  Os leads são exclusivos?
+                </h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Sim, cada lead é distribuído para <strong className="text-white">apenas 1 profissional</strong>. 
+                  Você não compete com outros pelo mesmo contato.
+                </p>
+              </div>
+
+              {/* FAQ 2 */}
+              <div className="bg-slate-900/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-slate-800">
+                <h3 className="font-bold text-white text-base sm:text-lg mb-3">
+                  Como funciona o rodízio?
+                </h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Sistema automático distribui leads de forma <strong className="text-white">equilibrada e justa</strong> entre 
+                  profissionais ativos do mesmo plano. Quanto mais atendimentos você fizer, mais leads recebe.
+                </p>
+              </div>
+
+              {/* FAQ 3 */}
+              <div className="bg-slate-900/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-slate-800">
+                <h3 className="font-bold text-white text-base sm:text-lg mb-3">
+                  O atendimento é online?
+                </h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Sim! Todo o atendimento é <strong className="text-white">100% online via WhatsApp ou videochamada</strong>. 
+                  Atenda de qualquer lugar, sem limitação geográfica.
+                </p>
+              </div>
+
+              {/* FAQ 4 */}
+              <div className="bg-slate-900/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-slate-800">
+                <h3 className="font-bold text-white text-base sm:text-lg mb-3">
+                  O que eu recebo quando chega um lead?
+                </h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  <strong className="text-white">Nome, WhatsApp, email</strong> e resumo da situação (análise que a pessoa fez). 
+                  Notificação via email + WhatsApp em tempo real.
+                </p>
+              </div>
+
+              {/* FAQ 5 */}
+              <div className="bg-slate-900/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-slate-800">
+                <h3 className="font-bold text-white text-base sm:text-lg mb-3">
+                  Isso garante clientes?
+                </h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Não garantimos conversão, mas fornecemos <strong className="text-white">oportunidades qualificadas</strong>. 
+                  A conversão depende da sua abordagem, experiência e fit com a pessoa.
+                </p>
+              </div>
+
+              {/* FAQ 6 */}
+              <div className="bg-slate-900/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-slate-800">
+                <h3 className="font-bold text-white text-base sm:text-lg mb-3">
+                  Posso cancelar quando quiser?
+                </h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Sim! <strong className="text-white">Sem multas, sem burocracia</strong>. Cancele ou pause a qualquer momento 
+                  pela plataforma. Você paga apenas enquanto estiver ativo.
+                </p>
+              </div>
+
+              {/* FAQ 7 */}
+              <div className="bg-slate-900/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-slate-800">
+                <h3 className="font-bold text-white text-base sm:text-lg mb-3">
+                  Quantos leads vou receber por mês?
+                </h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Varia conforme o <strong className="text-white">volume de usuários e seu plano</strong>. 
+                  Em média, profissionais ativos recebem de 5 a 15 leads/mês, mas pode variar.
+                </p>
+              </div>
+
+              {/* FAQ 8 - Psicólogos */}
+              <div className="bg-slate-900/80 backdrop-blur-sm rounded-2xl p-5 sm:p-6 border border-slate-800">
+                <h3 className="font-bold text-white text-base sm:text-lg mb-3">
+                  Sou psicólogo(a), posso usar?
+                </h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Sim! Mas lembre-se de <strong className="text-white">seguir as normas do CRP</strong> sobre divulgação 
+                  e publicidade. O Radar Match não substitui suas obrigações éticas e profissionais.
+                </p>
+              </div>
+            </div>
+
+            {/* CTA do FAQ */}
+            <div className="mt-10 sm:mt-12 text-center">
+              <p className="text-slate-400 text-sm sm:text-base mb-4">
+                Ainda tem dúvidas?
+              </p>
+              <a
+                href="https://wa.me/5511937756627?text=Olá!%20Tenho%20dúvidas%20sobre%20o%20Radar%20Match"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl"
+              >
+                <MessageCircle className="w-5 h-5" />
+                <span>Falar no WhatsApp</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Final */}
       <section className="relative z-10 py-16 sm:py-20 lg:py-28">
         <div className="absolute inset-0 bg-gradient-to-t from-emerald-500/10 via-transparent to-transparent" />
@@ -792,11 +1204,11 @@ export default function TerapeutaLandingPage() {
         <div className="container mx-auto px-4 sm:px-6 relative">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4 sm:mb-6">
-              Comece a receber leads hoje
+              Comece a receber contatos hoje
             </h2>
             <p className="text-slate-400 text-base sm:text-lg mb-8 sm:mb-10">
-              Cadastre-se gratuitamente e comece a receber leads qualificados 
-              de pessoas buscando ajuda com relacionamentos.
+              Cadastre-se gratuitamente e comece a receber contatos qualificados 
+              de pessoas buscando orientação em relacionamentos.
             </p>
             
             <div className="relative inline-block">

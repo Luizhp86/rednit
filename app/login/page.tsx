@@ -167,9 +167,13 @@ export default function LoginPage() {
               {/* Terms */}
               <p className="text-xs text-center text-gray-500 mt-8 leading-relaxed">
                 Ao continuar, você concorda com nossos{' '}
-                <span className="text-purple-600 hover:underline cursor-pointer font-medium">Termos de Uso</span>
+                <Link href="/termos" className="text-purple-600 hover:underline cursor-pointer font-medium">
+                  Termos de Uso
+                </Link>
                 {' '}e{' '}
-                <span className="text-purple-600 hover:underline cursor-pointer font-medium">Política de Privacidade</span>
+                <Link href="/privacidade" className="text-purple-600 hover:underline cursor-pointer font-medium">
+                  Política de Privacidade
+                </Link>
               </p>
             </div>
           </div>

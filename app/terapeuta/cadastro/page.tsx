@@ -452,9 +452,19 @@ export default function CadastroTerapeutaPage() {
           </Card>
 
           {/* Info */}
-          <div className="mt-8 text-center text-gray-500 text-sm">
+          <div className="mt-8 text-center text-gray-500 text-sm space-y-2">
             <p>Após o cadastro, seu perfil será analisado pela nossa equipe.</p>
             <p>Você receberá um email quando for aprovado.</p>
+            <p className="text-xs mt-4">
+              Ao cadastrar, você concorda com nossos{' '}
+              <Link href="/termos" className="text-purple-400 hover:text-purple-300">
+                Termos de Uso
+              </Link>
+              {' '}e{' '}
+              <Link href="/privacidade" className="text-purple-400 hover:text-purple-300">
+                Política de Privacidade
+              </Link>
+            </p>
           </div>
         </div>
       </div>

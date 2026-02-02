@@ -95,8 +95,11 @@ export async function GET(request: Request) {
       console.warn('[AUTH CALLBACK] Nenhum code fornecido')
     }
 
-    console.log('[AUTH CALLBACK] Redirecionando para:', next)
-    return NextResponse.redirect(new URL(next, request.url))
+    // Adiciona welcome=true para mostrar loader de boas-vindas no dashboard
+    const redirectUrl = new URL(next, request.url)
+    redirectUrl.searchParams.set('welcome', 'true')
+    console.log('[AUTH CALLBACK] Redirecionando para:', redirectUrl.toString())
+    return NextResponse.redirect(redirectUrl)
   } catch (error: any) {
     console.error('[AUTH CALLBACK] ERRO GERAL:', error.message)
     console.error('[AUTH CALLBACK] Stack:', error.stack)

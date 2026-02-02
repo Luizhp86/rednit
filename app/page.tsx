@@ -756,7 +756,7 @@ export default function LandingPage() {
           <div className="max-w-3xl mx-auto">
             {/* Contato */}
             <div className="text-center mb-10">
-              <h3 className="font-display text-xl font-bold text-gray-900 mb-5">Dúvidas? Fale com o desenvolvedor</h3>
+              <h3 className="font-display text-xl font-bold text-gray-900 mb-5">Dúvidas, sugestões ou reclamações? Fale com o desenvolvedor via WhatsApp</h3>
               <a
                 href="https://wa.me/5511937756627?text=Olá!%20Vim%20do%20Radar%20Match"
                 target="_blank"
