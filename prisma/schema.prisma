@@ -7,25 +7,26 @@ datasource db {
 }
 
 model User {
-  id                String       @id @default(uuid())
-  email             String       @unique
-  name              String?
-  plan              Plan         @default(FREE)
-  creditsFreeDaily  Int          @default(1)
-  creditsPaid       Int          @default(0)
-  proUntil          DateTime?
-  lastDailyReset    DateTime?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-  facebook          String?
-  hasSeenOnboarding Boolean      @default(false)
-  instagram         String?
-  phone             String?
-  stripeCustomerId  String?      @unique
-  analyses          Analysis[]
-  entitlements      Entitlement?
-  leads             Lead[]
-  payments          Payment[]
+  id                                    String       @id @default(uuid())
+  email                                 String       @unique
+  name                                  String?
+  plan                                  Plan         @default(FREE)
+  creditsFreeDaily                      Int          @default(1)
+  creditsPaid                           Int          @default(0)
+  proUntil                              DateTime?
+  lastDailyReset                        DateTime?
+  createdAt                             DateTime     @default(now())
+  updatedAt                             DateTime     @updatedAt
+  facebook                              String?
+  hasSeenOnboarding                     Boolean      @default(false)
+  hasSeenPostFirstAnalysisOnboarding    Boolean      @default(false)
+  instagram                             String?
+  phone                                 String?
+  stripeCustomerId                      String?      @unique
+  analyses                              Analysis[]
+  entitlements                          Entitlement?
+  leads                                 Lead[]
+  payments                              Payment[]
 
   @@map("users")
 }

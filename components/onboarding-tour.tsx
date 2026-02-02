@@ -205,22 +205,16 @@ export function OnboardingTour({ steps, onComplete, onSkip }: OnboardingTourProp
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[100] pointer-events-none">
-        {/* Backdrop SEM blur na área do elemento alvo */}
+        {/* Backdrop com box-shadow criando o "buraco" - elemento destacado fica com cores originais */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
           className="absolute inset-0 pointer-events-auto"
-          style={{
-            background: 'rgba(0, 0, 0, 0.75)',
-            // Remover blur completamente para não desfocar elementos
-            backdropFilter: 'none',
-            WebkitBackdropFilter: 'none',
-          }}
           onClick={onSkip}
         >
-          {/* Spotlight usando box-shadow - cria buraco real SEM blur */}
+          {/* Spotlight usando box-shadow - cria buraco real para o elemento destacado */}
           <motion.div
             layout
             transition={{ duration: 0.4, ease: 'easeInOut' }}
@@ -238,7 +232,7 @@ export function OnboardingTour({ steps, onComplete, onSkip }: OnboardingTourProp
           />
         </motion.div>
 
-        {/* Highlight ring around target - FORA do backdrop para não ter blur */}
+        {/* Highlight ring around target - cria o anel roxo brilhante */}
         <motion.div
           layout
           transition={{ duration: 0.4, ease: 'easeInOut' }}

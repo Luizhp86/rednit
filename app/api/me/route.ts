@@ -36,6 +36,7 @@ export async function GET() {
           email: user.email!,
           name: user.user_metadata?.full_name || user.email!,
           hasSeenOnboarding: false, // Garantir que novos usuários vejam o onboarding
+          hasSeenPostFirstAnalysisOnboarding: false, // Garantir que novos usuários vejam o onboarding pós-primeira análise
         },
         include: {
           entitlements: true,
@@ -100,6 +101,7 @@ export async function GET() {
     // NOTA: hasSeenOnboarding pode ser undefined se a migration ainda não foi executada
     // Garantir que sempre retorne um boolean (false quando undefined)
     const hasSeenOnboarding = (dbUser as any).hasSeenOnboarding ?? false
+    const hasSeenPostFirstAnalysisOnboarding = (dbUser as any).hasSeenPostFirstAnalysisOnboarding ?? false
     
     return NextResponse.json({
       id: dbUser.id,
@@ -109,6 +111,7 @@ export async function GET() {
       instagram: dbUser.instagram,
       facebook: dbUser.facebook,
       hasSeenOnboarding: hasSeenOnboarding, // Sempre retorna boolean (false ou true)
+      hasSeenPostFirstAnalysisOnboarding: hasSeenPostFirstAnalysisOnboarding, // Sempre retorna boolean (false ou true)
       stats: {
         totalAnalyses,
       },
@@ -154,7 +157,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, phone, instagram, facebook, hasSeenOnboarding } = body
+    const { name, phone, instagram, facebook, hasSeenOnboarding, hasSeenPostFirstAnalysisOnboarding } = body
 
     // Verificar se é a primeira vez que o telefone está sendo adicionado
     const isFirstPhone = !dbUser.phone && phone
@@ -166,6 +169,7 @@ export async function PATCH(request: NextRequest) {
     if (instagram !== undefined) updateData.instagram = instagram || null
     if (facebook !== undefined) updateData.facebook = facebook || null
     if (hasSeenOnboarding !== undefined) updateData.hasSeenOnboarding = hasSeenOnboarding
+    if (hasSeenPostFirstAnalysisOnboarding !== undefined) updateData.hasSeenPostFirstAnalysisOnboarding = hasSeenPostFirstAnalysisOnboarding
 
     const updatedUser = await prisma.user.update({
       where: { id: dbUser.id },

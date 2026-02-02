@@ -452,6 +452,14 @@ export default function RouteCorrectionPage() {
         {/* Back Link */}
         <Link
           href="/dashboard"
+          onClick={() => {
+            // Marcar que o usuário completou a visualização da análise de comportamento
+            if (localStorage.getItem('visiting_route_correction') === 'true') {
+              localStorage.setItem('just_completed_route_correction', 'true')
+              localStorage.removeItem('visiting_route_correction')
+              console.log('[ROUTE-CORRECTION] Marcado para destacar botão especialista no dashboard')
+            }
+          }}
           className="inline-flex items-center gap-2.5 text-purple-600 hover:text-purple-700 mb-6 sm:mb-8 text-sm font-medium hover:bg-purple-50 px-3 py-2 rounded-xl -ml-3 transition-all animate-fade-in-up"
         >
           <ArrowLeft className="w-4 h-4" />
