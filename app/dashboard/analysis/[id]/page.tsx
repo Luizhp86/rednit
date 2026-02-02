@@ -646,7 +646,7 @@ export default function AnalysisPage() {
             <div className="animate-fade-in-up">
               <h2 className="font-display text-xl sm:text-2xl font-bold text-gray-900 mb-6">Sua Análise Completa</h2>
               <div className="relative" onMouseEnter={() => setAutoAdvancePaused(true)} onMouseLeave={() => setAutoAdvancePaused(false)}>
-                <div className="h-[520px] overflow-hidden rounded-3xl flex flex-col">
+                <div className="h-[520px] overflow-hidden rounded-3xl flex flex-col touch-pan-y">
                   <AnimatePresence mode="wait" initial={false} custom={carouselDirection}>
                     <motion.div
                       key={currentKey}
@@ -660,7 +660,26 @@ export default function AnalysisPage() {
                       animate="center"
                       exit="exit"
                       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                      className="w-full h-full overflow-y-auto"
+                      drag="x"
+                      dragConstraints={{ left: 0, right: 0 }}
+                      dragElastic={0.2}
+                      onDragEnd={(e, { offset, velocity }) => {
+                        const swipeThreshold = 50
+                        const velocityThreshold = 300
+                        
+                        if (offset.x < -swipeThreshold || velocity.x < -velocityThreshold) {
+                          // Swipe para esquerda = próximo slide
+                          setCarouselDirection(1)
+                          setCarouselIndex((i) => (i + 1) % slideKeys.length)
+                          setAutoAdvancePaused(true)
+                        } else if (offset.x > swipeThreshold || velocity.x > velocityThreshold) {
+                          // Swipe para direita = slide anterior
+                          setCarouselDirection(-1)
+                          setCarouselIndex((i) => (i - 1 + slideKeys.length) % slideKeys.length)
+                          setAutoAdvancePaused(true)
+                        }
+                      }}
+                      className="w-full h-full overflow-y-auto cursor-grab active:cursor-grabbing"
                     >
                       {currentKey === 'executive_summary' && (
                         <div className="h-full min-h-[480px] flex flex-col">
@@ -1139,6 +1158,12 @@ export default function AnalysisPage() {
                 </div>
                 {slideKeys.length > 1 && (
                   <div className="flex flex-col items-center gap-3 mt-6">
+                    {/* Dica de swipe para mobile */}
+                    <div className="sm:hidden flex items-center gap-2 text-xs text-gray-500">
+                      <ChevronLeft className="w-4 h-4 animate-pulse" />
+                      <span>Arraste para navegar</span>
+                      <ChevronRight className="w-4 h-4 animate-pulse" />
+                    </div>
                     <span className="text-sm font-medium text-gray-500 tabular-nums">
                       Slide {carouselIndex % slideKeys.length + 1} de {slideKeys.length}
                     </span>

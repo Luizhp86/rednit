@@ -103,6 +103,8 @@ export default function NewAnalysisPage() {
   const [showSpecialistTeaser, setShowSpecialistTeaser] = useState(false)
   const [limitModalLeadSubmitted, setLimitModalLeadSubmitted] = useState(false)
   const [limitModalSubmitting, setLimitModalSubmitting] = useState(false)
+  const [specialistTeaserLeadSubmitted, setSpecialistTeaserLeadSubmitted] = useState(false)
+  const [specialistTeaserSubmitting, setSpecialistTeaserSubmitting] = useState(false)
   const [userData, setUserData] = useState<{
     name: string | null
     email: string
@@ -768,68 +770,124 @@ export default function NewAnalysisPage() {
             
             {/* Content */}
             <div className="relative">
-              {/* Icon/Emoji com efeito de brilho */}
-              <div className="relative inline-block mb-6">
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-green-400 rounded-full blur-xl opacity-40 animate-pulse" />
-                <div className="relative text-7xl">💚</div>
-              </div>
-              
-              {/* Título */}
-              <h3 className="font-display text-3xl sm:text-4xl font-bold text-gray-900 mb-4 leading-tight">
-                Precisa de ajuda com essa relação?
-              </h3>
-              
-              {/* Subtexto */}
-              <p className="text-gray-600 text-base sm:text-lg mb-8 leading-relaxed">
-                Às vezes, conversar com um <strong className="text-emerald-600">especialista</strong> pode trazer 
-                clareza e te ajudar a tomar melhores decisões. Estamos aqui para você.
-              </p>
-              
-              {/* Botões */}
-              <div className="space-y-3">
-                {/* Botão principal com animação pulsante */}
-                {userData?.specialist?.whatsapp ? (
-                  <a
-                    href={`https://wa.me/55${userData.specialist.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Estou preenchendo o questionário no Radar Match e gostaria de conversar sobre minha relação.')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setShowSpecialistTeaser(false)}
-                    className="specialist-teaser-button w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-8 py-5 rounded-2xl font-bold text-lg transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 group"
-                  >
-                    <MessageCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                    Falar com Especialista
-                    <Heart className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  </a>
-                ) : (
+              {specialistTeaserLeadSubmitted ? (
+                /* Lead enviado com sucesso */
+                <>
+                  <div className="relative inline-block mb-5">
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-green-400 rounded-full blur-xl opacity-30 animate-pulse" />
+                    <div className="relative text-6xl">💚</div>
+                  </div>
+                  
+                  <h3 className="font-display text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+                    Perfeito!
+                  </h3>
+                  
+                  <p className="text-gray-600 text-base mb-6 leading-relaxed">
+                    Um especialista entrará em contato com você em breve pelo WhatsApp ou telefone cadastrado.
+                  </p>
+                  
                   <button
                     onClick={() => {
-                      const whatsappUrl = `https://wa.me/5511937756627?text=${encodeURIComponent('Olá! Estou preenchendo o questionário no Radar Match e gostaria de conversar sobre minha relação.')}`
-                      window.open(whatsappUrl, '_blank')
                       setShowSpecialistTeaser(false)
+                      setSpecialistTeaserLeadSubmitted(false)
                     }}
-                    className="specialist-teaser-button w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-8 py-5 rounded-2xl font-bold text-lg transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 group"
+                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white px-6 py-4 rounded-2xl font-bold text-base transition-all shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 flex items-center justify-center gap-2"
                   >
-                    <MessageCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                    Falar com Especialista
-                    <Heart className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    Continuar preenchendo
+                    <ArrowRight className="w-5 h-5" />
                   </button>
-                )}
-                
-                {/* Botão secundário */}
-                <button
-                  onClick={() => setShowSpecialistTeaser(false)}
-                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-4 rounded-2xl font-semibold text-base transition-all flex items-center justify-center gap-2"
-                >
-                  Continuar sozinho(a)
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              </div>
-              
-              {/* Nota de privacidade */}
-              <p className="text-xs text-gray-500 mt-6 flex items-center justify-center gap-1.5">
-                <Shield className="w-3.5 h-3.5" />
-                <span>Seus dados estão protegidos</span>
-              </p>
+                </>
+              ) : (
+                /* Modal padrão */
+                <>
+                  {/* Icon/Emoji com efeito de brilho */}
+                  <div className="relative inline-block mb-6">
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-green-400 rounded-full blur-xl opacity-40 animate-pulse" />
+                    <div className="relative text-7xl">💚</div>
+                  </div>
+                  
+                  {/* Título */}
+                  <h3 className="font-display text-3xl sm:text-4xl font-bold text-gray-900 mb-4 leading-tight">
+                    Precisa de ajuda com essa relação?
+                  </h3>
+                  
+                  {/* Subtexto */}
+                  <p className="text-gray-600 text-base sm:text-lg mb-8 leading-relaxed">
+                    Às vezes, conversar com um <strong className="text-emerald-600">especialista</strong> pode trazer 
+                    clareza e te ajudar a tomar melhores decisões. Estamos aqui para você.
+                  </p>
+                  
+                  {/* Botões */}
+                  <div className="space-y-3">
+                    {/* Botão principal com animação pulsante */}
+                    {userData?.specialist?.whatsapp ? (
+                      <a
+                        href={`https://wa.me/55${userData.specialist.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Estou preenchendo o questionário no Radar Match e gostaria de conversar sobre minha relação.')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setShowSpecialistTeaser(false)}
+                        className="specialist-teaser-button w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-8 py-5 rounded-2xl font-bold text-lg transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 group"
+                      >
+                        <MessageCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                        Falar com Especialista
+                        <Heart className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                      </a>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          setSpecialistTeaserSubmitting(true)
+                          try {
+                            const response = await fetch('/api/lead/generate', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                type: 'CTA',
+                                userEmail: userData?.email || '',
+                                userPhone: userData?.phone || '00000000000',
+                                userName: userData?.name || '',
+                              })
+                            })
+                            if (response.ok) {
+                              setSpecialistTeaserLeadSubmitted(true)
+                            }
+                          } catch (error) {
+                            console.error('Erro ao gerar lead:', error)
+                          } finally {
+                            setSpecialistTeaserSubmitting(false)
+                          }
+                        }}
+                        disabled={specialistTeaserSubmitting}
+                        className="specialist-teaser-button w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-8 py-5 rounded-2xl font-bold text-lg transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 group disabled:opacity-50"
+                      >
+                        {specialistTeaserSubmitting ? (
+                          <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <MessageCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                            Quero falar com um especialista
+                            <Heart className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                          </>
+                        )}
+                      </button>
+                    )}
+                    
+                    {/* Botão secundário */}
+                    <button
+                      onClick={() => setShowSpecialistTeaser(false)}
+                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-4 rounded-2xl font-semibold text-base transition-all flex items-center justify-center gap-2"
+                    >
+                      Continuar sozinho(a)
+                      <ArrowRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                  
+                  {/* Nota de privacidade */}
+                  <p className="text-xs text-gray-500 mt-6 flex items-center justify-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>Seus dados estão protegidos</span>
+                  </p>
+                </>
+              )}
             </div>
           </motion.div>
         </div>
