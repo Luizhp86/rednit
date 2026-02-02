@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -40,6 +40,14 @@ type RouteCorrection = {
 }
 
 export default function DashboardPage() {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <DashboardPageInner />
+    </Suspense>
+  )
+}
+
+function DashboardPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
