@@ -68,17 +68,24 @@ if (databaseUrl && databaseUrl.startsWith('postgres')) {
       pool = globalForPrisma.pgPool
       console.log('[PRISMA] Reutilizando pool existente')
     } else {
+      // Usar pool mínimo para evitar "max clients reached" no Supabase Session mode
+      // Recomendação: usar Supabase Pooler (porta 6543) para melhor performance
       pool = new Pool({
         connectionString: databaseUrl,
-        connectionTimeoutMillis: 5000,
-        idleTimeoutMillis: isDev ? 5000 : 10000, // Libera conexões idle rapidamente
-        max: isDev ? 1 : 2, // Pool pequeno para evitar esgotar conexões do Supabase
+
+        connectionTimeoutMillis: 10000,
+        idleTimeoutMillis: 1000, // Liberar conexões idle em 1 segundo
+        max: 1, // Apenas 1 conexão por instância serverless
         min: 0, // Não manter conexões ociosas
         allowExitOnIdle: true, // Permite que o processo encerre quando idle
       })
       
       globalForPrisma.pgPool = pool
+
       console.log('[PRISMA] Novo pool criado (max:', isDev ? 1 : 2, ')')
+
+
+
       
       // Registrar cleanup para quando o processo encerrar
       if (!globalForPrisma.cleanupRegistered) {
