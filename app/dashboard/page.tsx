@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/logo'
 import { PhoneInputModal } from '@/components/phone-input-modal'
 import { PageLoader } from '@/components/page-loader'
+import { FloatingLoader } from '@/components/floating-loader'
 import { OnboardingTour, OnboardingStep } from '@/components/onboarding-tour'
 import { BarChart3, TrendingUp, Brain, Shield, ArrowRight, Sparkles, Compass, X, AlertTriangle, CheckCircle2, MessageCircle, Heart, Phone, Menu, LogOut, User, ChevronRight, Flame, Target, Zap, Trash2 } from 'lucide-react'
 
@@ -40,10 +41,12 @@ type RouteCorrection = {
 
 export default function DashboardPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
+  const [showWelcomeLoader, setShowWelcomeLoader] = useState(false)
   // Modelo B2B: Leads não têm planos - todos têm acesso completo
   const [routeCorrection, setRouteCorrection] = useState<RouteCorrection | null>(null)
   const [showMinAnalysesModal, setShowMinAnalysesModal] = useState(false)
@@ -83,6 +86,26 @@ export default function DashboardPage() {
     if (genero === 'ELA') return '/images/mulher.svg'
     return null
   }
+
+  // Mostrar loader de boas-vindas quando usuário acabou de logar
+  useEffect(() => {
+    const welcome = searchParams.get('welcome')
+    if (welcome === 'true') {
+      setShowWelcomeLoader(true)
+      
+      // Remove a query param da URL sem recarregar a página
+      const url = new URL(window.location.href)
+      url.searchParams.delete('welcome')
+      window.history.replaceState({}, '', url.toString())
+      
+      // Esconde o loader após 5 segundos
+      const timer = setTimeout(() => {
+        setShowWelcomeLoader(false)
+      }, 5000)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [searchParams])
 
   // Mostrar onboarding APÓS o loading terminar e elementos estarem renderizados
   useEffect(() => {
@@ -596,6 +619,13 @@ export default function DashboardPage() {
       position: 'bottom',
     },
   ]
+
+  // Mostrar loader de boas-vindas após login
+  if (showWelcomeLoader) {
+    return (
+      <FloatingLoader message="Bem vindo ao seu coach de relacionamentos saudáveis" />
+    )
+  }
 
   if (loading) {
     return (

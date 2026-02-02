@@ -100,6 +100,7 @@ export default function NewAnalysisPage() {
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [showTransitionLoader, setShowTransitionLoader] = useState(false)
   const [showLimitModal, setShowLimitModal] = useState(false)
+  const [showSpecialistTeaser, setShowSpecialistTeaser] = useState(false)
   const [limitModalLeadSubmitted, setLimitModalLeadSubmitted] = useState(false)
   const [limitModalSubmitting, setLimitModalSubmitting] = useState(false)
   const [userData, setUserData] = useState<{
@@ -229,6 +230,7 @@ export default function NewAnalysisPage() {
   const progress = ((safeIndex + 1) / visibleQuestions.length) * 100
   const isLastQuestion = safeIndex === visibleQuestions.length - 1
   const isFirstQuestion = safeIndex === 0
+  const midQuestionIndex = Math.floor(visibleQuestions.length / 2)
 
   const canProceed = () => {
     if (!currentQuestion.required) return true
@@ -248,7 +250,13 @@ export default function NewAnalysisPage() {
         setTimeout(() => {
           setCurrentQuestionIndex(nextIndex)
           window.scrollTo({ top: 0, behavior: 'smooth' })
-          setTimeout(() => setShowTransitionLoader(false), 300)
+          setTimeout(() => {
+            setShowTransitionLoader(false)
+            // Verificar se acabou de passar da pergunta do meio
+            if (nextIndex === midQuestionIndex + 1) {
+              setShowSpecialistTeaser(true)
+            }
+          }, 300)
         }, 400)
       }
     }
@@ -323,7 +331,17 @@ export default function NewAnalysisPage() {
           
           if (adjustedIdx < updatedVisibleQuestions.length - 1) {
             window.scrollTo({ top: 0, behavior: 'smooth' })
-            return adjustedIdx + 1
+            const nextIdx = adjustedIdx + 1
+            
+            // Verificar se acabou de passar da pergunta do meio
+            if (nextIdx === midQuestionIndex + 1) {
+              // Mostrar teaser de especialista
+              setTimeout(() => {
+                setShowSpecialistTeaser(true)
+              }, 350)
+            }
+            
+            return nextIdx
           }
           return adjustedIdx
         })
@@ -733,6 +751,90 @@ export default function NewAnalysisPage() {
         </AnimatePresence>
       </div>
 
+      {/* Modal de Teaser de Especialista */}
+      {showSpecialistTeaser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative bg-white rounded-3xl border border-purple-100 shadow-2xl max-w-lg w-full p-8 sm:p-10 text-center overflow-hidden"
+          >
+            {/* Decorative gradient top */}
+            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-500" />
+            
+            {/* Background decorative elements */}
+            <div className="absolute top-0 left-0 w-32 h-32 bg-emerald-200/30 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
+            <div className="absolute bottom-0 right-0 w-32 h-32 bg-green-200/30 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
+            
+            {/* Content */}
+            <div className="relative">
+              {/* Icon/Emoji com efeito de brilho */}
+              <div className="relative inline-block mb-6">
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-green-400 rounded-full blur-xl opacity-40 animate-pulse" />
+                <div className="relative text-7xl">💚</div>
+              </div>
+              
+              {/* Título */}
+              <h3 className="font-display text-3xl sm:text-4xl font-bold text-gray-900 mb-4 leading-tight">
+                Precisa de ajuda com essa relação?
+              </h3>
+              
+              {/* Subtexto */}
+              <p className="text-gray-600 text-base sm:text-lg mb-8 leading-relaxed">
+                Às vezes, conversar com um <strong className="text-emerald-600">especialista</strong> pode trazer 
+                clareza e te ajudar a tomar melhores decisões. Estamos aqui para você.
+              </p>
+              
+              {/* Botões */}
+              <div className="space-y-3">
+                {/* Botão principal com animação pulsante */}
+                {userData?.specialist?.whatsapp ? (
+                  <a
+                    href={`https://wa.me/55${userData.specialist.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Estou preenchendo o questionário no Radar Match e gostaria de conversar sobre minha relação.')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setShowSpecialistTeaser(false)}
+                    className="specialist-teaser-button w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-8 py-5 rounded-2xl font-bold text-lg transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 group"
+                  >
+                    <MessageCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                    Falar com Especialista
+                    <Heart className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => {
+                      const whatsappUrl = `https://wa.me/5511937756627?text=${encodeURIComponent('Olá! Estou preenchendo o questionário no Radar Match e gostaria de conversar sobre minha relação.')}`
+                      window.open(whatsappUrl, '_blank')
+                      setShowSpecialistTeaser(false)
+                    }}
+                    className="specialist-teaser-button w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-8 py-5 rounded-2xl font-bold text-lg transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 group"
+                  >
+                    <MessageCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                    Falar com Especialista
+                    <Heart className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  </button>
+                )}
+                
+                {/* Botão secundário */}
+                <button
+                  onClick={() => setShowSpecialistTeaser(false)}
+                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-4 rounded-2xl font-semibold text-base transition-all flex items-center justify-center gap-2"
+                >
+                  Continuar sozinho(a)
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
+              
+              {/* Nota de privacidade */}
+              <p className="text-xs text-gray-500 mt-6 flex items-center justify-center gap-1.5">
+                <Shield className="w-3.5 h-3.5" />
+                <span>Seus dados estão protegidos</span>
+              </p>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {/* Modal de Limite de Análises */}
       {showLimitModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
@@ -868,6 +970,29 @@ export default function NewAnalysisPage() {
           </motion.div>
         </div>
       )}
+
+      {/* Custom Styles */}
+      <style jsx global>{`
+        @keyframes specialist-pulse {
+          0% {
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+          }
+          70% {
+            box-shadow: 0 0 0 15px rgba(34, 197, 94, 0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+          }
+        }
+        
+        .specialist-teaser-button {
+          animation: specialist-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        .specialist-teaser-button:hover {
+          animation: none;
+        }
+      `}</style>
     </div>
   )
 }
