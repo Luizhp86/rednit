@@ -233,6 +233,16 @@ export default function LoginTerapeutaPage() {
                 Cadastre-se aqui
               </Link>
             </p>
+            <p className="text-gray-500 text-xs mt-4">
+              Ao continuar, você concorda com nossos{' '}
+              <Link href="/termos" className="text-purple-400 hover:text-purple-300">
+                Termos de Uso
+              </Link>
+              {' '}e{' '}
+              <Link href="/privacidade" className="text-purple-400 hover:text-purple-300">
+                Política de Privacidade
+              </Link>
+            </p>
           </div>
         </div>
       </div>
