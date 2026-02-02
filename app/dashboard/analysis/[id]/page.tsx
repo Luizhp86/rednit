@@ -18,8 +18,9 @@ type AnalysisResult = {
   stage: string
   isPaid: boolean
   createdAt: string
+  nome_match?: string // Nome do match no nível raiz
   free_teaser: any & { nome_match?: string }
-  premium: (any & { nome_match?: string }) | null
+  premium: (any & { nome_match?: string; encouragement_message?: string; next_actions?: string[] }) | null
   has_access: boolean
 }
 
@@ -347,8 +348,8 @@ export default function AnalysisPage() {
 
         {/* Title */}
         <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-6 sm:mb-8 text-gray-900 tracking-tight animate-fade-in-up animation-delay-100">
-          {analysis.premium?.nome_match || analysis.free_teaser?.nome_match 
-            ? <>Análise de <span className="text-gradient-primary">{analysis.premium?.nome_match || analysis.free_teaser?.nome_match}</span></>
+          {analysis.nome_match || analysis.premium?.nome_match || analysis.free_teaser?.nome_match 
+            ? <>Análise de <span className="text-gradient-primary">{analysis.nome_match || analysis.premium?.nome_match || analysis.free_teaser?.nome_match}</span></>
             : 'Resultado da Análise'}
         </h1>
 
@@ -690,7 +691,7 @@ export default function AnalysisPage() {
                                 transition={{ delay: 0.4 }}
                                 className="text-gray-400 text-base"
                               >
-                                seu relacionamento com <span className="text-white font-semibold">{premium?.nome_match || 'seu match'}</span>
+                                seu relacionamento com <span className="text-white font-semibold">{analysis.nome_match || premium?.nome_match || 'seu match'}</span>
                               </motion.p>
                             </div>
 
@@ -1098,7 +1099,7 @@ export default function AnalysisPage() {
                     userEmail={userData.email}
                     userPhone={userData.phone}
                     analysisId={id}
-                    matchName={premium?.nome_match || free_teaser?.nome_match}
+                    matchName={analysis.nome_match || premium?.nome_match || free_teaser?.nome_match}
                     hasRedFlags={premium?.red_flags?.length > 0 || free_teaser?.red_flag}
                     onPhoneUpdated={(phone) => setUserData(prev => prev ? { ...prev, phone } : null)}
                     therapist={userData.therapist}

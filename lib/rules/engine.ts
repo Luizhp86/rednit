@@ -453,21 +453,203 @@ function calculateScores(
     baseScores.compat_objetivo -= 35
   }
   if (input.respeito_limites === 'DEBOCHA') {
-    baseScores.compat_objetivo -= 50 // Praticamente zera
+    baseScores.compat_objetivo -= 50 // Praticamente minimiza
   }
 
-  // Clamp todos os scores
-  // Risco de Ghosting e Enrolação: mínimo 10, máximo 90 (nunca 0% ou 100%)
+  // ============================================
+  // GRANULARIZAÇÃO DE RISCO_ENROLACAO
+  // Adicionar fatores extras para mais variação
+  // ============================================
+  
+  // Combinação de fatores que indicam enrolação
+  if (input.iniciativa === 'VOCE' && input.frequencia_contato === 'SOME') {
+    baseScores.risco_enrolacao += 12 // Você sempre puxa e ainda some = enrolação alta
+  }
+  if (input.iniciativa === 'VOCE' && input.tempo_resposta === 'DIAS') {
+    baseScores.risco_enrolacao += 8 // Você sempre puxa e demora dias = baixa prioridade
+  }
+  if (input.fala_futuro === 'FALA' && input.encontro_marcado === 'NAO') {
+    baseScores.risco_enrolacao += 15 // Fala de futuro mas não marca encontro = future faking
+  }
+  if (input.curiosidade_por_voce === 'BAIXA' && input.frequencia_contato === 'SOME') {
+    baseScores.risco_enrolacao += 10 // Desinteressado e some = só quer passar tempo
+  }
+  
+  // Fatores que REDUZEM enrolação
+  if (input.iniciativa === 'MEIO_A_MEIO' && input.frequencia_contato === 'DIARIA') {
+    baseScores.risco_enrolacao -= 12 // Equilibrado e frequente = investimento real
+  }
+  if (input.encontro_marcado === 'SIM' && input.cancelou_encontro === 'NAO') {
+    baseScores.risco_enrolacao -= 10 // Marcou e não cancelou = ação real
+  }
+  if (input.fala_futuro === 'FALA_E_FAZ' && input.encontro_marcado === 'SIM') {
+    baseScores.risco_enrolacao -= 15 // Cumpre o que promete = confiável
+  }
+  if (input.curiosidade_por_voce === 'ALTA' && input.tempo_resposta === 'MINUTOS') {
+    baseScores.risco_enrolacao -= 8 // Interessado e responsivo = engajado
+  }
+  
+  // ============================================
+  // GRANULARIZAÇÃO DE COMPAT_OBJETIVO
+  // Adicionar mais variação por combinações
+  // ============================================
+  
+  // Padrões específicos por objetivo
+  if (userObjective === 'NAMORO') {
+    // Combo muito positivo para namoro
+    if (input.fala_futuro === 'FALA_E_FAZ' && input.respeito_limites === 'RESPEITA') {
+      baseScores.compat_objetivo += 12
+    }
+    // Combo preocupante para namoro
+    if (input.disponivel_so_madrugada === 'SIM' && input.curiosidade_por_voce === 'BAIXA') {
+      baseScores.compat_objetivo -= 18
+    }
+  } else if (userObjective === 'CONHECER') {
+    // Para conhecer, equilíbrio é mais importante
+    if (input.iniciativa === 'MEIO_A_MEIO' && input.curiosidade_por_voce === 'ALTA') {
+      baseScores.compat_objetivo += 12
+    }
+    if (input.frequencia_contato === 'SOME' && input.tempo_resposta === 'DIAS') {
+      baseScores.compat_objetivo -= 15 // Desengajado
+    }
+  } else if (userObjective === 'CASUAL') {
+    // Para casual, respeito e comunicação clara importam
+    if (input.respeito_limites === 'RESPEITA' && input.frequencia_contato !== 'SOME') {
+      baseScores.compat_objetivo += 10
+    }
+    if (input.respeito_limites !== 'RESPEITA' && input.iniciativa === 'VOCE') {
+      baseScores.compat_objetivo -= 12 // Você sempre puxa e não respeita = situação ruim
+    }
+  }
+  
+  // Fatores universais de variação
+  if (input.sinais_alerta && input.sinais_alerta.length >= 3) {
+    baseScores.compat_objetivo -= 8 // Muitos alertas = compatibilidade reduzida
+    baseScores.risco_enrolacao += 5
+  }
+  if (input.sinais_alerta && input.sinais_alerta.length >= 5) {
+    baseScores.compat_objetivo -= 12 // Situação muito preocupante
+    baseScores.risco_enrolacao += 8
+  }
+  
+  // Variação por estágio (mais tempo sem progresso = pior)
+  if (input.estagio === 'TALKING' && input.encontro_marcado === 'NAO') {
+    baseScores.risco_enrolacao += 7 // Conversando mas não marcou = estagnado
+    baseScores.compat_objetivo -= 5
+  }
+  if (input.estagio === 'POST_DATE' && input.fala_futuro === 'NAO') {
+    baseScores.risco_enrolacao += 10 // Após encontro e não fala de futuro = interesse físico apenas
+    baseScores.compat_objetivo -= 8
+  }
+
+  // ============================================
+  // CAMPOS DE FORMULÁRIOS TEMÁTICOS
+  // Adicionar variação baseada em campos específicos
+  // ============================================
+  
+  // Campos do tema "Encontro de Carnaval"
+  if (input.nivel_embriaguez) {
+    if (input.nivel_embriaguez === 'BASTANTE' || input.nivel_embriaguez === 'MUITO') {
+      baseScores.coerencia -= 10 // Decisões sob influência são menos confiáveis
+      baseScores.risco_enrolacao += 8 // Pode ter sido só o momento
+    }
+    if (input.nivel_embriaguez === 'NADA' || input.nivel_embriaguez === 'POUCO') {
+      baseScores.coerencia += 5 // Decisão mais consciente
+      baseScores.risco_enrolacao -= 5
+    }
+  }
+  
+  if (input.vibe_mensagens) {
+    if (input.vibe_mensagens === 'EMPOLGADO' || input.vibe_mensagens === 'CARINHOSO') {
+      baseScores.reciprocidade += 8
+      baseScores.risco_ghosting -= 5
+      baseScores.compat_objetivo += 5
+    }
+    if (input.vibe_mensagens === 'FRIO' || input.vibe_mensagens === 'SECO') {
+      baseScores.reciprocidade -= 12
+      baseScores.risco_enrolacao += 10
+      baseScores.compat_objetivo -= 8
+    }
+    if (input.vibe_mensagens === 'NAO_RESPONDEU') {
+      baseScores.risco_ghosting += 25
+      baseScores.risco_enrolacao += 15
+      baseScores.compat_objetivo -= 15
+    }
+  }
+  
+  if (input.como_despedida) {
+    if (input.como_despedida === 'TROCARAM' || input.como_despedida === 'BEIJO_MAIS') {
+      baseScores.acao_mundo_real += 10
+      baseScores.compat_objetivo += 5
+    }
+    if (input.como_despedida === 'SEM_CONTATO' || input.como_despedida === 'FUGIU') {
+      baseScores.risco_ghosting += 15
+      baseScores.compat_objetivo -= 10
+    }
+  }
+  
+  if (input.quem_mensagem_depois) {
+    if (input.quem_mensagem_depois === 'ELE_ELA') {
+      baseScores.reciprocidade += 10
+      baseScores.risco_enrolacao -= 8
+    }
+    if (input.quem_mensagem_depois === 'NINGUEM') {
+      baseScores.risco_ghosting += 15
+      baseScores.risco_enrolacao += 10
+    }
+    if (input.quem_mensagem_depois === 'EU') {
+      baseScores.reciprocidade -= 8
+      baseScores.risco_enrolacao += 5
+    }
+  }
+  
+  if (input.marcaram_ver_fora) {
+    if (input.marcaram_ver_fora === 'SIM_COM_DATA') {
+      baseScores.acao_mundo_real += 15
+      baseScores.risco_enrolacao -= 12
+      baseScores.compat_objetivo += 10
+    }
+    if (input.marcaram_ver_fora === 'SIM_SEM_DATA') {
+      baseScores.risco_enrolacao += 8 // Interesse mas sem compromisso concreto
+    }
+    if (input.marcaram_ver_fora === 'NAO') {
+      baseScores.risco_enrolacao += 12
+      baseScores.compat_objetivo -= 8
+    }
+  }
+  
+  if (input.tinha_contato_antes) {
+    if (input.tinha_contato_antes === 'SIM') {
+      baseScores.constancia += 8 // Já se conheciam = mais contexto
+      baseScores.compat_objetivo += 5
+    }
+  }
+  
+  if (input.onde_conheceram) {
+    // Contexto influencia expectativas
+    if (input.onde_conheceram === 'APP' || input.onde_conheceram === 'REDE_SOCIAL') {
+      // Contexto digital = intenções mais claras geralmente
+      baseScores.compat_objetivo += 3
+    }
+    if (input.onde_conheceram === 'BALADA' || input.onde_conheceram === 'FESTA' || input.onde_conheceram === 'BLOCO') {
+      // Contexto festa = mais incerteza sobre intenções reais
+      baseScores.risco_enrolacao += 5
+    }
+  }
+
+  // ============================================
+  // CLAMP FINAL: Todos entre 10-90 (nunca certeza absoluta)
+  // ============================================
   const clamped: Scores = {
-    reciprocidade: clamp(baseScores.reciprocidade, 0, 100),
-    constancia: clamp(baseScores.constancia, 0, 100),
-    acao_mundo_real: clamp(baseScores.acao_mundo_real, 0, 100),
-    respeito: clamp(baseScores.respeito, 0, 100),
-    coerencia: clamp(baseScores.coerencia, 0, 100),
-    disponibilidade: clamp(baseScores.disponibilidade, 0, 100),
+    reciprocidade: clamp(baseScores.reciprocidade, 10, 90),
+    constancia: clamp(baseScores.constancia, 10, 90),
+    acao_mundo_real: clamp(baseScores.acao_mundo_real, 10, 90),
+    respeito: clamp(baseScores.respeito, 10, 90),
+    coerencia: clamp(baseScores.coerencia, 10, 90),
+    disponibilidade: clamp(baseScores.disponibilidade, 10, 90),
     risco_ghosting: clamp(baseScores.risco_ghosting, 10, 90),
     risco_enrolacao: clamp(baseScores.risco_enrolacao, 10, 90),
-    compat_objetivo: clamp(baseScores.compat_objetivo, 0, 100)
+    compat_objetivo: clamp(baseScores.compat_objetivo, 10, 90)
   }
 
   return clamped
@@ -774,51 +956,55 @@ function generateFreeTeaser(
   completenessScore: number
 ): FreeTeaser {
   const hypothesis1 = hypotheses[0] || null
+  
+  // Nome do match para personalização (usar "match" se não informado)
+  const matchName = input.nome_match?.trim() || 'match'
 
   // Escolher o maior risco
   const riskType = scores.risco_ghosting > scores.risco_enrolacao ? 'risco_ghosting' : 'risco_enrolacao'
   const riskValue = scores[riskType]
   const riskLabel = riskType === 'risco_ghosting' ? 'Risco de Ghosting' : 'Risco de Enrolação'
 
-  // Headline baseado em psicologia - mais preciso e impactante
-  let headline = '🔍 Análise concluída: padrões identificados'
+  // Headline baseado em psicologia - mais preciso e impactante, usando nome do match
+  let headline = `🔍 Análise de ${matchName} concluída: padrões identificados`
   
   // Prioridade 1: Red flags críticos
   if (scores.respeito < 30) {
-    headline = '🚨 ALERTA CRÍTICO: Sinais de desrespeito detectados'
+    headline = `🚨 ALERTA sobre ${matchName}: Sinais de desrespeito detectados`
   } else if (hypothesis1) {
     const hypothesisLabels: Record<string, string> = {
-      EXPLORANDO: '⚠️ Padrão exploratório: está "conhecendo opções"',
-      BUSCA_FIXO: '💚 Sinais consistentes de interesse genuíno',
-      CARENCIA_VALIDACAO: '🚩 Padrão ansioso: busca validação constante',
-      RECEM_SAIU_RELACAO: '⏰ Possível rebote: atenção aos sinais',
-      SEM_DISPONIBILIDADE_REAL: '⏳ Padrão evitativo: evita compromisso real',
-      INTERESSE_SUPERFICIAL: '⚠️ Interesse superficial: baixo investimento emocional'
+      EXPLORANDO: `⚠️ ${matchName} pode estar "conhecendo opções"`,
+      BUSCA_FIXO: `💚 ${matchName} demonstra interesse genuíno`,
+      CARENCIA_VALIDACAO: `🚩 ${matchName} pode buscar validação constante`,
+      RECEM_SAIU_RELACAO: `⏰ ${matchName} pode estar em rebote`,
+      SEM_DISPONIBILIDADE_REAL: `⏳ ${matchName} pode estar evitando compromisso`,
+      INTERESSE_SUPERFICIAL: `⚠️ ${matchName} demonstra interesse superficial`
     }
     headline = hypothesisLabels[hypothesis1.key] || headline
   } else if (riskValue > 70) {
-    headline = `🚨 Risco elevado: ${riskLabel} em ${riskValue}%`
+    headline = `🚨 ${matchName}: ${riskLabel} elevado em ${riskValue}%`
   } else if (riskValue > 50) {
-    headline = `⚠️ Atenção: ${riskLabel} moderado detectado`
+    headline = `⚠️ ${matchName}: ${riskLabel} moderado detectado`
   } else if (scores.reciprocidade > 70 && scores.constancia > 70 && scores.respeito > 70) {
-    headline = '💚 Sinais muito positivos: reciprocidade, consistência e respeito'
+    headline = `💚 ${matchName} apresenta sinais muito positivos`
   } else if (scores.reciprocidade > 60 && scores.constancia > 60) {
-    headline = '🔍 Sinais moderadamente positivos - continue observando'
+    headline = `🔍 ${matchName} apresenta sinais moderadamente positivos`
   }
 
   // Observe 48h mais específico e acionável
   const observe48h: string[] = []
   if (hypothesis1) {
-    observe48h.push(hypothesis1.observe_to_confirm[0] || 'Continue observando padrões de comportamento')
+    const firstObserve = hypothesis1.observe_to_confirm[0] || `Continue observando padrões de comportamento de ${matchName}`
+    observe48h.push(firstObserve.replace(/a pessoa|o match|match|ele\/ela/gi, matchName))
     if (hypothesis1.observe_to_confirm[1]) {
-      observe48h.push(hypothesis1.observe_to_confirm[1])
+      observe48h.push(hypothesis1.observe_to_confirm[1].replace(/a pessoa|o match|match|ele\/ela/gi, matchName))
     }
   } else if (riskValue > 60) {
-    observe48h.push(`Teste a consistência: observe se o padrão de ${riskLabel.toLowerCase()} se mantém`)
-    observe48h.push('Avalie se há sinais de mudança de comportamento')
+    observe48h.push(`Teste: observe se o padrão de ${riskLabel.toLowerCase()} de ${matchName} se mantém`)
+    observe48h.push(`Avalie se há sinais de mudança de comportamento em ${matchName}`)
   } else {
-    observe48h.push('Observe consistência na comunicação nas próximas 48h')
-    observe48h.push('Verifique se há reciprocidade nas interações')
+    observe48h.push(`Observe a consistência de ${matchName} na comunicação nas próximas 48h`)
+    observe48h.push(`Verifique se ${matchName} demonstra reciprocidade nas interações`)
   }
 
   // Calcular clarity percent
@@ -854,14 +1040,15 @@ function generateFreeTeaser(
     green_flag: !redFlags[0] && greenFlags[0] ? simplifiedFlag : undefined,
     observe_48h: observe48h.slice(0, 1), // Apenas 1 item para criar curiosidade
     locked_cards: [
-      'Top 3 hipóteses completas',
+      `Top 3 hipóteses sobre ${matchName}`,
       'Mapa de risco detalhado',
       'Análise de compatibilidade',
       'Checklist de validação',
       'Plano de ação por estágio'
     ],
-    clarity_percent: clarityPercent
-  }
+    clarity_percent: clarityPercent,
+    nome_match: matchName // Adicionar nome_match ao free_teaser
+  } as FreeTeaser & { nome_match: string }
 }
 
 function generatePremiumReport(
@@ -871,30 +1058,35 @@ function generatePremiumReport(
   redFlags: FlagResult[],
   greenFlags: FlagResult[]
 ): PremiumReport {
+  // Nome do match para personalização (usar "match" se não informado)
+  const matchName = input.nome_match?.trim() || 'match'
+  const pronome = input.genero_match === 'ELE' ? 'ele' : 'ela'
+  const pronomePossessivo = input.genero_match === 'ELE' ? 'dele' : 'dela'
+  
   const hypothesisLabels: Record<string, { title: string; description: string }> = {
     EXPLORANDO: { 
-      title: 'Explorando opções', 
-      description: 'Mantém conexão superficial, evita compromisso real. Pode estar conversando com múltiplas pessoas.' 
+      title: `${matchName} pode estar explorando opções`, 
+      description: `${matchName} mantém uma conexão superficial e evita compromisso real. Pode estar conversando com múltiplas pessoas ao mesmo tempo.` 
     },
     BUSCA_FIXO: { 
-      title: 'Busca relacionamento sério', 
-      description: 'Demonstra investimento consistente e interesse genuíno em construir algo.' 
+      title: `${matchName} parece buscar algo sério`, 
+      description: `${matchName} demonstra investimento consistente e interesse genuíno em construir algo com você.` 
     },
     CARENCIA_VALIDACAO: { 
-      title: 'Busca validação', 
-      description: 'Padrão de apego ansioso - pode ser intenso demais e buscar validação constante.' 
+      title: `${matchName} pode estar buscando validação`, 
+      description: `${matchName} apresenta padrão de apego ansioso - pode ser intenso(a) demais e buscar validação constante.` 
     },
     RECEM_SAIU_RELACAO: { 
-      title: 'Possível rebote', 
-      description: 'Pode estar emocionalmente indisponível ou usando o relacionamento para superar o ex.' 
+      title: `${matchName} pode estar em rebote`, 
+      description: `${matchName} pode estar emocionalmente indisponível ou usando o relacionamento para superar o ex.` 
     },
     SEM_DISPONIBILIDADE_REAL: { 
-      title: 'Indisponível emocionalmente', 
-      description: 'Padrão evitativo - evita intimidade real e mantém distância emocional.' 
+      title: `${matchName} parece indisponível emocionalmente`, 
+      description: `${matchName} apresenta padrão evitativo - evita intimidade real e mantém distância emocional.` 
     },
     INTERESSE_SUPERFICIAL: { 
-      title: 'Interesse superficial', 
-      description: 'Foco no superficial/físico, baixo investimento emocional genuíno.' 
+      title: `${matchName} demonstra interesse superficial`, 
+      description: `${matchName} tem foco no superficial/físico, com baixo investimento emocional genuíno.` 
     }
   }
 
@@ -903,54 +1095,54 @@ function generatePremiumReport(
   // Análise geral baseada nos scores
   const overallHealth = (scores.reciprocidade + scores.constancia + scores.respeito) / 3
   if (overallHealth >= 70) {
-    executiveSummary.push('✅ Sinais gerais positivos - relacionamento potencialmente saudável')
+    executiveSummary.push(`✅ ${matchName} apresenta sinais positivos - o relacionamento tem potencial saudável`)
   } else if (overallHealth >= 50) {
-    executiveSummary.push('⚠️ Sinais mistos - observe com atenção antes de investir mais')
+    executiveSummary.push(`⚠️ ${matchName} apresenta sinais mistos - observe com atenção antes de investir mais`)
   } else {
-    executiveSummary.push('🚨 Sinais preocupantes - considere seriamente se vale continuar')
+    executiveSummary.push(`🚨 ${matchName} apresenta sinais preocupantes - considere seriamente se vale continuar`)
   }
   
   if (hypotheses.length > 0) {
     const h = hypotheses[0]
     const label = hypothesisLabels[h.key]
-    executiveSummary.push(`Perfil provável: ${label?.title || h.key} (${h.confidence === 'HIGH' ? 'alta' : h.confidence === 'MEDIUM' ? 'média' : 'baixa'} confiança)`)
+    executiveSummary.push(`Perfil provável de ${matchName}: ${label?.title?.replace(`${matchName} `, '') || h.key} (${h.confidence === 'HIGH' ? 'alta' : h.confidence === 'MEDIUM' ? 'média' : 'baixa'} confiança)`)
   }
   
   // Destaque dos scores mais relevantes
   if (scores.respeito < 50) {
-    executiveSummary.push(`⚠️ Respeito a limites baixo (${scores.respeito}/100) - sinal de alerta importante`)
+    executiveSummary.push(`⚠️ O respeito de ${matchName} aos seus limites é baixo (${scores.respeito}/100) - sinal de alerta importante`)
   }
   if (scores.reciprocidade < 40) {
-    executiveSummary.push(`⚠️ Reciprocidade baixa (${scores.reciprocidade}/100) - você está investindo mais`)
+    executiveSummary.push(`⚠️ A reciprocidade de ${matchName} é baixa (${scores.reciprocidade}/100) - você está investindo mais do que ${pronome}`)
   }
   if (scores.coerencia < 40) {
-    executiveSummary.push(`⚠️ Coerência baixa (${scores.coerencia}/100) - palavras não batem com ações`)
+    executiveSummary.push(`⚠️ A coerência de ${matchName} é baixa (${scores.coerencia}/100) - palavras não batem com ações`)
   }
   
   if (redFlags.length > 0) {
-    executiveSummary.push(`🚩 ${redFlags.length} red flag(s): ${redFlags.map(f => f.title).join(', ')}`)
+    executiveSummary.push(`🚩 ${redFlags.length} red flag(s) identificado(s) em ${matchName}: ${redFlags.map(f => f.title).join(', ')}`)
   }
   
   if (greenFlags.length > 0) {
-    executiveSummary.push(`💚 ${greenFlags.length} green flag(s): ${greenFlags.map(f => f.title).join(', ')}`)
+    executiveSummary.push(`💚 ${greenFlags.length} green flag(s) identificado(s) em ${matchName}: ${greenFlags.map(f => f.title).join(', ')}`)
   }
 
   // Explicações de risco mais detalhadas
   const riskExplanations: string[] = []
   if (scores.risco_ghosting > 60) {
-    riskExplanations.push(`🔴 Risco alto de ghosting (${scores.risco_ghosting}%) - padrão evitativo identificado, comunicação intermitente`)
+    riskExplanations.push(`🔴 Risco alto de ${matchName} dar ghosting (${scores.risco_ghosting}%) - padrão evitativo identificado, comunicação intermitente`)
   } else if (scores.risco_ghosting > 40) {
-    riskExplanations.push(`🟡 Risco moderado de ghosting (${scores.risco_ghosting}%) - alguns sinais de evitação`)
+    riskExplanations.push(`🟡 Risco moderado de ${matchName} dar ghosting (${scores.risco_ghosting}%) - alguns sinais de evitação`)
   } else {
-    riskExplanations.push(`🟢 Risco baixo de ghosting (${scores.risco_ghosting}%) - comunicação relativamente consistente`)
+    riskExplanations.push(`🟢 Risco baixo de ${matchName} dar ghosting (${scores.risco_ghosting}%) - comunicação relativamente consistente`)
   }
   
   if (scores.risco_enrolacao > 60) {
-    riskExplanations.push(`🔴 Risco alto de enrolação (${scores.risco_enrolacao}%) - promessas sem ações concretas, evita definições`)
+    riskExplanations.push(`🔴 Risco alto de ${matchName} enrolar (${scores.risco_enrolacao}%) - promessas sem ações concretas, evita definições`)
   } else if (scores.risco_enrolacao > 40) {
-    riskExplanations.push(`🟡 Risco moderado de enrolação (${scores.risco_enrolacao}%) - observe se há evolução`)
+    riskExplanations.push(`🟡 Risco moderado de ${matchName} enrolar (${scores.risco_enrolacao}%) - observe se há evolução`)
   } else {
-    riskExplanations.push(`🟢 Risco baixo de enrolação (${scores.risco_enrolacao}%) - sinais de comprometimento`)
+    riskExplanations.push(`🟢 Risco baixo de ${matchName} enrolar (${scores.risco_enrolacao}%) - sinais de comprometimento`)
   }
 
   // Compatibilidade mais detalhada
@@ -964,13 +1156,13 @@ function generatePremiumReport(
   }
   
   const userObjective = input.objetivo_usuario || 'CONHECER'
-  let compatExplanation = `Compatibilidade com seu objetivo (${objetivoLabels[userObjective] || userObjective}): ${scores.compat_objetivo}/100. `
+  let compatExplanation = `Compatibilidade de ${matchName} com seu objetivo (${objetivoLabels[userObjective] || userObjective}): ${scores.compat_objetivo}/100. `
   if (compatibilityAlignment === 'ALINHADO') {
-    compatExplanation += 'O comportamento demonstrado é compatível com o que você busca.'
+    compatExplanation += `O comportamento de ${matchName} é compatível com o que você busca.`
   } else if (compatibilityAlignment === 'PARCIAL') {
-    compatExplanation += 'Há alguns sinais de compatibilidade, mas também pontos de atenção.'
+    compatExplanation += `${matchName} apresenta alguns sinais de compatibilidade, mas também pontos de atenção.`
   } else {
-    compatExplanation += 'O comportamento demonstrado não parece compatível com o que você busca.'
+    compatExplanation += `O comportamento de ${matchName} não parece compatível com o que você busca.`
   }
 
   // Checklist de validação mais específico
@@ -978,59 +1170,62 @@ function generatePremiumReport(
   
   if (hypotheses.length > 0) {
     const h1Confirms = hypotheses[0].observe_to_confirm || []
-    validationChecklist.push(...h1Confirms.slice(0, 2))
+    // Personalizar os itens de confirmação com o nome do match
+    validationChecklist.push(...h1Confirms.slice(0, 2).map(item => 
+      item.replace(/a pessoa|o match|match|ele\/ela/gi, matchName)
+    ))
   }
   
   // Itens baseados nos scores problemáticos
   if (scores.reciprocidade < 50) {
-    validationChecklist.push('Teste: não inicie contato por 48-72h e observe se a pessoa procura você')
+    validationChecklist.push(`Teste: não inicie contato por 48-72h e observe se ${matchName} procura você`)
   }
   if (scores.coerencia < 50) {
-    validationChecklist.push('Anote promessas feitas e verifique se são cumpridas na próxima semana')
+    validationChecklist.push(`Anote as promessas de ${matchName} e verifique se são cumpridas na próxima semana`)
   }
   if (scores.acao_mundo_real < 50) {
-    validationChecklist.push('Proponha algo concreto (encontro, atividade) e observe a resposta')
+    validationChecklist.push(`Proponha algo concreto (encontro, atividade) para ${matchName} e observe a resposta`)
   }
   
-  validationChecklist.push('Observe se o padrão de comunicação é consistente ao longo da semana')
-  validationChecklist.push('Note como reage quando você estabelece limites ou diz não')
+  validationChecklist.push(`Observe se o padrão de comunicação de ${matchName} é consistente ao longo da semana`)
+  validationChecklist.push(`Note como ${matchName} reage quando você estabelece limites ou diz não`)
 
   // Plano por estágio mais detalhado
   const stageActions: Record<string, { actions: string[]; metrics: string[] }> = {
     'FIRST_CHAT': {
       actions: [
-        'Mantenha expectativas baixas - é cedo para avaliar',
-        'Observe padrões de comunicação sem pressionar',
+        `Mantenha expectativas baixas com ${matchName} - é cedo para avaliar`,
+        `Observe os padrões de comunicação de ${matchName} sem pressionar`,
         'Não invista emocionalmente demais nesta fase'
       ],
       metrics: [
-        'Qualidade das respostas (engajamento vs. monossilábicas)',
-        'Interesse demonstrado por conhecer você',
-        'Respeito a limites básicos'
+        `Qualidade das respostas de ${matchName} (engajamento vs. monossilábicas)`,
+        `Interesse de ${matchName} em conhecer você`,
+        `Respeito de ${matchName} a limites básicos`
       ]
     },
     'TALKING': {
       actions: [
-        'Teste reciprocidade: reduza iniciativa e observe resposta',
-        'Proponha encontro para validar interesse real',
-        'Estabeleça o que você busca de forma clara'
+        `Teste reciprocidade: reduza iniciativa e observe a resposta de ${matchName}`,
+        `Proponha encontro para ${matchName} validar interesse real`,
+        `Estabeleça para ${matchName} o que você busca de forma clara`
       ],
       metrics: [
-        'Evolução da frequência e qualidade da comunicação',
-        'Disposição para encontros no mundo real',
-        'Consistência entre palavras e ações'
+        `Evolução da frequência e qualidade da comunicação de ${matchName}`,
+        `Disposição de ${matchName} para encontros no mundo real`,
+        `Consistência de ${matchName} entre palavras e ações`
       ]
     },
     'POST_DATE': {
       actions: [
-        'Observe se a comunicação mantém ou aumenta após o encontro',
-        'Defina expectativas claras sobre o que vocês são',
+        `Observe se a comunicação de ${matchName} mantém ou aumenta após o encontro`,
+        `Defina expectativas claras com ${matchName} sobre o que vocês são`,
         'Não aceite indefinição prolongada - estabeleça prazo mental'
       ],
       metrics: [
-        'Frequência de contato pós-encontro vs. antes',
-        'Iniciativa de marcar novo encontro',
-        'Clareza sobre intenções e exclusividade'
+        `Frequência de contato de ${matchName} pós-encontro vs. antes`,
+        `Iniciativa de ${matchName} de marcar novo encontro`,
+        `Clareza de ${matchName} sobre intenções e exclusividade`
       ]
     }
   }
@@ -1152,12 +1347,16 @@ export function analyze(
   // Gerar premium report
   const premiumReport = generatePremiumReport(input, scores, hypotheses, redFlags, greenFlags)
 
+  // Nome do match para incluir no resultado (usar "match" se não informado)
+  const matchName = input.nome_match?.trim() || 'match'
+  
   return {
     meta: {
       created_at: new Date().toISOString(),
       stage: input.estagio || 'TALKING', // Default para TALKING se não informado
       completeness_score: completenessScore,
-      question_weights_applied: Object.keys(questionWeights).length > 0
+      question_weights_applied: Object.keys(questionWeights).length > 0,
+      nome_match: matchName // Incluir nome do match no meta
     },
     scores,
     hypotheses_top3: hypotheses,
@@ -1166,6 +1365,7 @@ export function analyze(
     next_actions: nextActions,
     signals_fired: signals,
     free_teaser: freeTeaser,
-    premium_report: premiumReport
+    premium_report: premiumReport,
+    nome_match: matchName // Incluir nome do match no nível raiz
   }
 }
