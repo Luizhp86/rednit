@@ -67,6 +67,11 @@ export async function GET() {
         resultJson?.meta?.genero_match ||
         resultJson?.genero_match ||
         null
+      const signoMatch =
+        inputJson?.signo_match ||
+        resultJson?.meta?.signo_match ||
+        resultJson?.signo_match ||
+        null
 
       // Extrair dados resumidos do free_teaser para exibir no card
       const freeTeaser = resultJson?.free_teaser
@@ -96,6 +101,7 @@ export async function GET() {
         createdAt: analysis.createdAt,
         nome_match: nomeMatch,
         genero_match: generoMatch,
+        signo_match: signoMatch,
         // Novos campos para card
         headline,
         riskScore: riskScore ? {

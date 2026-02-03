@@ -102,6 +102,41 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
   )
 }
 
+// Componente de botão flutuante (mobile)
+function FloatingCTA() {
+  const [show, setShow] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      // Mostrar botão quando rolar mais de 300px
+      setShow(window.scrollY > 300)
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  return (
+    <div
+      className={`lg:hidden fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ${
+        show ? 'translate-y-0' : 'translate-y-full'
+      }`}
+    >
+      <div className="bg-gradient-to-t from-white/95 via-white/90 to-transparent backdrop-blur-lg border-t border-purple-100/50 shadow-lg">
+        <div className="container mx-auto px-4 py-3 pb-safe">
+          <Link href="/login" className="block">
+            <button className="w-full bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 hover:from-purple-500 hover:via-pink-500 hover:to-purple-500 text-white py-4 rounded-2xl text-base font-bold transition-all inline-flex items-center justify-center gap-2.5 shadow-xl shadow-purple-500/30 active:scale-[0.98]">
+              <Sparkles className="w-5 h-5" />
+              <span>Fazer Análise Grátis</span>
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </Link>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Componente de Demo Animado
 function AnimatedDemo() {
   const [step, setStep] = useState(0)
@@ -264,10 +299,10 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="flex flex-col">
-                <span className="text-sm md:text-base font-semibold text-purple-700">
+                <span className="text-sm md:text-base font-semibold text-purple-700 hidden md:block">
                   Radar Match
                 </span>
-                <span className="text-xs text-gray-500 hidden md:block">
+                <span className="text-xs md:text-xs text-gray-500">
                   Seu coach de relacionamentos
                 </span>
               </div>
@@ -374,8 +409,8 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              {/* Lado direito - Demo animado */}
-              <div className="flex justify-center lg:justify-end order-1 lg:order-2 animate-fade-in-up animation-delay-300">
+              {/* Lado direito - Demo animado (apenas desktop) */}
+              <div className="hidden lg:flex justify-center lg:justify-end order-1 lg:order-2 animate-fade-in-up animation-delay-300">
                 <AnimatedDemo />
               </div>
             </div>
@@ -786,6 +821,9 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Botão flutuante mobile */}
+      <FloatingCTA />
 
       {/* Custom Styles - utilizando animações já definidas no globals.css + adicionais */}
       <style jsx global>{`

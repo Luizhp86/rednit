@@ -157,7 +157,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, phone, instagram, facebook, hasSeenOnboarding, hasSeenPostFirstAnalysisOnboarding } = body
+    const { name, phone, instagram, facebook, signo, hasSeenOnboarding, hasSeenPostFirstAnalysisOnboarding } = body
 
     // Verificar se é a primeira vez que o telefone está sendo adicionado
     const isFirstPhone = !dbUser.phone && phone
@@ -168,6 +168,7 @@ export async function PATCH(request: NextRequest) {
     if (phone) updateData.phone = phone
     if (instagram !== undefined) updateData.instagram = instagram || null
     if (facebook !== undefined) updateData.facebook = facebook || null
+    if (signo !== undefined) updateData.signo = signo || null
     if (hasSeenOnboarding !== undefined) updateData.hasSeenOnboarding = hasSeenOnboarding
     if (hasSeenPostFirstAnalysisOnboarding !== undefined) updateData.hasSeenPostFirstAnalysisOnboarding = hasSeenPostFirstAnalysisOnboarding
 
@@ -224,6 +225,7 @@ export async function PATCH(request: NextRequest) {
         phone: updatedUser.phone,
         instagram: updatedUser.instagram,
         facebook: updatedUser.facebook,
+        signo: updatedUser.signo,
       }
     })
   } catch (error) {

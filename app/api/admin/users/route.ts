@@ -41,6 +41,39 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
     const search = searchParams.get('search') || ''
+    const userId = searchParams.get('userId')
+    const includeAnalyses = searchParams.get('includeAnalyses') === 'true'
+
+    // Se for para buscar análises de um usuário específico
+    if (userId && includeAnalyses) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          analyses: {
+            include: {
+              theme: true
+            },
+            orderBy: { createdAt: 'desc' }
+          }
+        }
+      })
+
+      if (!user) {
+        return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
+      }
+
+      return NextResponse.json({
+        analyses: user.analyses.map(a => ({
+          id: a.id,
+          stage: a.stage,
+          isPaid: a.isPaid,
+          createdAt: a.createdAt,
+          themeName: a.theme?.displayName || 'Padrão',
+          inputJson: a.inputJson,
+          resultJson: a.resultJson
+        }))
+      })
+    }
 
     const skip = (page - 1) * limit
 
@@ -62,6 +95,12 @@ export async function GET(request: NextRequest) {
           email: true,
           name: true,
           phone: true,
+          instagram: true,
+          facebook: true,
+          signo: true,
+          plan: true,
+          creditsPaid: true,
+          proUntil: true,
           createdAt: true,
           _count: {
             select: { analyses: true }
@@ -80,6 +119,12 @@ export async function GET(request: NextRequest) {
         email: u.email,
         name: u.name,
         phone: u.phone,
+        instagram: u.instagram,
+        facebook: u.facebook,
+        signo: u.signo,
+        plan: u.plan,
+        creditsPaid: u.creditsPaid,
+        proUntil: u.proUntil,
         createdAt: u.createdAt,
         analysesCount: u._count.analyses
       })),
@@ -105,7 +150,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { userId, name, email, phone, plan, creditsPaid, proUntil } = body
+    const { userId, name, email, phone, instagram, facebook, signo, plan, creditsPaid, proUntil } = body
 
     if (!userId) {
       return NextResponse.json({ error: 'userId é obrigatório' }, { status: 400 })
@@ -122,6 +167,15 @@ export async function PATCH(request: NextRequest) {
     }
     if (phone !== undefined) {
       updateData.phone = phone || null
+    }
+    if (instagram !== undefined) {
+      updateData.instagram = instagram || null
+    }
+    if (facebook !== undefined) {
+      updateData.facebook = facebook || null
+    }
+    if (signo !== undefined) {
+      updateData.signo = signo || null
     }
     
     // Plano e créditos
@@ -143,6 +197,9 @@ export async function PATCH(request: NextRequest) {
         email: true,
         name: true,
         phone: true,
+        instagram: true,
+        facebook: true,
+        signo: true,
         plan: true,
         creditsPaid: true,
         proUntil: true
@@ -161,6 +218,9 @@ export async function PATCH(request: NextRequest) {
         email: true,
         name: true,
         phone: true,
+        instagram: true,
+        facebook: true,
+        signo: true,
         plan: true,
         creditsPaid: true,
         proUntil: true
