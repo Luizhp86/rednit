@@ -100,6 +100,12 @@ type User = {
   email: string
   name: string | null
   phone: string | null
+  instagram: string | null
+  facebook: string | null
+  signo: string | null
+  plan: string
+  creditsPaid: number
+  proUntil: string | null
   createdAt: string
   analysesCount: number
 }
@@ -138,9 +144,12 @@ export default function AdminPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [editUserCredits, setEditUserCredits] = useState(0)
   const [editUserMode, setEditUserMode] = useState<'view' | 'edit'>('view')
-  const [editUserForm, setEditUserForm] = useState({ name: '', email: '', phone: '' })
+  const [editUserForm, setEditUserForm] = useState({ name: '', email: '', phone: '', instagram: '', facebook: '', signo: '' })
   const [savingUser, setSavingUser] = useState(false)
   const [deletingUser, setDeletingUser] = useState<string | null>(null)
+  const [userAnalyses, setUserAnalyses] = useState<any[]>([])
+  const [loadingAnalyses, setLoadingAnalyses] = useState(false)
+  const [expandedAnalysis, setExpandedAnalysis] = useState<string | null>(null)
   
   // Create user modal
   const [showCreateUser, setShowCreateUser] = useState(false)
@@ -366,7 +375,10 @@ export default function AdminPage() {
           userId: editingUser.id,
           name: editUserForm.name,
           email: editUserForm.email,
-          phone: editUserForm.phone
+          phone: editUserForm.phone,
+          instagram: editUserForm.instagram,
+          facebook: editUserForm.facebook,
+          signo: editUserForm.signo
         })
       })
       if (res.ok) {
@@ -384,6 +396,25 @@ export default function AdminPage() {
       alert('Erro ao atualizar usuário')
     } finally {
       setSavingUser(false)
+    }
+  }
+
+  const loadUserAnalyses = async (userId: string) => {
+    setLoadingAnalyses(true)
+    try {
+      const res = await fetch(`/api/admin/users?userId=${userId}&includeAnalyses=true`)
+      if (res.ok) {
+        const data = await res.json()
+        setUserAnalyses(data.analyses || [])
+      } else {
+        console.error('Erro ao carregar análises')
+        setUserAnalyses([])
+      }
+    } catch (error) {
+      console.error('Error loading analyses:', error)
+      setUserAnalyses([])
+    } finally {
+      setLoadingAnalyses(false)
     }
   }
 
@@ -1809,7 +1840,15 @@ export default function AdminPage() {
                                   onClick={() => {
                                     setEditingUser(user)
                                     setEditUserMode('view')
-                                    setEditUserForm({ name: user.name || '', email: user.email, phone: user.phone || '' })
+                                    setEditUserForm({ 
+                                      name: user.name || '', 
+                                      email: user.email, 
+                                      phone: user.phone || '', 
+                                      instagram: user.instagram || '', 
+                                      facebook: user.facebook || '', 
+                                      signo: user.signo || '' 
+                                    })
+                                    loadUserAnalyses(user.id)
                                   }}
                                   className="text-purple-400 hover:text-purple-300 text-sm"
                                 >
@@ -1819,7 +1858,14 @@ export default function AdminPage() {
                                   onClick={() => {
                                     setEditingUser(user)
                                     setEditUserMode('edit')
-                                    setEditUserForm({ name: user.name || '', email: user.email, phone: user.phone || '' })
+                                    setEditUserForm({ 
+                                      name: user.name || '', 
+                                      email: user.email, 
+                                      phone: user.phone || '', 
+                                      instagram: user.instagram || '', 
+                                      facebook: user.facebook || '', 
+                                      signo: user.signo || '' 
+                                    })
                                   }}
                                   className="text-blue-400 hover:text-blue-300 text-sm"
                                 >
@@ -3654,12 +3700,123 @@ export default function AdminPage() {
                     <span className="text-white">{editingUser.phone || '-'}</span>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-gray-400">Instagram:</span>
+                    <span className="text-white">{editingUser.instagram || '-'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Facebook:</span>
+                    <span className="text-white">{editingUser.facebook || '-'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Signo:</span>
+                    <span className="text-white">{editingUser.signo || '-'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Plano:</span>
+                    <span className="text-white">{editingUser.plan}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Créditos Pagos:</span>
+                    <span className="text-white">{editingUser.creditsPaid}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-gray-400">Análises:</span>
                     <span className="text-white">{editingUser.analysesCount}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">Criado em:</span>
                     <span className="text-white">{new Date(editingUser.createdAt).toLocaleDateString('pt-BR')}</span>
+                  </div>
+
+                  {/* Seção de Análises */}
+                  <div className="mt-6 pt-4 border-t border-gray-600">
+                    <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4" />
+                      Análises do Usuário ({userAnalyses.length})
+                    </h4>
+                    {loadingAnalyses ? (
+                      <p className="text-gray-400 text-sm">Carregando análises...</p>
+                    ) : userAnalyses.length === 0 ? (
+                      <p className="text-gray-400 text-sm">Nenhuma análise encontrada</p>
+                    ) : (
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {userAnalyses.map((analysis: any) => {
+                          const inputJson = analysis.inputJson || {}
+                          const resultJson = analysis.resultJson || {}
+                          const nomeMatch = inputJson.nome_match || resultJson.nome_match || '-'
+                          const signoMatch = inputJson.signo_match || resultJson.signo_match || '-'
+                          
+                          return (
+                            <div key={analysis.id} className="bg-gray-700 rounded-lg p-3">
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <p className="text-white font-medium">{nomeMatch}</p>
+                                  <p className="text-gray-400 text-xs">
+                                    {analysis.themeName} • {new Date(analysis.createdAt).toLocaleDateString('pt-BR')}
+                                  </p>
+                                  {signoMatch !== '-' && signoMatch !== 'NAO_SEI' && (
+                                    <p className="text-amber-400 text-xs mt-1">⭐ {signoMatch}</p>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={() => setExpandedAnalysis(expandedAnalysis === analysis.id ? null : analysis.id)}
+                                  className="text-blue-400 hover:text-blue-300 text-xs"
+                                >
+                                  {expandedAnalysis === analysis.id ? 'Ocultar' : 'Ver detalhes'}
+                                </button>
+                              </div>
+                              
+                              {expandedAnalysis === analysis.id && (
+                                <div className="mt-3 pt-3 border-t border-gray-600 space-y-3">
+                                  {/* Respostas do Formulário */}
+                                  <div>
+                                    <p className="text-gray-300 font-medium text-xs mb-2">Respostas:</p>
+                                    <div className="bg-gray-800 rounded p-2 text-xs">
+                                      <pre className="text-gray-300 whitespace-pre-wrap overflow-x-auto">
+                                        {JSON.stringify(inputJson, null, 2)}
+                                      </pre>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Resultado da Análise */}
+                                  <div>
+                                    <p className="text-gray-300 font-medium text-xs mb-2">Resultado:</p>
+                                    <div className="bg-gray-800 rounded p-2 text-xs">
+                                      {resultJson.free_teaser && (
+                                        <div className="mb-2">
+                                          <p className="text-purple-400 font-medium">Headline:</p>
+                                          <p className="text-gray-300">{resultJson.free_teaser.headline}</p>
+                                        </div>
+                                      )}
+                                      {resultJson.scores && (
+                                        <div className="mb-2">
+                                          <p className="text-purple-400 font-medium">Scores:</p>
+                                          <p className="text-gray-300">
+                                            Compatibilidade: {resultJson.scores.compat_objetivo || '-'}%
+                                          </p>
+                                        </div>
+                                      )}
+                                      {resultJson.free_teaser?.red_flag && (
+                                        <div className="mb-2">
+                                          <p className="text-red-400 font-medium">🚩 Red Flag:</p>
+                                          <p className="text-gray-300">{resultJson.free_teaser.red_flag}</p>
+                                        </div>
+                                      )}
+                                      {resultJson.free_teaser?.green_flag && (
+                                        <div className="mb-2">
+                                          <p className="text-green-400 font-medium">✅ Green Flag:</p>
+                                          <p className="text-gray-300">{resultJson.free_teaser.green_flag}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -3691,6 +3848,36 @@ export default function AdminPage() {
                       onChange={(e) => setEditUserForm({...editUserForm, phone: e.target.value})}
                       className="bg-gray-700 border-gray-600 text-white"
                       placeholder="(11) 99999-9999"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Instagram</label>
+                    <Input
+                      type="text"
+                      value={editUserForm.instagram}
+                      onChange={(e) => setEditUserForm({...editUserForm, instagram: e.target.value})}
+                      className="bg-gray-700 border-gray-600 text-white"
+                      placeholder="@usuario"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Facebook</label>
+                    <Input
+                      type="text"
+                      value={editUserForm.facebook}
+                      onChange={(e) => setEditUserForm({...editUserForm, facebook: e.target.value})}
+                      className="bg-gray-700 border-gray-600 text-white"
+                      placeholder="Nome do perfil"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Signo</label>
+                    <Input
+                      type="text"
+                      value={editUserForm.signo}
+                      onChange={(e) => setEditUserForm({...editUserForm, signo: e.target.value})}
+                      className="bg-gray-700 border-gray-600 text-white"
+                      placeholder="Ex: Áries, Touro, etc"
                     />
                   </div>
                 </div>

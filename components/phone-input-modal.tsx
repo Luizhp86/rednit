@@ -1,12 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Phone, X, CheckCircle2, Sparkles, Shield, MessageCircle, Instagram, Facebook } from 'lucide-react'
+import { Phone, X, CheckCircle2, Sparkles, Shield, MessageCircle, Instagram, Facebook, Star } from 'lucide-react'
 
 type PhoneInputModalProps = {
   isOpen: boolean
   onClose: () => void
-  onSave: (phone: string, social?: { facebook?: string; instagram?: string }) => void
+  onSave: (phone: string, social?: { facebook?: string; instagram?: string; signo?: string }) => void
   userName?: string | null
 }
 
@@ -14,6 +14,7 @@ export function PhoneInputModal({ isOpen, onClose, onSave, userName }: PhoneInpu
   const [phone, setPhone] = useState('')
   const [instagram, setInstagram] = useState('')
   const [facebook, setFacebook] = useState('')
+  const [signo, setSigno] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -54,6 +55,7 @@ export function PhoneInputModal({ isOpen, onClose, onSave, userName }: PhoneInpu
       const updateData: any = { phone: digits }
       if (instagram.trim()) updateData.instagram = formatSocialHandle(instagram)
       if (facebook.trim()) updateData.facebook = formatSocialHandle(facebook)
+      if (signo) updateData.signo = signo
       
       // Salvar no perfil do usuário
       const res = await fetch('/api/me', {
@@ -65,7 +67,8 @@ export function PhoneInputModal({ isOpen, onClose, onSave, userName }: PhoneInpu
       if (res.ok) {
         onSave(digits, { 
           facebook: facebook.trim() || undefined, 
-          instagram: instagram.trim() || undefined 
+          instagram: instagram.trim() || undefined,
+          signo: signo || undefined
         })
         onClose()
       } else {
@@ -183,6 +186,35 @@ export function PhoneInputModal({ isOpen, onClose, onSave, userName }: PhoneInpu
                 placeholder="Nome do perfil ou link"
                 className="w-full bg-gray-50 border-2 border-gray-200 text-gray-900 rounded-xl px-4 py-3 placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all"
               />
+            </div>
+
+            {/* Signo - Opcional */}
+            <div>
+              <label htmlFor="signo" className="flex items-center gap-2 text-gray-700 font-medium text-sm mb-2">
+                <Star className="w-4 h-4 text-amber-500" />
+                Seu Signo
+                <span className="text-xs text-gray-400 font-normal">(opcional)</span>
+              </label>
+              <select
+                id="signo"
+                value={signo}
+                onChange={(e) => setSigno(e.target.value)}
+                className="w-full bg-gray-50 border-2 border-gray-200 text-gray-900 rounded-xl px-4 py-3 focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 transition-all"
+              >
+                <option value="">Selecione seu signo</option>
+                <option value="Áries">Áries</option>
+                <option value="Touro">Touro</option>
+                <option value="Gêmeos">Gêmeos</option>
+                <option value="Câncer">Câncer</option>
+                <option value="Leão">Leão</option>
+                <option value="Virgem">Virgem</option>
+                <option value="Libra">Libra</option>
+                <option value="Escorpião">Escorpião</option>
+                <option value="Sagitário">Sagitário</option>
+                <option value="Capricórnio">Capricórnio</option>
+                <option value="Aquário">Aquário</option>
+                <option value="Peixes">Peixes</option>
+              </select>
             </div>
 
             <p className="text-gray-500 text-xs text-center">

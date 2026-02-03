@@ -19,6 +19,7 @@ type Analysis = {
   createdAt: string
   nome_match?: string | null
   genero_match?: 'ELE' | 'ELA' | null
+  signo_match?: string | null
   headline?: string | null
   riskScore?: {
     type: 'risco_ghosting' | 'risco_enrolacao'
@@ -1194,6 +1195,15 @@ function DashboardPageInner() {
                           <p className="text-gray-500 text-sm line-clamp-1 mb-3">
                             {analysis.headline}
                           </p>
+                        )}
+                        
+                        {/* Signo badge */}
+                        {analysis.signo_match && analysis.signo_match !== 'NAO_SEI' && (
+                          <div className="mb-3">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                              ⭐ {analysis.signo_match}
+                            </span>
+                          </div>
                         )}
                         
                         {/* Badges row */}

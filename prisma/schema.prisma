@@ -22,6 +22,7 @@ model User {
   hasSeenPostFirstAnalysisOnboarding    Boolean      @default(false)
   instagram                             String?
   phone                                 String?
+  signo                                 String?
   stripeCustomerId                      String?      @unique
   analyses                              Analysis[]
   entitlements                          Entitlement?
