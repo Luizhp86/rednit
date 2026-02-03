@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -95,11 +95,19 @@ function DashboardPageInner() {
     return null
   }
 
+  // Ref para controlar o timer do welcome loader (evita cancelamento em re-renders)
+  const welcomeTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const welcomeLoaderShownRef = useRef(false)
+  
   // Mostrar loader de boas-vindas quando usuário acabou de logar
   useEffect(() => {
     const welcome = searchParams.get('welcome')
-    if (welcome === 'true') {
+    
+    // Só executa uma vez por sessão de login
+    if (welcome === 'true' && !welcomeLoaderShownRef.current) {
+      welcomeLoaderShownRef.current = true
       setShowWelcomeLoader(true)
+      console.log('[DASHBOARD] ✅ Mostrando welcome loader por 5 segundos')
       
       // Remove a query param da URL sem recarregar a página
       const url = new URL(window.location.href)
@@ -107,13 +115,26 @@ function DashboardPageInner() {
       window.history.replaceState({}, '', url.toString())
       
       // Esconde o loader após 5 segundos
-      const timer = setTimeout(() => {
+      welcomeTimerRef.current = setTimeout(() => {
+        console.log('[DASHBOARD] ⏱️ Welcome loader timeout - escondendo')
         setShowWelcomeLoader(false)
+        welcomeTimerRef.current = null
       }, 5000)
-      
-      return () => clearTimeout(timer)
     }
+    
+    // NÃO cancela o timer no cleanup de re-render
+    // Isso evita que o timer seja cancelado quando searchParams muda
   }, [searchParams])
+  
+  // Cleanup do timer apenas no unmount do componente
+  useEffect(() => {
+    return () => {
+      if (welcomeTimerRef.current) {
+        clearTimeout(welcomeTimerRef.current)
+        welcomeTimerRef.current = null
+      }
+    }
+  }, [])
 
   // Mostrar onboarding APÓS o loading terminar e elementos estarem renderizados
   useEffect(() => {
@@ -163,22 +184,30 @@ function DashboardPageInner() {
   // Monitorar mudanças de estado para debug
   useEffect(() => {
     console.log('[DASHBOARD STATE] ===== MUDANÇA DE ESTADO =====')
+    console.log('[DASHBOARD STATE] showWelcomeLoader:', showWelcomeLoader)
+    console.log('[DASHBOARD STATE] loading:', loading)
+    console.log('[DASHBOARD STATE] showPhoneModal:', showPhoneModal)
     console.log('[DASHBOARD STATE] showOnboarding:', showOnboarding)
     console.log('[DASHBOARD STATE] shouldShowOnboarding:', shouldShowOnboarding)
     console.log('[DASHBOARD STATE] hasFormsAvailable:', hasFormsAvailable)
-    console.log('[DASHBOARD STATE] loading:', loading)
     console.log('[DASHBOARD STATE] analyses.length:', analyses.length)
-    console.log('[DASHBOARD STATE] showPhoneModal:', showPhoneModal)
+    
+    // Log para debug: verificar se modal deveria estar visível
+    if (showPhoneModal && !showWelcomeLoader && !loading) {
+      console.log('[DASHBOARD STATE] ✅ Modal de telefone DEVERIA estar visível agora!')
+    } else if (showPhoneModal && (showWelcomeLoader || loading)) {
+      console.log('[DASHBOARD STATE] ⏳ Modal de telefone está pendente (aguardando welcome/loading)')
+    }
     
     // Verificar elementos do DOM quando não está carregando
-    if (!loading) {
+    if (!loading && !showWelcomeLoader) {
       const targetElement = document.querySelector('[data-onboarding="nova-analise"]')
       console.log('[DASHBOARD STATE] Elemento [data-onboarding="nova-analise"] existe?', !!targetElement)
       if (targetElement) {
         console.log('[DASHBOARD STATE] Elemento encontrado:', targetElement)
       }
     }
-  }, [showOnboarding, shouldShowOnboarding, hasFormsAvailable, loading, analyses.length, showPhoneModal])
+  }, [showOnboarding, shouldShowOnboarding, hasFormsAvailable, loading, analyses.length, showPhoneModal, showWelcomeLoader])
 
   // Mostrar onboarding pós-primeira análise APÓS o loading terminar e elementos estarem renderizados
   useEffect(() => {
@@ -347,8 +376,10 @@ function DashboardPageInner() {
         
         // Mostrar modal de telefone se necessário
         if (!meData.phone) {
-          console.log('[DASHBOARD] Abrindo modal de telefone')
+          console.log('[DASHBOARD] ✅ Usuário NÃO tem telefone - marcando para mostrar modal')
           setShowPhoneModal(true)
+        } else {
+          console.log('[DASHBOARD] ℹ️ Usuário já tem telefone cadastrado:', meData.phone)
         }
         
         if (meData.therapist) {
@@ -631,7 +662,7 @@ function DashboardPageInner() {
   // Mostrar loader de boas-vindas após login
   if (showWelcomeLoader) {
     return (
-      <FloatingLoader message="Bem vindo ao seu coach de relacionamentos saudáveis" />
+      <FloatingLoader message="Bem vindo ao seu coach de relacionamentos" />
     )
   }
 
