@@ -1274,6 +1274,38 @@ Desejo tudo de bom pra você! 🌟`}
         onClose={() => setShowDemoScheduler(false)} 
       />
 
+      {/* Botão flutuante WhatsApp - Contato com Desenvolvedor */}
+      <a
+        href="https://wa.me/5511937756627?text=Olá!%20Sou%20profissional%20e%20quero%20falar%20com%20o%20desenvolvedor%20do%20Radar%20Match"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-50 group"
+        title="Falar com o desenvolvedor"
+      >
+        {/* Pulse effect */}
+        <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-30" />
+        <div className="absolute inset-0 bg-green-500 rounded-full animate-pulse opacity-20" />
+        
+        {/* Button */}
+        <div className="relative flex items-center gap-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white pl-4 pr-5 py-3 rounded-full shadow-lg shadow-green-500/30 hover:shadow-green-500/50 transition-all duration-300 hover:scale-105">
+          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+            <MessageCircle className="w-5 h-5" />
+          </div>
+          <div className="hidden sm:block">
+            <p className="text-xs text-green-100 font-medium">Dúvidas?</p>
+            <p className="text-sm font-bold whitespace-nowrap">Fale com um representante</p>
+          </div>
+        </div>
+        
+        {/* Tooltip para mobile */}
+        <div className="sm:hidden absolute bottom-full right-0 mb-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="bg-slate-900 text-white text-xs px-3 py-2 rounded-lg shadow-lg whitespace-nowrap">
+            Falar com o desenvolvedor
+            <div className="absolute -bottom-1 right-4 w-2 h-2 bg-slate-900 rotate-45" />
+          </div>
+        </div>
+      </a>
+
       {/* Custom Styles */}
       <style jsx global>{`
         @keyframes fade-in {
