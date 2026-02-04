@@ -442,7 +442,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
               {/* Passo 1-3 */}
               {[
-                { num: 1, title: "Faça sua análise", desc: "Responda 14 perguntas objetivas sobre os comportamentos do seu match. Leva apenas 2 minutos.", color: "purple" },
+                { num: 1, title: "Faça sua análise", desc: "Responda algumas perguntas objetivas sobre os comportamentos do seu match. Leva apenas 2 minutos.", color: "purple" },
                 { num: 2, title: "Receba o resultado", desc: "Veja scores de interesse, red flags, green flags e a probabilidade de ghosting.", color: "pink" },
                 { num: 3, title: "Acompanhe a evolução", desc: "Salve múltiplos matches e veja se os sinais melhoram ou pioram com o tempo.", color: "orange" },
               ].map((step, i) => (
