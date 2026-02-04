@@ -946,8 +946,9 @@ function DashboardPageInner() {
 
         {/* Empty State */}
         {analyses.length === 0 ? (
+          <>
           <div className="animate-fade-in-up animation-delay-300" data-onboarding="area-analises">
-            <div className="relative max-w-3xl mx-auto">
+            <div className="relative max-w-3xl mx-auto pb-52 sm:pb-0">
               {/* Decorative elements */}
               <div className="absolute -top-20 -left-20 w-40 h-40 bg-purple-300/30 rounded-full blur-3xl" />
               <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-pink-300/30 rounded-full blur-3xl" />
@@ -1023,8 +1024,8 @@ function DashboardPageInner() {
                   ))}
                 </div>
                 
-                {/* CTA Button - Sempre habilitado */}
-                <div className="text-center">
+                {/* CTA Button - Sempre habilitado - Desktop Only */}
+                <div className="text-center hidden sm:block">
                   <div className="relative inline-block animate-fade-in-up animation-delay-600">
                     {/* Pulsing glow effect */}
                     <div className="absolute inset-0 -m-3 rounded-3xl bg-gradient-to-r from-purple-500 to-pink-500 opacity-30 animate-cta-pulse blur-xl" />
@@ -1045,15 +1046,15 @@ function DashboardPageInner() {
                     Leva menos de 3 minutos
                   </p>
                   
-                  {/* Separador */}
-                  <div className="flex items-center gap-4 my-8 animate-fade-in-up animation-delay-800">
+                  {/* Separador - Desktop Only */}
+                  <div className="hidden sm:flex items-center gap-4 my-8 animate-fade-in-up animation-delay-800">
                     <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
                     <span className="text-gray-400 text-sm font-medium">ou</span>
                     <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
                   </div>
                   
-                  {/* Opção Premium - Falar com Especialista */}
-                  <div className="animate-fade-in-up animation-delay-900">
+                  {/* Opção Premium - Falar com Especialista - Desktop Only */}
+                  <div className="hidden sm:block animate-fade-in-up animation-delay-900">
                     <div className="relative bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-2xl p-6 max-w-md mx-auto">
                       {/* Badge Premium */}
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -1085,6 +1086,47 @@ function DashboardPageInner() {
               </div>
             </div>
           </div>
+          
+          {/* Botões Flutuantes Fixos - Mobile Only */}
+          <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 animate-fade-in-up animation-delay-600">
+            {/* Gradiente de fade para integrar com o conteúdo */}
+            <div className="absolute bottom-full left-0 right-0 h-20 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none" />
+            
+            <div className="bg-white/95 backdrop-blur-lg border-t border-purple-200 shadow-2xl shadow-purple-500/20 px-4 py-3 space-y-2">
+              {/* Botão Analisar Agora */}
+              <div className="relative">
+                <div className="absolute inset-0 -m-2 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 opacity-20 animate-cta-pulse blur-lg" />
+                
+                <Link
+                  href="/dashboard/new"
+                  data-onboarding="nova-analise"
+                  className="relative group flex items-center justify-center gap-2.5 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 hover:from-purple-500 hover:via-pink-500 hover:to-orange-400 text-white px-6 py-4 rounded-xl text-base font-bold transition-all shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-[1.02] active:scale-[0.98] w-full"
+                  onClick={() => console.log('[DASHBOARD] Botão flutuante "Analisar Agora" clicado')}
+                >
+                  <Flame className="w-5 h-5 animate-pulse" />
+                  <span>Analisar Agora</span>
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+              </div>
+              
+              {/* Separador */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-gray-300" />
+                <span className="text-gray-400 text-xs font-medium">ou</span>
+                <div className="flex-1 h-px bg-gray-300" />
+              </div>
+              
+              {/* Botão Falar com Especialista */}
+              <button
+                onClick={() => setShowSpecialistModal(true)}
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white px-6 py-3.5 rounded-xl font-semibold transition-all shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <MessageCircle className="w-5 h-5" />
+                <span>Falar com Especialista</span>
+              </button>
+            </div>
+          </div>
+          </>
         ) : (
           /* Analysis Cards Grid */
           <div className="grid gap-5" data-onboarding="area-analises">
@@ -1183,7 +1225,7 @@ function DashboardPageInner() {
                                 e.stopPropagation()
                                 setDeleteConfirm({ id: analysis.id, name: analysis.nome_match || 'Crush sem nome' })
                               }}
-                              className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all sm:opacity-0 sm:group-hover:opacity-100"
                               title="Excluir análise"
                             >
                               <Trash2 className="w-4 h-4" />

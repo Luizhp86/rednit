@@ -190,7 +190,31 @@ export default function NewAnalysisPage() {
             }))
           }))
           
-          setDynamicQuestions(mapped)
+          // Verificar se há perguntas duplicadas
+          const questionIds = mapped.map(q => q.id)
+          const uniqueIds = new Set(questionIds)
+          if (questionIds.length !== uniqueIds.size) {
+            console.error('[FORMULÁRIO] ⚠️ PERGUNTAS DUPLICADAS DETECTADAS!')
+            const duplicates = questionIds.filter((id, index) => questionIds.indexOf(id) !== index)
+            console.error('[FORMULÁRIO] IDs duplicados:', duplicates)
+            
+            // Remover duplicatas mantendo apenas a primeira ocorrência
+            const seenIds = new Set<string>()
+            const uniqueMapped = mapped.filter(q => {
+              if (seenIds.has(q.id)) {
+                console.warn(`[FORMULÁRIO] Removendo pergunta duplicada no frontend: ${q.id}`)
+                return false
+              }
+              seenIds.add(q.id)
+              return true
+            })
+            
+            console.log('[FORMULÁRIO] Perguntas antes:', mapped.length)
+            console.log('[FORMULÁRIO] Perguntas após remover duplicatas:', uniqueMapped.length)
+            setDynamicQuestions(uniqueMapped)
+          } else {
+            setDynamicQuestions(mapped)
+          }
           
           // Inicializar formData com campos vazios
           const initialData: any = {
@@ -214,16 +238,27 @@ export default function NewAnalysisPage() {
     loadQuestions()
   }, [selectedThemeId])
 
+  // Monitorar mudanças de currentQuestionIndex
+  useEffect(() => {
+    console.log('[FORMULÁRIO] ========== useEffect: currentQuestionIndex MUDOU ==========')
+    console.log('[FORMULÁRIO] useEffect - Novo currentQuestionIndex:', currentQuestionIndex)
+    console.log('[FORMULÁRIO] useEffect - Total de perguntas dinâmicas:', dynamicQuestions.length)
+    console.log('[FORMULÁRIO] useEffect - isTransitioning:', isTransitioning)
+  }, [currentQuestionIndex, dynamicQuestions.length, isTransitioning])
+
   // Usar apenas perguntas dinâmicas do banco de dados
   const questionsToUse = dynamicQuestions
 
   const getVisibleQuestions = () => {
-    return questionsToUse.filter((question) => {
+    const filtered = questionsToUse.filter((question) => {
       if (question.id === 'remarcou_com_data') {
         return formData.cancelou_encontro === 'SIM'
       }
       return true
     })
+    console.log('[FORMULÁRIO] getVisibleQuestions:', filtered.length, 'perguntas visíveis')
+    console.log('[FORMULÁRIO] IDs das perguntas:', filtered.map(q => q.id))
+    return filtered
   }
 
   const visibleQuestions = getVisibleQuestions()
@@ -233,69 +268,133 @@ export default function NewAnalysisPage() {
   const isLastQuestion = safeIndex === visibleQuestions.length - 1
   const isFirstQuestion = safeIndex === 0
   const midQuestionIndex = Math.floor(visibleQuestions.length / 2)
+  
+  // Log do estado atual em cada render
+  console.log('[FORMULÁRIO RENDER] ==========================================')
+  console.log('[FORMULÁRIO RENDER] currentQuestionIndex:', currentQuestionIndex)
+  console.log('[FORMULÁRIO RENDER] safeIndex:', safeIndex)
+  console.log('[FORMULÁRIO RENDER] currentQuestion.id:', currentQuestion?.id)
+  console.log('[FORMULÁRIO RENDER] currentQuestion.label:', currentQuestion?.label)
+  console.log('[FORMULÁRIO RENDER] visibleQuestions.length:', visibleQuestions.length)
+  console.log('[FORMULÁRIO RENDER] isTransitioning:', isTransitioning)
+  console.log('[FORMULÁRIO RENDER] ==========================================')
 
   const canProceed = () => {
-    if (!currentQuestion.required) return true
-    const value = (formData as Record<string, unknown>)[currentQuestion.id]
-    if (currentQuestion.type === 'number') {
-      return typeof value === 'number' && value >= 0
+    if (!currentQuestion.required) {
+      console.log('[FORMULÁRIO] canProceed: true (pergunta não obrigatória)')
+      return true
     }
-    if (Array.isArray(value)) return value.length > 0
-    return value !== '' && value !== undefined && value !== null
+    const value = (formData as Record<string, unknown>)[currentQuestion.id]
+    let result = false
+    if (currentQuestion.type === 'number') {
+      result = typeof value === 'number' && value >= 0
+    } else if (Array.isArray(value)) {
+      result = value.length > 0
+    } else {
+      result = value !== '' && value !== undefined && value !== null
+    }
+    console.log('[FORMULÁRIO] canProceed:', result, '| value:', value, '| type:', currentQuestion.type)
+    return result
   }
 
   const handleNext = () => {
+    console.log('[FORMULÁRIO] ========== handleNext CHAMADO ==========')
+    console.log('[FORMULÁRIO] handleNext - currentQuestionIndex:', currentQuestionIndex)
+    console.log('[FORMULÁRIO] handleNext - safeIndex:', safeIndex)
+    console.log('[FORMULÁRIO] handleNext - canProceed():', canProceed())
+    console.log('[FORMULÁRIO] handleNext - isLastQuestion:', isLastQuestion)
+    
     if (canProceed() && !isLastQuestion) {
       const nextIndex = safeIndex + 1
+      console.log('[FORMULÁRIO] handleNext - AVANÇANDO para índice:', nextIndex)
+      console.log('[FORMULÁRIO] handleNext - Pergunta atual:', currentQuestion.id)
+      console.log('[FORMULÁRIO] handleNext - Próxima pergunta:', visibleQuestions[nextIndex]?.id)
+      
       if (nextIndex < visibleQuestions.length) {
         setShowTransitionLoader(true)
         setTimeout(() => {
+          console.log('[FORMULÁRIO] handleNext - setCurrentQuestionIndex para:', nextIndex)
           setCurrentQuestionIndex(nextIndex)
           window.scrollTo({ top: 0, behavior: 'smooth' })
           setTimeout(() => {
             setShowTransitionLoader(false)
             // Verificar se acabou de passar da pergunta do meio
             if (nextIndex === midQuestionIndex + 1) {
+              console.log('[FORMULÁRIO] handleNext - Mostrando teaser de especialista')
               setShowSpecialistTeaser(true)
             }
           }, 300)
         }, 400)
       }
+    } else {
+      console.log('[FORMULÁRIO] handleNext - NÃO PODE AVANÇAR')
     }
   }
 
   const handleBack = () => {
+    console.log('[FORMULÁRIO] ========== handleBack CHAMADO ==========')
+    console.log('[FORMULÁRIO] handleBack - currentQuestionIndex:', currentQuestionIndex)
+    console.log('[FORMULÁRIO] handleBack - safeIndex:', safeIndex)
+    console.log('[FORMULÁRIO] handleBack - isFirstQuestion:', isFirstQuestion)
+    
     if (!isFirstQuestion) {
       const prevIndex = safeIndex - 1
+      console.log('[FORMULÁRIO] handleBack - VOLTANDO para índice:', prevIndex)
+      console.log('[FORMULÁRIO] handleBack - Pergunta atual:', currentQuestion.id)
+      console.log('[FORMULÁRIO] handleBack - Pergunta anterior:', visibleQuestions[prevIndex]?.id)
+      
       if (prevIndex >= 0) {
         setShowTransitionLoader(true)
         setTimeout(() => {
+          console.log('[FORMULÁRIO] handleBack - setCurrentQuestionIndex para:', prevIndex)
           setCurrentQuestionIndex(prevIndex)
           window.scrollTo({ top: 0, behavior: 'smooth' })
           setTimeout(() => setShowTransitionLoader(false), 300)
         }, 400)
       }
+    } else {
+      console.log('[FORMULÁRIO] handleBack - JÁ É A PRIMEIRA PERGUNTA')
     }
   }
 
   const handleSkip = () => {
+    console.log('[FORMULÁRIO] ========== handleSkip CHAMADO ==========')
+    console.log('[FORMULÁRIO] handleSkip - currentQuestionIndex:', currentQuestionIndex)
+    console.log('[FORMULÁRIO] handleSkip - safeIndex:', safeIndex)
+    
     if (!isLastQuestion) {
       const nextIndex = safeIndex + 1
+      console.log('[FORMULÁRIO] handleSkip - PULANDO para índice:', nextIndex)
+      
       if (nextIndex < visibleQuestions.length) {
         setShowTransitionLoader(true)
         setTimeout(() => {
+          console.log('[FORMULÁRIO] handleSkip - setCurrentQuestionIndex para:', nextIndex)
           setCurrentQuestionIndex(nextIndex)
           window.scrollTo({ top: 0, behavior: 'smooth' })
           setTimeout(() => setShowTransitionLoader(false), 300)
         }, 400)
       }
+    } else {
+      console.log('[FORMULÁRIO] handleSkip - JÁ É A ÚLTIMA PERGUNTA')
     }
   }
 
   const updateField = useCallback((field: string, value: any) => {
-    if (isTransitioning) return
+    console.log('[FORMULÁRIO] ========== updateField CHAMADO ==========')
+    console.log('[FORMULÁRIO] updateField - field:', field)
+    console.log('[FORMULÁRIO] updateField - value:', value)
+    console.log('[FORMULÁRIO] updateField - currentQuestionIndex:', currentQuestionIndex)
+    console.log('[FORMULÁRIO] updateField - safeIndex:', safeIndex)
+    console.log('[FORMULÁRIO] updateField - isTransitioning:', isTransitioning)
+    
+    if (isTransitioning) {
+      console.log('[FORMULÁRIO] updateField - BLOQUEADO (isTransitioning = true)')
+      return
+    }
     
     if (transitionTimeoutRef.current) {
+      console.log('[FORMULÁRIO] updateField - Limpando timeout anterior')
       clearTimeout(transitionTimeoutRef.current)
       transitionTimeoutRef.current = null
     }
@@ -303,17 +402,23 @@ export default function NewAnalysisPage() {
     setFormData((prev) => {
       const newData = { ...prev, [field]: value }
       if (field === 'cancelou_encontro' && value === 'NAO') {
+        console.log('[FORMULÁRIO] updateField - Limpando remarcou_com_data')
         newData.remarcou_com_data = ''
       }
       return newData
     })
     
     const question = visibleQuestions[safeIndex]
+    console.log('[FORMULÁRIO] updateField - Pergunta atual:', question?.id)
+    console.log('[FORMULÁRIO] updateField - autoAdvance:', question?.autoAdvance)
+    
     if (question?.autoAdvance && safeIndex < visibleQuestions.length - 1 && value) {
+      console.log('[FORMULÁRIO] updateField - INICIANDO AUTO-ADVANCE')
       setIsTransitioning(true)
       setShowTransitionLoader(true)
       
       transitionTimeoutRef.current = setTimeout(() => {
+        console.log('[FORMULÁRIO] updateField - AUTO-ADVANCE: Timeout executado')
         const updatedFormData = { ...formData, [field]: value }
         if (field === 'cancelou_encontro' && value === 'NAO') {
           updatedFormData.remarcou_com_data = ''
@@ -326,18 +431,29 @@ export default function NewAnalysisPage() {
           return true
         })
         
+        console.log('[FORMULÁRIO] updateField - AUTO-ADVANCE: updatedVisibleQuestions.length:', updatedVisibleQuestions.length)
+        console.log('[FORMULÁRIO] updateField - AUTO-ADVANCE: IDs:', updatedVisibleQuestions.map(q => q.id))
+        
         setCurrentQuestionIndex((idx) => {
+          console.log('[FORMULÁRIO] updateField - AUTO-ADVANCE: setCurrentQuestionIndex callback, idx atual:', idx)
           const currentQuestionId = visibleQuestions[idx]?.id
+          console.log('[FORMULÁRIO] updateField - AUTO-ADVANCE: currentQuestionId:', currentQuestionId)
+          
           const newIndex = updatedVisibleQuestions.findIndex(q => q.id === currentQuestionId)
+          console.log('[FORMULÁRIO] updateField - AUTO-ADVANCE: newIndex após recalcular:', newIndex)
+          
           const adjustedIdx = newIndex >= 0 ? newIndex : idx
+          console.log('[FORMULÁRIO] updateField - AUTO-ADVANCE: adjustedIdx:', adjustedIdx)
           
           if (adjustedIdx < updatedVisibleQuestions.length - 1) {
             window.scrollTo({ top: 0, behavior: 'smooth' })
             const nextIdx = adjustedIdx + 1
+            console.log('[FORMULÁRIO] updateField - AUTO-ADVANCE: AVANÇANDO para nextIdx:', nextIdx)
+            console.log('[FORMULÁRIO] updateField - AUTO-ADVANCE: Próxima pergunta:', updatedVisibleQuestions[nextIdx]?.id)
             
             // Verificar se acabou de passar da pergunta do meio
             if (nextIdx === midQuestionIndex + 1) {
-              // Mostrar teaser de especialista
+              console.log('[FORMULÁRIO] updateField - AUTO-ADVANCE: Mostrando teaser de especialista')
               setTimeout(() => {
                 setShowSpecialistTeaser(true)
               }, 350)
@@ -345,16 +461,20 @@ export default function NewAnalysisPage() {
             
             return nextIdx
           }
+          console.log('[FORMULÁRIO] updateField - AUTO-ADVANCE: Mantendo adjustedIdx:', adjustedIdx)
           return adjustedIdx
         })
         
         setTimeout(() => {
+          console.log('[FORMULÁRIO] updateField - AUTO-ADVANCE: Finalizando transição')
           setIsTransitioning(false)
           setShowTransitionLoader(false)
         }, 350)
       }, 600)
+    } else {
+      console.log('[FORMULÁRIO] updateField - SEM AUTO-ADVANCE')
     }
-  }, [isTransitioning, formData, visibleQuestions, safeIndex])
+  }, [isTransitioning, formData, visibleQuestions, safeIndex, currentQuestionIndex, midQuestionIndex])
 
   const handleSubmit = async () => {
     setLoading(true)

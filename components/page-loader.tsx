@@ -1,12 +1,50 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 
 type PageLoaderProps = {
   message?: string
 }
 
+const ROTATING_PHRASES = [
+  'Analisando os sinais de interesse...',
+  'Decifrando as mensagens ocultas...',
+  'Identificando red flags...',
+  'Avaliando a compatibilidade...',
+  'Calculando o nível de engajamento...',
+  'Detectando padrões de comunicação...',
+  'Verificando sinais de reciprocidade...',
+  'Interpretando os comportamentos...',
+  'Analisando a consistência das ações...',
+  'Descobrindo as verdadeiras intenções...',
+]
+
 export function PageLoader({ message = 'Carregando...' }: PageLoaderProps) {
+  const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0)
+  const [fadeIn, setFadeIn] = useState(true)
+
+  // Detecta se a mensagem é a padrão para usar frases rotativas
+  const useRotatingPhrases = message === 'Analisando sua relação...'
+
+  useEffect(() => {
+    if (!useRotatingPhrases) return
+
+    const interval = setInterval(() => {
+      setFadeIn(false)
+      setTimeout(() => {
+        setCurrentPhraseIndex((prev) => (prev + 1) % ROTATING_PHRASES.length)
+        setFadeIn(true)
+      }, 300) // Tempo do fade out
+    }, 3500) // Muda a cada 3.5 segundos
+
+    return () => clearInterval(interval)
+  }, [useRotatingPhrases])
+
+  const displayMessage = useRotatingPhrases 
+    ? ROTATING_PHRASES[currentPhraseIndex] 
+    : message
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 relative overflow-hidden">
       {/* Ambient glow effects */}
@@ -23,7 +61,14 @@ export function PageLoader({ message = 'Carregando...' }: PageLoaderProps) {
               <Sparkles className="w-8 h-8 text-white" />
             </div>
           </div>
-          <p className="mt-6 text-gray-600 font-medium">{message}</p>
+          <p 
+            className={`mt-6 text-gray-600 font-medium transition-opacity duration-300 ${
+              fadeIn ? 'opacity-100' : 'opacity-0'
+            }`}
+            style={{ minHeight: '1.5rem' }}
+          >
+            {displayMessage}
+          </p>
         </div>
       </div>
     </div>

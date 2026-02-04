@@ -22,7 +22,8 @@ import {
   Edit2,
   Check,
   XCircle,
-  Phone
+  Phone,
+  Star
 } from 'lucide-react'
 import { PageLoader } from '@/components/page-loader'
 
@@ -31,6 +32,7 @@ type UserData = {
   email: string
   name: string
   phone?: string
+  signo?: string
   instagram?: string
   facebook?: string
   stats: {
@@ -349,6 +351,69 @@ export default function AccountPage() {
                   </div>
                 </div>
               )}
+
+              {/* Signo */}
+              <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl border border-amber-100">
+                <div className="p-2.5 bg-white rounded-xl shadow-sm">
+                  <Star className="w-5 h-5 text-amber-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Signo</p>
+                  {editingField === 'signo' ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <select
+                        value={editingValue}
+                        onChange={(e) => setEditingValue(e.target.value)}
+                        className="flex-1 px-3 py-1.5 text-sm border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                        autoFocus
+                      >
+                        <option value="">Selecione seu signo</option>
+                        <option value="Áries">Áries</option>
+                        <option value="Touro">Touro</option>
+                        <option value="Gêmeos">Gêmeos</option>
+                        <option value="Câncer">Câncer</option>
+                        <option value="Leão">Leão</option>
+                        <option value="Virgem">Virgem</option>
+                        <option value="Libra">Libra</option>
+                        <option value="Escorpião">Escorpião</option>
+                        <option value="Sagitário">Sagitário</option>
+                        <option value="Capricórnio">Capricórnio</option>
+                        <option value="Aquário">Aquário</option>
+                        <option value="Peixes">Peixes</option>
+                      </select>
+                      <button
+                        onClick={handleSaveField}
+                        disabled={saving}
+                        className="p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                        title="Salvar"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        disabled={saving}
+                        className="p-1.5 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                        title="Cancelar"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <p className="text-gray-900 font-medium flex-1">
+                        {user.signo || 'Não informado'}
+                      </p>
+                      <button
+                        onClick={() => handleEditField('signo', user.signo || '')}
+                        className="p-1.5 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors"
+                        title="Editar Signo"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {/* Instagram */}
               <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-pink-50 to-rose-50 rounded-2xl border border-pink-100">

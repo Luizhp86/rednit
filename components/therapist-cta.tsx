@@ -312,7 +312,7 @@ export function TherapistCta({
   }
 
   return (
-    <Card className="relative overflow-hidden p-6 bg-gradient-to-br from-purple-900/50 via-purple-800/40 to-pink-900/30 border-2 border-purple-500/50 shadow-lg shadow-purple-500/20">
+    <Card className="relative overflow-visible p-4 sm:p-6 bg-gradient-to-br from-purple-900/50 via-purple-800/40 to-pink-900/30 border-2 border-purple-500/50 shadow-lg shadow-purple-500/20">
       {/* Gradiente decorativo no topo */}
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500"></div>
       
@@ -320,32 +320,32 @@ export function TherapistCta({
       <div className="absolute -top-20 -right-20 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl"></div>
       <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-pink-500/20 rounded-full blur-3xl"></div>
       
-      <div className="relative flex flex-col md:flex-row items-start md:items-center gap-4">
-        <div className="relative p-4 rounded-full bg-gradient-to-br from-purple-600/30 to-pink-600/30 border border-purple-500/30">
+      <div className="relative flex flex-col md:flex-row items-start md:items-center gap-3 sm:gap-4">
+        <div className="relative p-3 sm:p-4 rounded-full bg-gradient-to-br from-purple-600/30 to-pink-600/30 border border-purple-500/30 flex-shrink-0">
           {/* Pulse animation */}
           <div className="absolute inset-0 rounded-full bg-purple-500/20 animate-ping"></div>
           {hasRedFlags ? (
-            <AlertTriangle className="relative w-8 h-8 text-purple-300" />
+            <AlertTriangle className="relative w-6 h-6 sm:w-8 sm:h-8 text-purple-300" />
           ) : (
-            <MessageCircle className="relative w-8 h-8 text-purple-300" />
+            <MessageCircle className="relative w-6 h-6 sm:w-8 sm:h-8 text-purple-300" />
           )}
         </div>
         
-        <div className="flex-1">
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base sm:text-lg md:text-xl font-bold text-white flex items-center gap-2 flex-wrap">
             {hasRedFlags ? (
               <>
-                <Sparkles className="w-5 h-5 text-yellow-400 animate-pulse" />
-                Detectamos sinais que merecem atenção
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400 animate-pulse flex-shrink-0" />
+                <span>Detectamos sinais que merecem atenção</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-5 h-5 text-yellow-400 animate-pulse" />
-                Quer conversar com um especialista?
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400 animate-pulse flex-shrink-0" />
+                <span>Quer conversar com um especialista?</span>
               </>
             )}
           </h3>
-          <p className="text-purple-200/80 text-sm mt-2">
+          <p className="text-purple-200/80 text-xs sm:text-sm mt-1 sm:mt-2">
             {hasRedFlags 
               ? 'Um especialista pode te ajudar a entender melhor esses padrões e como lidar com eles.'
               : 'Nossos especialistas em relacionamentos podem te ajudar a entender melhor sua situação.'}
@@ -355,20 +355,21 @@ export function TherapistCta({
         <Button
           onClick={handleClick}
           disabled={loading}
-          className="group relative overflow-hidden bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-8 py-5 text-lg font-bold rounded-xl border-2 border-green-400/50 shadow-2xl shadow-green-500/40 hover:shadow-green-500/60 ring-2 ring-green-400/30 ring-offset-2 ring-offset-transparent hover:scale-105 transition-all duration-300"
+          className="w-full md:w-auto flex-shrink-0 group relative overflow-hidden bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 sm:px-6 md:px-8 py-3 sm:py-4 md:py-5 text-sm sm:text-base md:text-lg font-bold rounded-xl border-2 border-green-400/50 shadow-2xl shadow-green-500/40 hover:shadow-green-500/60 ring-2 ring-green-400/30 ring-offset-2 ring-offset-transparent hover:scale-105 transition-all duration-300"
         >
           {/* Efeito shimmer */}
           <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
           {loading ? (
-            <span className="relative flex items-center gap-3">
-              <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-              Conectando...
+            <span className="relative flex items-center justify-center gap-2 sm:gap-3">
+              <span className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-2 border-white border-t-transparent" />
+              <span className="hidden sm:inline">Conectando...</span>
+              <span className="sm:hidden">Aguarde...</span>
             </span>
           ) : (
-            <span className="relative flex items-center gap-3">
-              <MessageCircle className="w-6 h-6" />
-              Falar com especialista
-              <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+            <span className="relative flex items-center justify-center gap-2 sm:gap-3">
+              <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span className="whitespace-nowrap">Falar com especialista</span>
+              <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-1 transition-transform" />
             </span>
           )}
         </Button>

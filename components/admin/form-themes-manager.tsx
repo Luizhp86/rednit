@@ -526,6 +526,9 @@ export function FormThemesManager() {
             {fixedQuestions.map((question, index) => (
               <Card key={question.id} className="bg-gray-800 border-gray-700 p-4">
                 <div className="flex items-center gap-4">
+                  <div className="text-gray-500 font-mono text-sm">
+                    #{index + 1}
+                  </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <h4 className="text-white font-medium">
@@ -534,15 +537,70 @@ export function FormThemesManager() {
                       <Badge className="bg-yellow-900/30 text-yellow-400 text-xs">
                         {question.fixedPosition === 'BEFORE' ? 'Antes' : 'Depois'}
                       </Badge>
+                      {question.required && (
+                        <Badge className="bg-red-900/30 text-red-400 text-xs">
+                          Obrigatória
+                        </Badge>
+                      )}
+                      <Badge className="bg-blue-900/30 text-blue-400 text-xs">
+                        {question.type}
+                      </Badge>
+                      <Badge className="bg-purple-900/30 text-purple-400 text-xs">
+                        Peso: {question.weight}
+                      </Badge>
                     </div>
                     <p className="text-sm text-gray-400 mt-1">
                       {question.key}
+                      {question.options && ` • ${question.options.length} opções`}
                     </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditingQuestion(question)
+                        setShowQuestionModal(true)
+                      }}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        if (!confirm('Deletar esta pergunta fixa?')) return
+                        try {
+                          const res = await fetch(
+                            `/api/admin/form-questions/${question.id}`,
+                            { method: 'DELETE' }
+                          )
+                          if (res.ok) {
+                            loadFixedQuestions()
+                          }
+                        } catch (error) {
+                          console.error(error)
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               </Card>
             ))}
           </div>
+
+          {fixedQuestions.length === 0 && (
+            <Card className="bg-gray-800 border-gray-700 p-12 text-center">
+              <Sliders className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-400">
+                Nenhuma pergunta fixa cadastrada ainda.
+                <br />
+                Perguntas fixas aparecem em todos os temas.
+              </p>
+            </Card>
+          )}
         </div>
       )}
 

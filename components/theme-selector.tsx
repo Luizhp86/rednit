@@ -152,22 +152,27 @@ export function ThemeSelector({ onSelectTheme }: ThemeSelectorProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center p-4">
-      <div className="max-w-4xl w-full">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
-        >
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex flex-col overflow-hidden">
+      {/* Cabeçalho Fixo */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="sticky top-0 z-20 bg-gradient-to-br from-gray-900/95 via-purple-900/95 to-gray-900/95 backdrop-blur-lg border-b border-purple-500/20 shadow-lg shadow-purple-500/10 px-4 py-6 sm:py-8"
+      >
+        <div className="max-w-4xl mx-auto text-center">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-3 sm:mb-4">
             Escolha um tema
           </h1>
-          <p className="text-xl text-gray-300">
+          <p className="text-lg sm:text-xl text-gray-300">
             Selecione o tipo de análise que melhor se encaixa na sua situação
           </p>
-        </motion.div>
+        </div>
+      </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Área Scrollável com Cards */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 pb-10 scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-purple-900/20 scroll-smooth">
+        <div className="max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {themes.map((theme, index) => {
             const Icon = theme.icon && iconMap[theme.icon] ? iconMap[theme.icon] : Heart
             const gradientClass = colorMap[theme.color] || colorMap.purple
@@ -353,6 +358,7 @@ export function ThemeSelector({ onSelectTheme }: ThemeSelectorProps) {
             </motion.div>
           </div>
         )}
+        </div>
       </div>
     </div>
   )
