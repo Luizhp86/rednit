@@ -18,7 +18,8 @@ import {
   MessageCircle,
   Shield,
   Phone,
-  X
+  X,
+  Home
 } from 'lucide-react'
 import { FloatingLoader } from '@/components/floating-loader'
 
@@ -80,7 +81,17 @@ export function ThemeSelector({ onSelectTheme }: ThemeSelectorProps) {
           const data = await response.json()
           // Filtrar apenas temas que têm perguntas
           const themesWithQuestions = data.filter((theme: FormTheme) => (theme._count?.questions || 0) > 0)
-          setThemes(themesWithQuestions)
+          
+          // Ordenar: sazonais primeiro, depois por ordem
+          const sortedThemes = themesWithQuestions.sort((a: FormTheme, b: FormTheme) => {
+            // Se um é sazonal e outro não, o sazonal vem primeiro
+            if (a.seasonal && !b.seasonal) return -1
+            if (!a.seasonal && b.seasonal) return 1
+            // Se ambos são sazonais ou ambos não são, ordenar por order
+            return a.order - b.order
+          })
+          
+          setThemes(sortedThemes)
         }
       } catch (error) {
         console.error('Erro ao carregar temas:', error)
@@ -159,13 +170,24 @@ export function ThemeSelector({ onSelectTheme }: ThemeSelectorProps) {
         animate={{ opacity: 1, y: 0 }}
         className="sticky top-0 z-20 bg-gradient-to-br from-gray-900/95 via-purple-900/95 to-gray-900/95 backdrop-blur-lg border-b border-purple-500/20 shadow-lg shadow-purple-500/10 px-4 py-6 sm:py-8"
       >
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-3 sm:mb-4">
-            Escolha um tema
-          </h1>
-          <p className="text-lg sm:text-xl text-gray-300">
-            Selecione o tipo de análise que melhor se encaixa na sua situação
-          </p>
+        <div className="max-w-4xl mx-auto">
+          {/* Botão Voltar ao Dashboard */}
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="inline-flex items-center gap-2 text-gray-300 hover:text-white mb-4 transition-colors group"
+          >
+            <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+            <span className="text-sm font-medium">Voltar ao Dashboard</span>
+          </button>
+          
+          <div className="text-center">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-3 sm:mb-4">
+              Escolha um tema
+            </h1>
+            <p className="text-lg sm:text-xl text-gray-300">
+              Selecione o tipo de análise que melhor se encaixa na sua situação
+            </p>
+          </div>
         </div>
       </motion.div>
 
@@ -191,8 +213,17 @@ export function ThemeSelector({ onSelectTheme }: ThemeSelectorProps) {
                   <div className={`h-2 bg-gradient-to-r ${gradientClass}`} />
                   <div className="p-6">
                     <div className="flex items-start gap-4 mb-4">
-                      <div className={`p-3 rounded-lg bg-gradient-to-br ${gradientClass} group-hover:scale-110 transition-transform`}>
-                        <Icon className="w-6 h-6 text-white" />
+                      <div className={`p-3 rounded-lg bg-gradient-to-br ${gradientClass} group-hover:scale-110 transition-transform relative ${
+                        theme.seasonal ? 'animate-pulse-strong' : ''
+                      }`}>
+                        {/* Glow effect para temas sazonais */}
+                        {theme.seasonal && (
+                          <>
+                            <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-lg blur-md opacity-75 animate-pulse-glow-intense" />
+                            <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-300 to-orange-300 rounded-lg blur-sm opacity-60 animate-pulse-glow-intense animation-delay-300" />
+                          </>
+                        )}
+                        <Icon className={`w-6 h-6 text-white relative z-10 ${theme.seasonal ? 'drop-shadow-glow' : ''}`} />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
@@ -360,6 +391,43 @@ export function ThemeSelector({ onSelectTheme }: ThemeSelectorProps) {
         )}
         </div>
       </div>
+
+      {/* Estilos customizados para animações */}
+      <style jsx global>{`
+        @keyframes pulse-strong {
+          0%, 100% { 
+            transform: scale(1);
+          }
+          50% { 
+            transform: scale(1.08);
+          }
+        }
+        .animate-pulse-strong {
+          animation: pulse-strong 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-glow-intense {
+          0%, 100% { 
+            opacity: 0.5;
+            transform: scale(1);
+          }
+          50% { 
+            opacity: 1;
+            transform: scale(1.15);
+          }
+        }
+        .animate-pulse-glow-intense {
+          animation: pulse-glow-intense 1.8s ease-in-out infinite;
+        }
+        
+        .animation-delay-300 {
+          animation-delay: 0.3s;
+        }
+        
+        .drop-shadow-glow {
+          filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+        }
+      `}</style>
     </div>
   )
 }
