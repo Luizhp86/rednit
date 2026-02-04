@@ -56,6 +56,7 @@ export async function updateSession(request: NextRequest) {
     // Rotas públicas que não precisam de autenticação
     const publicRoutes = [
       '/',
+      '/m',                   // Landing page mobile
       '/login',
       '/auth',
       '/terapeuta',           // Landing page do terapeuta
