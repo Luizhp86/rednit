@@ -38,7 +38,9 @@ import {
   UserCog,
   Sliders,
   Layers,
-  Target
+  Target,
+  Star,
+  Ban
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { FormThemesManager } from '@/components/admin/form-themes-manager'
@@ -75,6 +77,8 @@ type SystemConfig = {
   // Feature flags gerais
   maintenanceMode: boolean
   allowNewRegistrations: boolean
+  enableOnboardingInitial: boolean
+  enableOnboardingPostFirst: boolean
 }
 
 type Admin = {
@@ -114,7 +118,7 @@ export default function AdminPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'config' | 'users' | 'logs' | 'apikeys' | 'therapists' | 'leads' | 'admins' | 'demos' | 'forms'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'config' | 'users' | 'logs' | 'apikeys' | 'therapists' | 'leads' | 'admins' | 'demos' | 'forms' | 'feedback'>('dashboard')
   
   // Dashboard data
   const [stats, setStats] = useState<Stats | null>(null)
@@ -246,6 +250,17 @@ export default function AdminPage() {
   const [demoStats, setDemoStats] = useState<any>(null)
   const [upcomingDemos, setUpcomingDemos] = useState<any[]>([])
   const [updatingDemoId, setUpdatingDemoId] = useState<string | null>(null)
+  
+  // Feedback tab
+  const [feedbacks, setFeedbacks] = useState<any[]>([])
+  const [feedbackSearch, setFeedbackSearch] = useState('')
+  const [feedbackSkippedFilter, setFeedbackSkippedFilter] = useState('')
+  const [feedbackMinRating, setFeedbackMinRating] = useState('')
+  const [feedbackPage, setFeedbackPage] = useState(1)
+  const [feedbackTotal, setFeedbackTotal] = useState(0)
+  const [feedbackTotalPages, setFeedbackTotalPages] = useState(1)
+  const [loadingFeedbacks, setLoadingFeedbacks] = useState(false)
+  const [feedbackStats, setFeedbackStats] = useState<any>(null)
 
   useEffect(() => {
     checkAdmin()
@@ -750,6 +765,31 @@ export default function AdminPage() {
     }
   }
 
+  const loadExperienceFeedback = async (page = 1, search = '', skipped = '', minRating = '') => {
+    setLoadingFeedbacks(true)
+    try {
+      const params = new URLSearchParams()
+      params.append('page', page.toString())
+      params.append('limit', '20')
+      if (search) params.append('search', search)
+      if (skipped) params.append('skipped', skipped)
+      if (minRating) params.append('minRating', minRating)
+
+      const res = await fetch(`/api/admin/experience-feedback?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setFeedbacks(data.feedbacks)
+        setFeedbackTotal(data.pagination.total)
+        setFeedbackTotalPages(data.pagination.totalPages)
+        setFeedbackStats(data.stats)
+      }
+    } catch (error) {
+      console.error('Error loading feedback:', error)
+    } finally {
+      setLoadingFeedbacks(false)
+    }
+  }
+
   const updateTherapist = async (therapistId: string, action: string) => {
     try {
       const res = await fetch('/api/admin/therapists', {
@@ -958,6 +998,7 @@ export default function AdminPage() {
     { id: 'users', label: 'Usuários', icon: Users, onClick: () => { setActiveTab('users'); loadUsers(1, ''); } },
     { id: 'therapists', label: 'Especialistas', icon: UserCheck, onClick: () => { setActiveTab('therapists'); loadTherapists(1, '', ''); } },
     { id: 'leads', label: 'Leads', icon: MessageCircle, onClick: () => { setActiveTab('leads'); loadAdminLeads(1, '', '', ''); loadAllTherapists(); } },
+    { id: 'feedback', label: 'Avaliações', icon: Star, onClick: () => { setActiveTab('feedback'); loadExperienceFeedback(1, '', '', ''); } },
     { id: 'forms', label: 'Formulários', icon: Layers, onClick: () => setActiveTab('forms') },
     { id: 'demos', label: 'Demos', icon: Activity, onClick: () => { setActiveTab('demos'); loadDemos(1, ''); } },
     { id: 'logs', label: 'Logs', icon: FileText, onClick: () => { setActiveTab('logs'); loadLogs(1); } },
@@ -1742,6 +1783,37 @@ export default function AdminPage() {
                       <div>
                         <span className="text-white font-medium">Permitir Novos Cadastros</span>
                         <p className="text-xs text-gray-500">Permite que novos usuários se cadastrem</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+                
+                {/* Flags de Onboarding */}
+                <div>
+                  <p className="text-sm text-gray-400 font-semibold mb-3">🎯 Onboarding</p>
+                  <div className="space-y-3 ml-2">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={configDraft?.enableOnboardingInitial ?? true}
+                        onChange={(e) => setConfigDraft({...configDraft!, enableOnboardingInitial: e.target.checked})}
+                        className="w-5 h-5 rounded bg-gray-700 border-gray-600"
+                      />
+                      <div>
+                        <span className="text-white font-medium">Onboarding Inicial</span>
+                        <p className="text-xs text-gray-500">Tutorial mostrado na primeira vez que o usuário acessa o dashboard</p>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={configDraft?.enableOnboardingPostFirst ?? true}
+                        onChange={(e) => setConfigDraft({...configDraft!, enableOnboardingPostFirst: e.target.checked})}
+                        className="w-5 h-5 rounded bg-gray-700 border-gray-600"
+                      />
+                      <div>
+                        <span className="text-white font-medium">Onboarding Pós-Primeira Análise</span>
+                        <p className="text-xs text-gray-500">Tutorial mostrado após o usuário completar sua primeira análise</p>
                       </div>
                     </label>
                   </div>
@@ -4549,6 +4621,324 @@ export default function AdminPage() {
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Feedback Tab */}
+        {activeTab === 'feedback' && (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">
+                  Avaliações de Experiência
+                </h2>
+                <p className="text-white/50 text-sm mt-1">Feedback dos usuários sobre a plataforma</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => loadExperienceFeedback(1, feedbackSearch, feedbackSkippedFilter, feedbackMinRating)}
+                  className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/60 hover:text-teal-400 transition-all"
+                  title="Recarregar"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Stats Cards */}
+            {feedbackStats && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                      <Star className="w-5 h-5 text-yellow-400" />
+                    </div>
+                    <div>
+                      <p className="text-white/50 text-xs uppercase tracking-wider">Média</p>
+                      <p className="text-2xl font-bold text-white">
+                        {feedbackStats.avgRating?.toFixed(1) || '0.0'}
+                        <span className="text-sm text-white/40 ml-1">/ 5</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-teal-500/10 border border-teal-500/20">
+                      <MessageCircle className="w-5 h-5 text-teal-400" />
+                    </div>
+                    <div>
+                      <p className="text-white/50 text-xs uppercase tracking-wider">Com Nota</p>
+                      <p className="text-2xl font-bold text-white">{feedbackStats.totalWithRating}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-gray-500/10 border border-gray-500/20">
+                      <Ban className="w-5 h-5 text-gray-400" />
+                    </div>
+                    <div>
+                      <p className="text-white/50 text-xs uppercase tracking-wider">Pularam</p>
+                      <p className="text-2xl font-bold text-white">{feedbackStats.skippedCount}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                      <BarChart3 className="w-5 h-5 text-purple-400" />
+                    </div>
+                    <div>
+                      <p className="text-white/50 text-xs uppercase tracking-wider">Total</p>
+                      <p className="text-2xl font-bold text-white">{feedbackTotal}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Rating Distribution */}
+            {feedbackStats?.ratingDistribution && feedbackStats.ratingDistribution.length > 0 && (
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-teal-400" />
+                  Distribuição de Notas
+                </h3>
+                <div className="space-y-2">
+                  {[5, 4, 3, 2, 1].map((rating) => {
+                    const data = feedbackStats.ratingDistribution.find((r: any) => r.rating === rating)
+                    const count = data?._count || 0
+                    const percentage = feedbackStats.totalWithRating > 0 
+                      ? (count / feedbackStats.totalWithRating) * 100 
+                      : 0
+
+                    return (
+                      <div key={rating} className="flex items-center gap-3">
+                        <div className="flex items-center gap-1 w-16">
+                          <span className="text-white text-sm">{rating}</span>
+                          <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                        </div>
+                        <div className="flex-1 h-6 bg-white/5 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-teal-500 to-cyan-500 transition-all"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                        <span className="text-white/60 text-sm w-16 text-right">
+                          {count} ({percentage.toFixed(0)}%)
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Filters */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-xs text-white/60 mb-2">Buscar usuário</label>
+                  <input
+                    type="text"
+                    value={feedbackSearch}
+                    onChange={(e) => setFeedbackSearch(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && loadExperienceFeedback(1, feedbackSearch, feedbackSkippedFilter, feedbackMinRating)}
+                    placeholder="Email ou nome..."
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-teal-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-white/60 mb-2">Status</label>
+                  <select
+                    value={feedbackSkippedFilter}
+                    onChange={(e) => {
+                      setFeedbackSkippedFilter(e.target.value)
+                      loadExperienceFeedback(1, feedbackSearch, e.target.value, feedbackMinRating)
+                    }}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-teal-500"
+                  >
+                    <option value="">Todos</option>
+                    <option value="false">Com nota</option>
+                    <option value="true">Pularam</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-white/60 mb-2">Nota mínima</label>
+                  <select
+                    value={feedbackMinRating}
+                    onChange={(e) => {
+                      setFeedbackMinRating(e.target.value)
+                      loadExperienceFeedback(1, feedbackSearch, feedbackSkippedFilter, e.target.value)
+                    }}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-teal-500"
+                  >
+                    <option value="">Todas</option>
+                    <option value="5">5 estrelas</option>
+                    <option value="4">4+ estrelas</option>
+                    <option value="3">3+ estrelas</option>
+                    <option value="2">2+ estrelas</option>
+                    <option value="1">1+ estrela</option>
+                  </select>
+                </div>
+
+                <div className="flex items-end">
+                  <button
+                    onClick={() => loadExperienceFeedback(1, feedbackSearch, feedbackSkippedFilter, feedbackMinRating)}
+                    className="w-full px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                  >
+                    <Search className="w-4 h-4" />
+                    Buscar
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Loading */}
+            {loadingFeedbacks && (
+              <div className="flex items-center justify-center py-12">
+                <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+
+            {/* Table */}
+            {!loadingFeedbacks && feedbacks.length > 0 && (
+              <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-white/60 uppercase tracking-wider">Data</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-white/60 uppercase tracking-wider">Usuário</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-white/60 uppercase tracking-wider">Nota</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-white/60 uppercase tracking-wider">Mensagem</th>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-white/60 uppercase tracking-wider">Análise</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {feedbacks.map((feedback) => (
+                        <tr key={feedback.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="px-4 py-3 text-sm text-white/80">
+                            {new Date(feedback.createdAt).toLocaleDateString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div>
+                              <p className="text-sm text-white font-medium">{feedback.user.name || 'Sem nome'}</p>
+                              <p className="text-xs text-white/50">{feedback.user.email}</p>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            {feedback.skipped ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-500/20 border border-gray-500/30 text-gray-400 text-xs">
+                                <Ban className="w-3 h-3" />
+                                Pulou
+                              </span>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    className={`w-4 h-4 ${
+                                      star <= (feedback.rating || 0)
+                                        ? 'text-yellow-400 fill-yellow-400'
+                                        : 'text-gray-600'
+                                    }`}
+                                  />
+                                ))}
+                                <span className="ml-1 text-sm text-white/80">{feedback.rating}</span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {feedback.message ? (
+                              <p className="text-sm text-white/80 max-w-md truncate" title={feedback.message}>
+                                {feedback.message}
+                              </p>
+                            ) : (
+                              <span className="text-xs text-white/40 italic">Sem mensagem</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {feedback.analysisId ? (
+                              <div>
+                                <p className="text-xs text-white/60">
+                                  {feedback.analysisMatchName || 'Sem nome'}
+                                </p>
+                                <p className="text-xs text-white/40">
+                                  {feedback.analysisCreatedAt &&
+                                    new Date(feedback.analysisCreatedAt).toLocaleDateString('pt-BR')}
+                                </p>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-white/40 italic">N/A</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {feedbackTotalPages > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-white/10">
+                    <p className="text-sm text-white/50">
+                      Página {feedbackPage} de {feedbackTotalPages} ({feedbackTotal} total)
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const newPage = feedbackPage - 1
+                          setFeedbackPage(newPage)
+                          loadExperienceFeedback(newPage, feedbackSearch, feedbackSkippedFilter, feedbackMinRating)
+                        }}
+                        disabled={feedbackPage === 1}
+                        className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-white/60 text-sm hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      >
+                        Anterior
+                      </button>
+                      <button
+                        onClick={() => {
+                          const newPage = feedbackPage + 1
+                          setFeedbackPage(newPage)
+                          loadExperienceFeedback(newPage, feedbackSearch, feedbackSkippedFilter, feedbackMinRating)
+                        }}
+                        disabled={feedbackPage === feedbackTotalPages}
+                        className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-white/60 text-sm hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      >
+                        Próxima
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!loadingFeedbacks && feedbacks.length === 0 && (
+              <div className="bg-white/5 border border-white/10 rounded-xl p-12 text-center">
+                <Star className="w-12 h-12 text-white/20 mx-auto mb-4" />
+                <p className="text-white/60">Nenhuma avaliação encontrada</p>
+                <p className="text-white/40 text-sm mt-1">
+                  {feedbackSearch || feedbackSkippedFilter || feedbackMinRating
+                    ? 'Tente ajustar os filtros'
+                    : 'Avaliações aparecerão aqui quando os usuários enviarem feedback'}
+                </p>
               </div>
             )}
           </div>

@@ -358,6 +358,11 @@ export default function AnalysisPage() {
         <button
           onClick={() => {
             setNavigating(true)
+            // Marcar retorno da análise para possível exibição do modal de feedback
+            localStorage.setItem('returning_from_analysis', JSON.stringify({
+              analysisId: id,
+              timestamp: Date.now()
+            }))
             router.push('/dashboard')
           }}
           className="group inline-flex items-center gap-2.5 text-purple-600 hover:text-purple-700 mb-4 sm:mb-6 md:mb-8 text-sm font-medium hover:bg-purple-50 px-3 py-2 rounded-xl -ml-3 transition-all animate-fade-in-up hover:scale-105 animate-subtle-pulse"

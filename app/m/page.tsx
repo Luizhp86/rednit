@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRight, Sparkles, CheckCircle2, AlertTriangle, MessageCircle, Target, Shield, Zap, ChevronRight, X, Menu, Heart } from 'lucide-react'
+import { ArrowRight, Sparkles, CheckCircle2, AlertTriangle, MessageCircle, Target, Shield, Zap, ChevronRight, X, Menu, Heart, User } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import { useState, useEffect } from 'react'
 
@@ -76,6 +76,18 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
         </button>
         
         <div className="mt-16 space-y-2">
+          {/* Login para usuários existentes */}
+          <Link 
+            href="/login"
+            onClick={onClose}
+            className="flex items-center gap-4 text-gray-700 hover:text-purple-600 hover:bg-purple-50 py-4 px-4 rounded-xl transition-all group"
+          >
+            <User className="w-5 h-5" />
+            <span className="font-medium">Já sou cadastrado</span>
+            <ChevronRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+          </Link>
+          
+          {/* Para especialistas */}
           <Link 
             href="/terapeuta"
             onClick={onClose}
@@ -86,6 +98,7 @@ function MobileMenu({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
             <ChevronRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
           </Link>
           
+          {/* CTA principal */}
           <Link 
             href="/login"
             onClick={onClose}
