@@ -211,7 +211,7 @@ export default function MobileLandingPage() {
           {/* Subheadline */}
           <p className="text-gray-600 text-base mb-6 leading-relaxed">
             Responda sobre <strong className="text-purple-600">comportamentos</strong> — não sobre o que você acha. 
-            Nossa <strong className="text-purple-600">IA junto com especialistas</strong> analisa os sinais reais.
+            Nossa <strong className="text-purple-600">IA junto com especialistas</strong> analisa e te ajuda a entender os sinais reais.
           </p>
 
           {/* Preview do resultado */}
