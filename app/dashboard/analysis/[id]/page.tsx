@@ -63,9 +63,10 @@ export default function AnalysisPage() {
   const hypothesisLabels: Record<string, string> = {
     EXPLORANDO: 'Explorando possibilidades',
     BUSCA_FIXO: 'Busca relacionamento sério',
-    CARENCIA_VALIDACAO: 'Carência por validação',
-    RECEM_SAIU_RELACAO: 'Recém saiu de um relacionamento',
-    SEM_DISPONIBILIDADE_REAL: 'Sem disponibilidade real',
+    CARENCIA_VALIDACAO: 'Busca validação/atenção',
+    RECEM_SAIU_RELACAO: 'Transição/Rebote',
+    SEM_DISPONIBILIDADE_REAL: 'Indisponível emocionalmente',
+    INTERESSE_SUPERFICIAL: 'Interesse superficial/físico',
   }
 
   const getHypothesisTitle = (hypothesis: any) => {
@@ -352,21 +353,24 @@ export default function AnalysisPage() {
         </div>
       )}
 
-      <div className="relative z-10 container mx-auto px-4 sm:px-6 py-6 sm:py-10 max-w-4xl">
+      <div className="relative z-10 container mx-auto px-4 sm:px-6 py-4 sm:py-6 md:py-10 max-w-4xl">
         {/* Back Link */}
         <button
           onClick={() => {
             setNavigating(true)
             router.push('/dashboard')
           }}
-          className="inline-flex items-center gap-2.5 text-purple-600 hover:text-purple-700 mb-6 sm:mb-8 text-sm font-medium hover:bg-purple-50 px-3 py-2 rounded-xl -ml-3 transition-all animate-fade-in-up"
+          className="group inline-flex items-center gap-2.5 text-purple-600 hover:text-purple-700 mb-4 sm:mb-6 md:mb-8 text-sm font-medium hover:bg-purple-50 px-3 py-2 rounded-xl -ml-3 transition-all animate-fade-in-up hover:scale-105 animate-subtle-pulse"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Voltar para análises</span>
+          <span className="relative">
+            Voltar para análises
+            <span className="absolute -inset-1 bg-purple-100 rounded-lg -z-10 opacity-0 group-hover:opacity-100 transition-opacity"></span>
+          </span>
         </button>
 
         {/* Title */}
-        <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-6 sm:mb-8 text-gray-900 tracking-tight animate-fade-in-up animation-delay-100">
+        <h1 className="font-display text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-4 sm:mb-6 md:mb-8 text-gray-900 tracking-tight animate-fade-in-up animation-delay-100">
           {analysis.nome_match || analysis.premium?.nome_match || analysis.free_teaser?.nome_match 
             ? <>Análise de <span className="text-gradient-primary">{analysis.nome_match || analysis.premium?.nome_match || analysis.free_teaser?.nome_match}</span></>
             : 'Resultado da Análise'}
@@ -644,9 +648,9 @@ export default function AnalysisPage() {
           const currentKey = slideKeys.length ? slideKeys[carouselIndex % slideKeys.length] : ''
           return (
             <div className="animate-fade-in-up">
-              <h2 className="font-display text-xl sm:text-2xl font-bold text-gray-900 mb-6">Sua Análise Completa</h2>
-              <div className="relative" onMouseEnter={() => setAutoAdvancePaused(true)} onMouseLeave={() => setAutoAdvancePaused(false)}>
-                <div className="h-[520px] overflow-hidden rounded-3xl flex flex-col touch-pan-y">
+              <h2 className="font-display text-xl sm:text-2xl font-bold text-gray-900 mb-6 sm:mb-6">Sua Análise Completa</h2>
+              <div className="relative pb-20 sm:pb-0" onMouseEnter={() => setAutoAdvancePaused(true)} onMouseLeave={() => setAutoAdvancePaused(false)}>
+                <div className="h-[500px] sm:min-h-[520px] sm:h-auto overflow-hidden sm:overflow-visible rounded-3xl flex flex-col touch-pan-y">
                   <AnimatePresence mode="wait" initial={false} custom={carouselDirection}>
                     <motion.div
                       key={currentKey}
@@ -679,10 +683,10 @@ export default function AnalysisPage() {
                           setAutoAdvancePaused(true)
                         }
                       }}
-                      className="w-full h-full overflow-y-auto cursor-grab active:cursor-grabbing"
+                      className="w-full h-full overflow-y-auto sm:overflow-y-visible cursor-grab active:cursor-grabbing"
                     >
                       {currentKey === 'executive_summary' && (
-                        <div className="h-full min-h-[480px] flex flex-col">
+                        <div className="h-full min-h-[460px] sm:min-h-[480px] flex flex-col">
                           <div className="relative overflow-hidden rounded-3xl border border-gray-900/10 bg-gray-950 p-0 shadow-2xl flex-1 flex flex-col">
                             {/* Animated gradient background */}
                             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/60 via-gray-950 to-gray-950 pointer-events-none" />
@@ -699,14 +703,14 @@ export default function AnalysisPage() {
                             />
 
                             {/* Header */}
-                            <div className="relative px-6 sm:px-8 pt-6 sm:pt-8">
+                            <div className="relative px-5 sm:px-6 md:px-8 pt-5 sm:pt-6 md:pt-8">
                               <motion.div 
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.2 }}
-                                className="flex items-center gap-2 mb-3"
+                                className="flex items-center gap-2 mb-2 sm:mb-3"
                               >
-                                <span className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-400 text-xs font-bold uppercase tracking-wider">
+                                <span className="px-2.5 sm:px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-400 text-xs font-bold uppercase tracking-wider">
                                   Análise Personalizada
                                 </span>
                                 <motion.span 
@@ -719,7 +723,7 @@ export default function AnalysisPage() {
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.3 }}
-                                className="font-display text-2xl sm:text-3xl font-bold text-white mb-2"
+                                className="font-display text-2xl sm:text-2xl md:text-3xl font-bold text-white mb-2"
                               >
                                 Descobrimos <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-pink-400 to-purple-400">{slideKeys.length - 1} insights</span> sobre
                               </motion.h3>
@@ -734,14 +738,14 @@ export default function AnalysisPage() {
                             </div>
 
                             {/* Preview Cards - Teaser */}
-                            <div className="relative flex-1 px-6 sm:px-8 py-6">
+                            <div className="relative flex-1 px-5 sm:px-6 md:px-8 py-4 sm:py-4 md:py-6">
                               <div className="grid grid-cols-3 gap-3">
                                 {/* Risk Preview */}
                                 <motion.div
                                   initial={{ opacity: 0, y: 20 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ delay: 0.5 }}
-                                  className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-500/20 p-4"
+                                  className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500/10 to-red-500/10 border border-orange-500/20 p-3 sm:p-4"
                                 >
                                   <AlertTriangle className="w-5 h-5 text-orange-400 mb-2" />
                                   <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Risco</p>
@@ -750,7 +754,7 @@ export default function AnalysisPage() {
                                     <span className="text-sm text-gray-500">%</span>
                                   </p>
                                   <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 via-transparent to-transparent pointer-events-none" />
-                                  <p className="absolute bottom-2 left-4 text-[10px] text-gray-600">Deslize para ver</p>
+                                  <p className="absolute bottom-2 left-3 text-[10px] text-gray-600 hidden sm:block">Deslize para ver</p>
                                 </motion.div>
 
                                 {/* Compatibility Preview */}
@@ -758,7 +762,7 @@ export default function AnalysisPage() {
                                   initial={{ opacity: 0, y: 20 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ delay: 0.6 }}
-                                  className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 p-4"
+                                  className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 p-3 sm:p-4"
                                 >
                                   <Heart className="w-5 h-5 text-emerald-400 mb-2" />
                                   <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Match</p>
@@ -767,7 +771,7 @@ export default function AnalysisPage() {
                                     <span className="text-sm text-gray-500">%</span>
                                   </p>
                                   <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 via-transparent to-transparent pointer-events-none" />
-                                  <p className="absolute bottom-2 left-4 text-[10px] text-gray-600">Deslize para ver</p>
+                                  <p className="absolute bottom-2 left-3 text-[10px] text-gray-600 hidden sm:block">Deslize para ver</p>
                                 </motion.div>
 
                                 {/* Actions Preview */}
@@ -775,7 +779,7 @@ export default function AnalysisPage() {
                                   initial={{ opacity: 0, y: 20 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ delay: 0.7 }}
-                                  className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 p-4"
+                                  className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 p-3 sm:p-4"
                                 >
                                   <Zap className="w-5 h-5 text-purple-400 mb-2" />
                                   <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Ações</p>
@@ -784,7 +788,7 @@ export default function AnalysisPage() {
                                     <span className="text-sm text-gray-500"> itens</span>
                                   </p>
                                   <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 via-transparent to-transparent pointer-events-none" />
-                                  <p className="absolute bottom-2 left-4 text-[10px] text-gray-600">Deslize para ver</p>
+                                  <p className="absolute bottom-2 left-3 text-[10px] text-gray-600 hidden sm:block">Deslize para ver</p>
                                 </motion.div>
                               </div>
 
@@ -793,7 +797,7 @@ export default function AnalysisPage() {
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: 0.8 }}
-                                className="mt-4 relative"
+                                className="mt-3 sm:mt-4 relative"
                               >
                                 <div className="space-y-2 blur-[6px] select-none pointer-events-none">
                                   {premium.executive_summary?.slice(0, 2).map((item: string, idx: number) => (
@@ -816,14 +820,14 @@ export default function AnalysisPage() {
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: 0.9 }}
-                              className="relative px-6 sm:px-8 pb-6 sm:pb-8"
+                              className="relative px-5 sm:px-6 md:px-8 pb-5 sm:pb-6 md:pb-8"
                             >
                               <button
                                 type="button"
                                 onClick={() => { setCarouselDirection(1); setCarouselIndex(1); setAutoAdvancePaused(true); }}
                                 className="group w-full relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 p-[2px] shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-shadow"
                               >
-                                <div className="relative rounded-[14px] bg-gray-950/80 backdrop-blur px-6 py-4 flex items-center justify-between">
+                                <div className="relative rounded-[14px] bg-gray-950/80 backdrop-blur px-5 sm:px-6 py-4 flex items-center justify-between">
                                   <div className="flex items-center gap-3">
                                     <motion.div
                                       animate={{ rotate: [0, 10, -10, 0] }}
@@ -831,7 +835,7 @@ export default function AnalysisPage() {
                                     >
                                       <Eye className="w-5 h-5 text-purple-400" />
                                     </motion.div>
-                                    <span className="text-white font-semibold">Ver análise completa</span>
+                                    <span className="text-white font-semibold text-base">Ver análise completa</span>
                                   </div>
                                   <motion.div
                                     animate={{ x: [0, 4, 0] }}
@@ -982,19 +986,19 @@ export default function AnalysisPage() {
                       )}
 
                       {currentKey === 'checklist' && premium.validation_checklist && premium.validation_checklist.length > 0 && (
-              <div className="bg-white/80 backdrop-blur-sm border-2 border-blue-200 p-4 sm:p-5 rounded-3xl shadow-lg h-full flex flex-col">
+              <div className="bg-white/80 backdrop-blur-sm border-2 border-blue-200 p-5 sm:p-6 rounded-3xl shadow-lg h-full flex flex-col">
                 <h3 className="font-display text-lg font-bold mb-2 text-gray-900 flex items-center gap-2">
                   ✅ O Que Fazer Agora
                 </h3>
                 <p className="text-gray-600 text-xs mb-3">Marque conforme for observando:</p>
-                <ul className="space-y-2 flex-1">
+                <ul className="space-y-2 flex-1 overflow-y-auto max-h-[320px]">
                   {premium.validation_checklist.slice(0, 6).map((item: string, idx: number) => (
-                    <li key={idx} className="flex items-start gap-2 p-2.5 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors border border-blue-200">
+                    <li key={idx} className="flex items-start gap-2 p-3 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors border border-blue-200">
                       <input 
                         type="checkbox" 
                         className="mt-0.5 h-4 w-4 rounded border-2 border-blue-400 text-blue-600 focus:ring-blue-500 flex-shrink-0" 
                       />
-                      <span className="text-gray-800 leading-snug text-xs sm:text-sm line-clamp-2">{item}</span>
+                      <span className="text-gray-800 leading-snug text-sm break-words">{item}</span>
                     </li>
                   ))}
                 </ul>
@@ -1070,10 +1074,10 @@ export default function AnalysisPage() {
                   {[premium.hypothesis_1, premium.hypothesis_2, premium.hypothesis_3]
                     .filter(Boolean)
                     .map((hypothesis: any, idx: number) => (
-                      <div key={idx} className="bg-gray-50 p-5 rounded-2xl border border-gray-200">
+                      <div key={idx} className="bg-gray-50 p-4 sm:p-5 rounded-2xl border border-gray-200">
                         <div className="flex flex-wrap items-center gap-3 mb-3">
                           <span className="text-2xl font-bold text-gray-400">#{idx + 1}</span>
-                          <span className="font-bold text-base text-gray-900">{hypothesis.title || hypothesis.key}</span>
+                          <span className="font-bold text-base text-gray-900">{getHypothesisTitle(hypothesis)}</span>
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-semibold ${
                               hypothesis.confidence === 'HIGH'
@@ -1123,19 +1127,19 @@ export default function AnalysisPage() {
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.35 }}
-                className="h-full flex flex-col justify-center"
+                className="h-full flex flex-col justify-center px-2 sm:px-0"
               >
-                <div className="relative overflow-hidden rounded-3xl border-2 border-emerald-400/70 bg-gradient-to-br from-emerald-500/15 via-teal-500/15 to-cyan-500/15 p-5 sm:p-6 shadow-2xl shadow-emerald-500/25 ring-2 ring-emerald-400/40">
+                <div className="relative overflow-visible rounded-3xl border-2 border-emerald-400/70 bg-gradient-to-br from-emerald-500/15 via-teal-500/15 to-cyan-500/15 p-4 sm:p-5 md:p-6 shadow-2xl shadow-emerald-500/25 ring-2 ring-emerald-400/40">
                   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-400/15 via-transparent to-cyan-400/15 pointer-events-none" />
                   <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-400/25 rounded-full blur-3xl pointer-events-none animate-pulse" />
                   <div className="relative">
                     <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">
-                      <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/50">
+                      <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/50 flex-shrink-0">
                         <Heart className="w-5 h-5 text-emerald-600" />
                       </span>
-                      <p className="text-emerald-800 font-display text-xl font-bold">Fale com um especialista</p>
+                      <p className="text-emerald-800 font-display text-lg sm:text-xl font-bold">Fale com um especialista</p>
                     </div>
-                    <p className="text-gray-600 text-sm mb-4 text-center sm:text-left">Conte com apoio para entender melhor sua análise.</p>
+                    <p className="text-gray-600 text-xs sm:text-sm mb-4 text-center sm:text-left">Conte com apoio para entender melhor sua análise.</p>
                     <div className="animate-cta-pulse-strong">
                       <TherapistCta
                       userId={userData.id}
@@ -1157,13 +1161,9 @@ export default function AnalysisPage() {
                   </AnimatePresence>
                 </div>
                 {slideKeys.length > 1 && (
-                  <div className="flex flex-col items-center gap-3 mt-6">
-                    {/* Dica de swipe para mobile */}
-                    <div className="sm:hidden flex items-center gap-2 text-xs text-gray-500">
-                      <ChevronLeft className="w-4 h-4 animate-pulse" />
-                      <span>Arraste para navegar</span>
-                      <ChevronRight className="w-4 h-4 animate-pulse" />
-                    </div>
+                  <>
+                  {/* Controles Desktop */}
+                  <div className="hidden sm:flex flex-col items-center gap-3 mt-6">
                     <span className="text-sm font-medium text-gray-500 tabular-nums">
                       Slide {carouselIndex % slideKeys.length + 1} de {slideKeys.length}
                     </span>
@@ -1171,7 +1171,7 @@ export default function AnalysisPage() {
                     <button
                       type="button"
                       onClick={() => { setCarouselDirection(-1); setCarouselIndex(i => (i - 1 + slideKeys.length) % slideKeys.length); setAutoAdvancePaused(true); }}
-                      className="flex items-center justify-center w-12 h-12 rounded-2xl bg-white/90 backdrop-blur border-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-300 transition-all shadow-lg"
+                      className="flex items-center justify-center w-12 h-12 rounded-2xl bg-white/90 backdrop-blur border-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-300 transition-all shadow-lg flex-shrink-0"
                       aria-label="Anterior"
                     >
                       <ChevronLeft className="w-6 h-6" />
@@ -1190,13 +1190,54 @@ export default function AnalysisPage() {
                     <button
                       type="button"
                       onClick={() => { setCarouselDirection(1); setCarouselIndex(i => (i + 1) % slideKeys.length); setAutoAdvancePaused(true); }}
-                      className="flex items-center justify-center w-12 h-12 rounded-2xl bg-white/90 backdrop-blur border-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-300 transition-all shadow-lg"
+                      className="flex items-center justify-center w-12 h-12 rounded-2xl bg-white/90 backdrop-blur border-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-300 transition-all shadow-lg flex-shrink-0"
                       aria-label="Próximo"
                     >
                       <ChevronRight className="w-6 h-6" />
                     </button>
                     </div>
                   </div>
+                  
+                  {/* Controles Mobile Fixos */}
+                  <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 pointer-events-none">
+                    {/* Gradiente sutil para dar contraste aos botões */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-white/80 via-white/40 to-transparent pointer-events-none" />
+                    
+                    <div className="relative max-w-md mx-auto px-4 py-4 pointer-events-auto">
+                      <div className="flex items-center justify-between gap-4 w-full">
+                          <button
+                            type="button"
+                            onClick={() => { setCarouselDirection(-1); setCarouselIndex(i => (i - 1 + slideKeys.length) % slideKeys.length); setAutoAdvancePaused(true); }}
+                            className="flex items-center justify-center w-12 h-12 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-all shadow-2xl flex-shrink-0 active:scale-95"
+                            aria-label="Anterior"
+                          >
+                            <ChevronLeft className="w-6 h-6" />
+                          </button>
+                          
+                          <div className="flex items-center gap-2">
+                            {slideKeys.map((_, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => { setCarouselDirection(i > carouselIndex ? 1 : -1); setCarouselIndex(i); setAutoAdvancePaused(true); }}
+                                className={`h-2 rounded-full transition-all shadow-lg ${i === carouselIndex % slideKeys.length ? 'w-8 bg-purple-600' : 'w-2 bg-purple-400 hover:bg-purple-500'}`}
+                                aria-label={`Slide ${i + 1}`}
+                              />
+                            ))}
+                          </div>
+                          
+                          <button
+                            type="button"
+                            onClick={() => { setCarouselDirection(1); setCarouselIndex(i => (i + 1) % slideKeys.length); setAutoAdvancePaused(true); }}
+                            className="flex items-center justify-center w-12 h-12 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-all shadow-2xl flex-shrink-0 active:scale-95"
+                            aria-label="Próximo"
+                          >
+                            <ChevronRight className="w-6 h-6" />
+                          </button>
+                        </div>
+                    </div>
+                  </div>
+                  </>
                 )}
               </div>
             </div>

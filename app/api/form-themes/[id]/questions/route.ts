@@ -72,9 +72,25 @@ export async function GET(
       ...fixedAfter
     ]
 
+    // Remover duplicatas baseado no 'key' da pergunta
+    // Manter apenas a primeira ocorrência de cada key
+    const seenKeys = new Set<string>()
+    const uniqueQuestions = allQuestions.filter(question => {
+      if (seenKeys.has(question.key)) {
+        console.log(`[API FORM-THEMES] Removendo pergunta duplicada: ${question.key}`)
+        return false
+      }
+      seenKeys.add(question.key)
+      return true
+    })
+
+    console.log(`[API FORM-THEMES] Total de perguntas antes: ${allQuestions.length}`)
+    console.log(`[API FORM-THEMES] Total de perguntas após remover duplicatas: ${uniqueQuestions.length}`)
+    console.log(`[API FORM-THEMES] Keys das perguntas: ${uniqueQuestions.map(q => q.key).join(', ')}`)
+
     return NextResponse.json({
       theme,
-      questions: allQuestions
+      questions: uniqueQuestions
     })
   } catch (error) {
     console.error('Erro ao buscar perguntas:', error)
