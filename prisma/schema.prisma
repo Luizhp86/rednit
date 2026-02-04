@@ -7,46 +7,48 @@ datasource db {
 }
 
 model User {
-  id                                    String       @id @default(uuid())
-  email                                 String       @unique
+  id                                    String               @id @default(uuid())
+  email                                 String               @unique
   name                                  String?
-  plan                                  Plan         @default(FREE)
-  creditsFreeDaily                      Int          @default(1)
-  creditsPaid                           Int          @default(0)
+  plan                                  Plan                 @default(FREE)
+  creditsFreeDaily                      Int                  @default(1)
+  creditsPaid                           Int                  @default(0)
   proUntil                              DateTime?
   lastDailyReset                        DateTime?
-  createdAt                             DateTime     @default(now())
-  updatedAt                             DateTime     @updatedAt
+  createdAt                             DateTime             @default(now())
+  updatedAt                             DateTime             @updatedAt
   facebook                              String?
-  hasSeenOnboarding                     Boolean      @default(false)
-  hasSeenPostFirstAnalysisOnboarding    Boolean      @default(false)
+  hasSeenOnboarding                     Boolean              @default(false)
+  hasSeenPostFirstAnalysisOnboarding    Boolean              @default(false)
   instagram                             String?
   phone                                 String?
   signo                                 String?
-  stripeCustomerId                      String?      @unique
+  stripeCustomerId                      String?              @unique
   analyses                              Analysis[]
   entitlements                          Entitlement?
   leads                                 Lead[]
   payments                              Payment[]
+  experienceFeedbacks                   ExperienceFeedback[]
 
   @@map("users")
 }
 
 model Analysis {
-  id                    String        @id @default(uuid())
+  id                    String               @id @default(uuid())
   userId                String
   stage                 AnalysisStage
   inputJson             Json
   resultJson            Json
-  isPaid                Boolean       @default(false)
-  createdAt             DateTime      @default(now())
-  usedInRouteCorrection Boolean       @default(false)
-  deleted               Boolean       @default(false)
+  isPaid                Boolean              @default(false)
+  createdAt             DateTime             @default(now())
+  usedInRouteCorrection Boolean              @default(false)
+  deleted               Boolean              @default(false)
   deletedAt             DateTime?
   themeId               String?
-  theme                 FormTheme?    @relation(fields: [themeId], references: [id])
-  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme                 FormTheme?           @relation(fields: [themeId], references: [id])
+  user                  User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   leads                 Lead[]
+  experienceFeedbacks   ExperienceFeedback[]
 
   @@index([userId])
   @@index([createdAt])
@@ -54,6 +56,26 @@ model Analysis {
   @@index([themeId])
   @@index([deleted])
   @@map("analyses")
+}
+
+model ExperienceFeedback {
+  id         String       @id @default(uuid())
+  userId     String
+  analysisId String?
+  kind       FeedbackKind
+  rating     Int?
+  message    String?      @db.Text
+  skipped    Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysis   Analysis?    @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, kind])
+  @@index([createdAt])
+  @@index([analysisId])
+  @@index([kind])
+  @@index([rating])
+  @@map("experience_feedbacks")
 }
 
 model Payment {
@@ -128,6 +150,8 @@ model SystemConfig {
   therapistPriceBasic          Int       @default(7900)
   therapistPriceIntermediate   Int       @default(14900)
   therapistPricePro            Int       @default(24900)
+  enableOnboardingInitial      Boolean   @default(true)
+  enableOnboardingPostFirst    Boolean   @default(true)
 
   @@map("system_config")
 }
@@ -487,4 +511,8 @@ enum QuestionType {
 enum FixedQuestionPosition {
   BEFORE
   AFTER
+}
+
+enum FeedbackKind {
+  FIRST_ANALYSIS_EXPERIENCE
 }

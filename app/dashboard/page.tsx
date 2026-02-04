@@ -10,6 +10,7 @@ import { PhoneInputModal } from '@/components/phone-input-modal'
 import { PageLoader } from '@/components/page-loader'
 import { FloatingLoader } from '@/components/floating-loader'
 import { OnboardingTour, OnboardingStep } from '@/components/onboarding-tour'
+import { ExperienceFeedbackModal } from '@/components/experience-feedback-modal'
 import { BarChart3, TrendingUp, Brain, Shield, ArrowRight, Sparkles, Compass, X, AlertTriangle, CheckCircle2, MessageCircle, Heart, Phone, Menu, LogOut, User, ChevronRight, Flame, Target, Zap, Trash2 } from 'lucide-react'
 
 type Analysis = {
@@ -83,6 +84,10 @@ function DashboardPageInner() {
   const [shouldShowPostFirstAnalysisOnboarding, setShouldShowPostFirstAnalysisOnboarding] = useState(false)
   const [highlightSpecialistButton, setHighlightSpecialistButton] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  
+  // Experience feedback modal
+  const [showExperienceFeedbackModal, setShowExperienceFeedbackModal] = useState(false)
+  const [feedbackAnalysisId, setFeedbackAnalysisId] = useState<string | null>(null)
 
   // Detectar se é mobile e desativar onboarding se mudar para mobile
   useEffect(() => {
@@ -364,8 +369,13 @@ function DashboardPageInner() {
         
         const isFirstAccess = !hasSeenOnboarding
         console.log('[DASHBOARD] isFirstAccess:', isFirstAccess)
-        // Não mostrar onboarding em mobile
-        const shouldShow = isFirstAccess && !isMobile
+        
+        // Verificar se onboarding inicial está habilitado na config
+        const onboardingInitialEnabled = meData.systemConfig?.enableOnboardingInitial ?? true
+        console.log('[DASHBOARD] onboardingInitialEnabled:', onboardingInitialEnabled)
+        
+        // Não mostrar onboarding em mobile ou se estiver desabilitado
+        const shouldShow = isFirstAccess && !isMobile && onboardingInitialEnabled
         console.log('[DASHBOARD] isMobile:', isMobile, 'shouldShow:', shouldShow)
         setShouldShowOnboarding(shouldShow)
         
@@ -396,7 +406,11 @@ function DashboardPageInner() {
         // 2. Ainda não viu o onboarding pós-primeira análise
         // 3. Já viu o onboarding inicial (para não conflitar)
         // 4. Não é mobile (onboarding desabilitado em mobile)
-        const shouldShowPostFirstAnalysis = meData.stats?.totalAnalyses === 1 && !hasSeenPostFirstAnalysisOnboarding && hasSeenOnboarding && !isMobile
+        // 5. Onboarding pós-primeira está habilitado na config
+        const onboardingPostFirstEnabled = meData.systemConfig?.enableOnboardingPostFirst ?? true
+        console.log('[DASHBOARD] onboardingPostFirstEnabled:', onboardingPostFirstEnabled)
+        
+        const shouldShowPostFirstAnalysis = meData.stats?.totalAnalyses === 1 && !hasSeenPostFirstAnalysisOnboarding && hasSeenOnboarding && !isMobile && onboardingPostFirstEnabled
         console.log('[DASHBOARD] shouldShowPostFirstAnalysis:', shouldShowPostFirstAnalysis, 'isMobile:', isMobile)
         setShouldShowPostFirstAnalysisOnboarding(shouldShowPostFirstAnalysis)
         
@@ -416,6 +430,46 @@ function DashboardPageInner() {
         
         if (meData.therapist) {
           setSpecialist(meData.therapist)
+        }
+        
+        // Verificar se deve mostrar modal de feedback (após primeira análise)
+        console.log('[DASHBOARD] ===== VERIFICANDO FEEDBACK MODAL =====')
+        const returningFromAnalysis = localStorage.getItem('returning_from_analysis')
+        if (returningFromAnalysis && meData) {
+          try {
+            const { analysisId, timestamp } = JSON.parse(returningFromAnalysis)
+            const hoursSinceReturn = (Date.now() - timestamp) / (1000 * 60 * 60)
+            
+            // Só considerar se foi retorno recente (menos de 1 hora)
+            if (hoursSinceReturn < 1 && meData.stats?.totalAnalyses === 1) {
+              console.log('[DASHBOARD] Retorno recente da primeira análise detectado')
+              
+              // Verificar se já existe feedback
+              const feedbackRes = await fetch('/api/experience-feedback')
+              if (feedbackRes.ok) {
+                const feedbackData = await feedbackRes.json()
+                console.log('[DASHBOARD] Feedback status:', feedbackData)
+                
+                if (!feedbackData.hasFeedback) {
+                  console.log('[DASHBOARD] ✅ Vai mostrar modal de feedback')
+                  setFeedbackAnalysisId(analysisId)
+                  // Aguardar um pouco para o dashboard carregar completamente
+                  setTimeout(() => {
+                    setShowExperienceFeedbackModal(true)
+                  }, 1500)
+                } else {
+                  console.log('[DASHBOARD] ℹ️ Usuário já deu feedback')
+                  localStorage.removeItem('returning_from_analysis')
+                }
+              }
+            } else {
+              console.log('[DASHBOARD] Retorno antigo ou não é primeira análise')
+              localStorage.removeItem('returning_from_analysis')
+            }
+          } catch (e) {
+            console.error('[DASHBOARD] Erro ao processar retorno:', e)
+            localStorage.removeItem('returning_from_analysis')
+          }
         }
       } else {
         console.error('[DASHBOARD] ❌ Erro ao buscar dados do usuário:', meRes.status, meRes.statusText)
@@ -596,6 +650,56 @@ function DashboardPageInner() {
     } catch (error) {
       console.warn('[ONBOARDING POST-FIRST] ⚠️ Erro ao atualizar no banco:', error)
       console.warn('[ONBOARDING POST-FIRST] Usando localStorage como fallback')
+    }
+  }
+
+  const handleExperienceFeedbackSubmit = async (rating: number, message: string) => {
+    try {
+      const res = await fetch('/api/experience-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rating,
+          message,
+          analysisId: feedbackAnalysisId,
+          skipped: false,
+        }),
+      })
+
+      if (res.ok) {
+        console.log('[DASHBOARD] Feedback enviado com sucesso')
+        setShowExperienceFeedbackModal(false)
+        localStorage.removeItem('returning_from_analysis')
+      } else {
+        throw new Error('Erro ao enviar feedback')
+      }
+    } catch (error) {
+      console.error('[DASHBOARD] Erro ao enviar feedback:', error)
+      throw error
+    }
+  }
+
+  const handleExperienceFeedbackSkip = async () => {
+    try {
+      const res = await fetch('/api/experience-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          analysisId: feedbackAnalysisId,
+          skipped: true,
+        }),
+      })
+
+      if (res.ok) {
+        console.log('[DASHBOARD] Feedback marcado como skip')
+        setShowExperienceFeedbackModal(false)
+        localStorage.removeItem('returning_from_analysis')
+      } else {
+        throw new Error('Erro ao processar skip')
+      }
+    } catch (error) {
+      console.error('[DASHBOARD] Erro ao processar skip:', error)
+      throw error
     }
   }
 
@@ -1617,6 +1721,17 @@ function DashboardPageInner() {
             onSkip={handlePostFirstAnalysisOnboardingSkip}
           />
         )}
+
+        {/* Modal de Feedback de Experiência */}
+        <ExperienceFeedbackModal
+          isOpen={showExperienceFeedbackModal}
+          onClose={() => {
+            setShowExperienceFeedbackModal(false)
+            localStorage.removeItem('returning_from_analysis')
+          }}
+          onSubmit={handleExperienceFeedbackSubmit}
+          onSkip={handleExperienceFeedbackSkip}
+        />
       </div>
 
       {/* Custom Styles */}
