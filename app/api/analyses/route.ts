@@ -38,7 +38,10 @@ export async function GET() {
     // #endregion
 
     const analyses = await prisma.analysis.findMany({
-      where: { userId: dbUser.id },
+      where: { 
+        userId: dbUser.id,
+        deleted: false, // Filtrar análises deletadas
+      },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,

@@ -190,9 +190,16 @@ export async function DELETE(
       return NextResponse.json({ error: 'Análise não encontrada' }, { status: 404 })
     }
 
-    await prisma.analysis.delete({
+    // Soft delete: marcar como deletada ao invés de remover do banco
+    await prisma.analysis.update({
       where: { id },
+      data: {
+        deleted: true,
+        deletedAt: new Date(),
+      },
     })
+
+    console.log('[ANALYSES] Análise marcada como deletada:', { analysisId: id, userId: dbUser.id })
 
     return NextResponse.json({ success: true })
   } catch (error) {

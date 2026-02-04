@@ -70,7 +70,9 @@ export async function GET(request: NextRequest) {
           createdAt: a.createdAt,
           themeName: a.theme?.displayName || 'Padrão',
           inputJson: a.inputJson,
-          resultJson: a.resultJson
+          resultJson: a.resultJson,
+          deleted: a.deleted,
+          deletedAt: a.deletedAt
         }))
       })
     }

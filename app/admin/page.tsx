@@ -3748,13 +3748,25 @@ export default function AdminPage() {
                           const signoMatch = inputJson.signo_match || resultJson.signo_match || '-'
                           
                           return (
-                            <div key={analysis.id} className="bg-gray-700 rounded-lg p-3">
+                            <div key={analysis.id} className={`rounded-lg p-3 ${analysis.deleted ? 'bg-red-900/20 border border-red-500/30' : 'bg-gray-700'}`}>
                               <div className="flex justify-between items-start mb-2">
-                                <div>
-                                  <p className="text-white font-medium">{nomeMatch}</p>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-white font-medium">{nomeMatch}</p>
+                                    {analysis.deleted && (
+                                      <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold uppercase border border-red-500/30">
+                                        🗑️ Deletada
+                                      </span>
+                                    )}
+                                  </div>
                                   <p className="text-gray-400 text-xs">
                                     {analysis.themeName} • {new Date(analysis.createdAt).toLocaleDateString('pt-BR')}
                                   </p>
+                                  {analysis.deleted && analysis.deletedAt && (
+                                    <p className="text-red-400 text-[10px] mt-0.5">
+                                      Deletada em: {new Date(analysis.deletedAt).toLocaleString('pt-BR')}
+                                    </p>
+                                  )}
                                   {signoMatch !== '-' && signoMatch !== 'NAO_SEI' && (
                                     <p className="text-amber-400 text-xs mt-1">⭐ {signoMatch}</p>
                                   )}

@@ -41,6 +41,8 @@ model Analysis {
   isPaid                Boolean       @default(false)
   createdAt             DateTime      @default(now())
   usedInRouteCorrection Boolean       @default(false)
+  deleted               Boolean       @default(false)
+  deletedAt             DateTime?
   themeId               String?
   theme                 FormTheme?    @relation(fields: [themeId], references: [id])
   user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -50,6 +52,7 @@ model Analysis {
   @@index([createdAt])
   @@index([usedInRouteCorrection])
   @@index([themeId])
+  @@index([deleted])
   @@map("analyses")
 }
 
