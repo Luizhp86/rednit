@@ -647,13 +647,27 @@ export default function NewAnalysisPage() {
           ? 'Avatar masculino' 
           : 'Avatar feminino'
         
+        // Função para capitalizar primeira letra de cada palavra
+        const capitalizeName = (text: string) => {
+          return text
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ')
+        }
+        
         return (
           <div className="flex flex-col items-center space-y-4 sm:space-y-6">
             <Input
               value={(formData.nome_match as string) || ''}
-              onChange={(e) => updateField('nome_match', e.target.value.toUpperCase())}
+              onChange={(e) => {
+                const value = e.target.value
+                // Capitalizar primeira letra de cada palavra
+                const capitalized = capitalizeName(value)
+                updateField('nome_match', capitalized)
+              }}
               placeholder={currentQuestion.placeholder}
-              className="h-14 sm:h-16 text-base rounded-2xl text-center text-xl sm:text-2xl font-semibold uppercase tracking-wider"
+              className="h-14 sm:h-16 text-base rounded-2xl text-center text-xl sm:text-2xl font-semibold tracking-normal"
+              style={{ fontFamily: 'var(--font-geist-sans, system-ui, -apple-system, sans-serif)' }}
             />
             {formData.genero_match && (
               <motion.div

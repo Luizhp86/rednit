@@ -82,6 +82,32 @@ function DashboardPageInner() {
   const [showPostFirstAnalysisOnboarding, setShowPostFirstAnalysisOnboarding] = useState(false)
   const [shouldShowPostFirstAnalysisOnboarding, setShouldShowPostFirstAnalysisOnboarding] = useState(false)
   const [highlightSpecialistButton, setHighlightSpecialistButton] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detectar se é mobile e desativar onboarding se mudar para mobile
+  useEffect(() => {
+    const checkIsMobile = () => {
+      const mobile = window.innerWidth < 768 // Considera mobile abaixo de 768px (tablets e celulares)
+      setIsMobile(mobile)
+      
+      // Se mudou para mobile e o onboarding está ativo, desativar
+      if (mobile) {
+        if (showOnboarding) {
+          console.log('[DASHBOARD] Mudou para mobile - desativando onboarding inicial')
+          setShowOnboarding(false)
+        }
+        if (showPostFirstAnalysisOnboarding) {
+          console.log('[DASHBOARD] Mudou para mobile - desativando onboarding pós-primeira análise')
+          setShowPostFirstAnalysisOnboarding(false)
+        }
+      }
+    }
+    
+    checkIsMobile()
+    window.addEventListener('resize', checkIsMobile)
+    
+    return () => window.removeEventListener('resize', checkIsMobile)
+  }, [showOnboarding, showPostFirstAnalysisOnboarding])
 
   const stageLabels: Record<string, string> = {
     FIRST_CHAT: 'Primeira conversa',
@@ -139,8 +165,8 @@ function DashboardPageInner() {
 
   // Mostrar onboarding APÓS o loading terminar e elementos estarem renderizados
   useEffect(() => {
-    // Só tentar mostrar onboarding quando não estiver carregando
-    if (!loading && shouldShowOnboarding && !showOnboarding && !showPhoneModal) {
+    // Só tentar mostrar onboarding quando não estiver carregando e não for mobile
+    if (!loading && shouldShowOnboarding && !showOnboarding && !showPhoneModal && !isMobile) {
       // O elemento existe tanto quando hasFormsAvailable é true quanto false
       // (adicionamos o atributo no botão desabilitado também)
       console.log('[DASHBOARD] ===== TENTANDO MOSTRAR ONBOARDING APÓS LOADING =====')
@@ -180,7 +206,7 @@ function DashboardPageInner() {
       
       return () => clearTimeout(timer)
     }
-  }, [loading, shouldShowOnboarding, showOnboarding, showPhoneModal, analyses.length, hasFormsAvailable])
+  }, [loading, shouldShowOnboarding, showOnboarding, showPhoneModal, analyses.length, hasFormsAvailable, isMobile])
   
   // Monitorar mudanças de estado para debug
   useEffect(() => {
@@ -218,7 +244,8 @@ function DashboardPageInner() {
     // - Não está mostrando ainda (showPostFirstAnalysisOnboarding)
     // - Não está mostrando o modal de telefone
     // - Não está mostrando o onboarding inicial
-    if (!loading && shouldShowPostFirstAnalysisOnboarding && !showPostFirstAnalysisOnboarding && !showPhoneModal && !showOnboarding) {
+    // - Não é mobile (onboarding desabilitado em mobile)
+    if (!loading && shouldShowPostFirstAnalysisOnboarding && !showPostFirstAnalysisOnboarding && !showPhoneModal && !showOnboarding && !isMobile) {
       console.log('[DASHBOARD] ===== TENTANDO MOSTRAR ONBOARDING PÓS-PRIMEIRA ANÁLISE =====')
       console.log('[DASHBOARD] analyses.length:', analyses.length)
       
@@ -256,7 +283,7 @@ function DashboardPageInner() {
       
       return () => clearTimeout(timer)
     }
-  }, [loading, shouldShowPostFirstAnalysisOnboarding, showPostFirstAnalysisOnboarding, showPhoneModal, showOnboarding, analyses.length])
+  }, [loading, shouldShowPostFirstAnalysisOnboarding, showPostFirstAnalysisOnboarding, showPhoneModal, showOnboarding, analyses.length, isMobile])
 
   useEffect(() => {
     async function loadData() {
@@ -337,7 +364,10 @@ function DashboardPageInner() {
         
         const isFirstAccess = !hasSeenOnboarding
         console.log('[DASHBOARD] isFirstAccess:', isFirstAccess)
-        setShouldShowOnboarding(isFirstAccess)
+        // Não mostrar onboarding em mobile
+        const shouldShow = isFirstAccess && !isMobile
+        console.log('[DASHBOARD] isMobile:', isMobile, 'shouldShow:', shouldShow)
+        setShouldShowOnboarding(shouldShow)
         
         if (isFirstAccess) {
           console.log('[DASHBOARD] ✅ PRIMEIRO ACESSO DETECTADO - DEVE MOSTRAR ONBOARDING')
@@ -365,8 +395,9 @@ function DashboardPageInner() {
         // 1. Usuário tem exatamente 1 análise
         // 2. Ainda não viu o onboarding pós-primeira análise
         // 3. Já viu o onboarding inicial (para não conflitar)
-        const shouldShowPostFirstAnalysis = meData.stats?.totalAnalyses === 1 && !hasSeenPostFirstAnalysisOnboarding && hasSeenOnboarding
-        console.log('[DASHBOARD] shouldShowPostFirstAnalysis:', shouldShowPostFirstAnalysis)
+        // 4. Não é mobile (onboarding desabilitado em mobile)
+        const shouldShowPostFirstAnalysis = meData.stats?.totalAnalyses === 1 && !hasSeenPostFirstAnalysisOnboarding && hasSeenOnboarding && !isMobile
+        console.log('[DASHBOARD] shouldShowPostFirstAnalysis:', shouldShowPostFirstAnalysis, 'isMobile:', isMobile)
         setShouldShowPostFirstAnalysisOnboarding(shouldShowPostFirstAnalysis)
         
         if (shouldShowPostFirstAnalysis) {
@@ -871,7 +902,7 @@ function DashboardPageInner() {
               {/* Botão Falar com Especialista - aparece quando tem análises */}
               {analyses.length > 0 && (
                 <div className="relative group">
-                  {/* Multi-layer pulsing glow effect quando destacado */}
+                  {/* Multi-layer pulsing glow effect quando destacado OU em mobile com análises */}
                   {highlightSpecialistButton ? (
                     <>
                       {/* Outer glow - pulsa lentamente */}
@@ -881,8 +912,11 @@ function DashboardPageInner() {
                       {/* Inner glow - sempre visível */}
                       <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 rounded-2xl blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-300" />
                     </>
+                  ) : isMobile ? (
+                    /* Glow effect pulsante para mobile com análises */
+                    <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 rounded-2xl blur-lg opacity-50 group-hover:opacity-70 transition-opacity duration-300 animate-pulse-slow" />
                   ) : (
-                    /* Glow effect normal */
+                    /* Glow effect normal para desktop */
                     <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 rounded-2xl blur-lg opacity-40 group-hover:opacity-70 transition-opacity duration-300" />
                   )}
                   <button
@@ -911,8 +945,10 @@ function DashboardPageInner() {
               {/* Botão Nova Análise */}
               {hasFormsAvailable ? (
                 <div className="relative group">
-                  {/* Animated glow effect */}
-                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-pink-500 to-orange-500 rounded-2xl blur-lg opacity-50 group-hover:opacity-80 transition-opacity duration-300 animate-pulse-slow" />
+                  {/* Animated glow effect - mais intenso em mobile quando tem análises */}
+                  <div className={`absolute -inset-1 bg-gradient-to-r from-purple-600 via-pink-500 to-orange-500 rounded-2xl blur-lg group-hover:opacity-80 transition-opacity duration-300 ${
+                    isMobile && analyses.length > 0 ? 'opacity-60 animate-pulse-slow' : 'opacity-50 animate-pulse-slow'
+                  }`} />
                   <Link
                     href="/dashboard/new"
                     data-onboarding="nova-analise"
@@ -1564,8 +1600,8 @@ function DashboardPageInner() {
           userName={userName}
         />
 
-        {/* Onboarding Tour */}
-        {showOnboarding && (
+        {/* Onboarding Tour - Apenas em desktop */}
+        {showOnboarding && !isMobile && (
           <OnboardingTour
             steps={onboardingSteps}
             onComplete={handleOnboardingComplete}
@@ -1573,8 +1609,8 @@ function DashboardPageInner() {
           />
         )}
 
-        {/* Onboarding Tour Pós-Primeira Análise */}
-        {showPostFirstAnalysisOnboarding && (
+        {/* Onboarding Tour Pós-Primeira Análise - Apenas em desktop */}
+        {showPostFirstAnalysisOnboarding && !isMobile && (
           <OnboardingTour
             steps={postFirstAnalysisOnboardingSteps}
             onComplete={handlePostFirstAnalysisOnboardingComplete}

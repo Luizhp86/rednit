@@ -150,6 +150,7 @@ export default function AdminPage() {
   const [userAnalyses, setUserAnalyses] = useState<any[]>([])
   const [loadingAnalyses, setLoadingAnalyses] = useState(false)
   const [expandedAnalysis, setExpandedAnalysis] = useState<string | null>(null)
+  const [analysisViewMode, setAnalysisViewMode] = useState<'responses' | 'analysis'>('analysis')
   
   // Create user modal
   const [showCreateUser, setShowCreateUser] = useState(false)
@@ -3747,13 +3748,25 @@ export default function AdminPage() {
                           const signoMatch = inputJson.signo_match || resultJson.signo_match || '-'
                           
                           return (
-                            <div key={analysis.id} className="bg-gray-700 rounded-lg p-3">
+                            <div key={analysis.id} className={`rounded-lg p-3 ${analysis.deleted ? 'bg-red-900/20 border border-red-500/30' : 'bg-gray-700'}`}>
                               <div className="flex justify-between items-start mb-2">
-                                <div>
-                                  <p className="text-white font-medium">{nomeMatch}</p>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-white font-medium">{nomeMatch}</p>
+                                    {analysis.deleted && (
+                                      <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold uppercase border border-red-500/30">
+                                        🗑️ Deletada
+                                      </span>
+                                    )}
+                                  </div>
                                   <p className="text-gray-400 text-xs">
                                     {analysis.themeName} • {new Date(analysis.createdAt).toLocaleDateString('pt-BR')}
                                   </p>
+                                  {analysis.deleted && analysis.deletedAt && (
+                                    <p className="text-red-400 text-[10px] mt-0.5">
+                                      Deletada em: {new Date(analysis.deletedAt).toLocaleString('pt-BR')}
+                                    </p>
+                                  )}
                                   {signoMatch !== '-' && signoMatch !== 'NAO_SEI' && (
                                     <p className="text-amber-400 text-xs mt-1">⭐ {signoMatch}</p>
                                   )}
@@ -3768,48 +3781,342 @@ export default function AdminPage() {
                               
                               {expandedAnalysis === analysis.id && (
                                 <div className="mt-3 pt-3 border-t border-gray-600 space-y-3">
-                                  {/* Respostas do Formulário */}
-                                  <div>
-                                    <p className="text-gray-300 font-medium text-xs mb-2">Respostas:</p>
-                                    <div className="bg-gray-800 rounded p-2 text-xs">
-                                      <pre className="text-gray-300 whitespace-pre-wrap overflow-x-auto">
-                                        {JSON.stringify(inputJson, null, 2)}
-                                      </pre>
-                                    </div>
+                                  {/* Toggle de Visualização */}
+                                  <div className="flex gap-2 mb-2">
+                                    <button
+                                      onClick={() => setAnalysisViewMode('analysis')}
+                                      className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                                        analysisViewMode === 'analysis'
+                                          ? 'bg-purple-600 text-white'
+                                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                      }`}
+                                    >
+                                      Ver Análise
+                                    </button>
+                                    <button
+                                      onClick={() => setAnalysisViewMode('responses')}
+                                      className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                                        analysisViewMode === 'responses'
+                                          ? 'bg-purple-600 text-white'
+                                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                      }`}
+                                    >
+                                      Respostas JSON
+                                    </button>
                                   </div>
-                                  
-                                  {/* Resultado da Análise */}
-                                  <div>
-                                    <p className="text-gray-300 font-medium text-xs mb-2">Resultado:</p>
-                                    <div className="bg-gray-800 rounded p-2 text-xs">
-                                      {resultJson.free_teaser && (
-                                        <div className="mb-2">
-                                          <p className="text-purple-400 font-medium">Headline:</p>
-                                          <p className="text-gray-300">{resultJson.free_teaser.headline}</p>
+
+                                  {analysisViewMode === 'responses' ? (
+                                    /* Respostas do Formulário */
+                                    <div>
+                                      <p className="text-gray-300 font-medium text-xs mb-2">Respostas:</p>
+                                      <div className="bg-gray-800 rounded p-2 text-xs">
+                                        <pre className="text-gray-300 whitespace-pre-wrap overflow-x-auto">
+                                          {JSON.stringify(inputJson, null, 2)}
+                                        </pre>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    /* Visualização Formatada da Análise */
+                                    <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                                      {/* Executive Summary */}
+                                      {(resultJson.premium_report?.executive_summary || resultJson.premium?.executive_summary) && (
+                                        <div className="bg-gray-800/80 rounded-lg p-3 border border-purple-500/30">
+                                          <h4 className="text-purple-400 font-semibold text-sm mb-2 flex items-center gap-2">
+                                            ✨ Sumário Executivo
+                                          </h4>
+                                          <ul className="space-y-1.5">
+                                            {(resultJson.premium_report?.executive_summary || resultJson.premium?.executive_summary)?.map((item: string, idx: number) => (
+                                              <li key={idx} className="flex items-start gap-2 text-gray-300 text-xs">
+                                                <span className="text-purple-400 mt-0.5">•</span>
+                                                <span>{item}</span>
+                                              </li>
+                                            ))}
+                                          </ul>
                                         </div>
                                       )}
-                                      {resultJson.scores && (
-                                        <div className="mb-2">
-                                          <p className="text-purple-400 font-medium">Scores:</p>
-                                          <p className="text-gray-300">
-                                            Compatibilidade: {resultJson.scores.compat_objetivo || '-'}%
+
+                                      {/* Mapa de Risco */}
+                                      {(resultJson.premium_report?.full_risk_map || resultJson.premium?.full_risk_map) && (
+                                        <div className="bg-gray-800/80 rounded-lg p-3 border border-orange-500/30">
+                                          <h4 className="text-orange-400 font-semibold text-sm mb-3 flex items-center gap-2">
+                                            🎯 Mapa de Risco
+                                          </h4>
+                                          <div className="space-y-3">
+                                            {/* Risco de Ghosting */}
+                                            {(resultJson.premium_report?.full_risk_map?.risco_ghosting !== undefined || resultJson.premium?.full_risk_map?.risco_ghosting !== undefined) && (
+                                              <div>
+                                                <div className="flex justify-between items-center mb-1.5">
+                                                  <span className="text-gray-300 text-xs font-medium">Risco de Ghosting</span>
+                                                  <span className={`text-sm font-bold ${
+                                                    (resultJson.premium_report?.full_risk_map?.risco_ghosting || resultJson.premium?.full_risk_map?.risco_ghosting) > 60 ? 'text-red-400' :
+                                                    (resultJson.premium_report?.full_risk_map?.risco_ghosting || resultJson.premium?.full_risk_map?.risco_ghosting) > 40 ? 'text-yellow-400' : 'text-emerald-400'
+                                                  }`}>
+                                                    {resultJson.premium_report?.full_risk_map?.risco_ghosting || resultJson.premium?.full_risk_map?.risco_ghosting}%
+                                                  </span>
+                                                </div>
+                                                <div className="w-full bg-gray-700 rounded-full h-2">
+                                                  <div
+                                                    className={`h-full rounded-full transition-all ${
+                                                      (resultJson.premium_report?.full_risk_map?.risco_ghosting || resultJson.premium?.full_risk_map?.risco_ghosting) > 60 ? 'bg-red-500' :
+                                                      (resultJson.premium_report?.full_risk_map?.risco_ghosting || resultJson.premium?.full_risk_map?.risco_ghosting) > 40 ? 'bg-yellow-500' : 'bg-emerald-500'
+                                                    }`}
+                                                    style={{ width: `${resultJson.premium_report?.full_risk_map?.risco_ghosting || resultJson.premium?.full_risk_map?.risco_ghosting}%` }}
+                                                  />
+                                                </div>
+                                              </div>
+                                            )}
+
+                                            {/* Risco de Enrolação */}
+                                            {(resultJson.premium_report?.full_risk_map?.risco_enrolacao !== undefined || resultJson.premium?.full_risk_map?.risco_enrolacao !== undefined) && (
+                                              <div>
+                                                <div className="flex justify-between items-center mb-1.5">
+                                                  <span className="text-gray-300 text-xs font-medium">Risco de Enrolação</span>
+                                                  <span className={`text-sm font-bold ${
+                                                    (resultJson.premium_report?.full_risk_map?.risco_enrolacao || resultJson.premium?.full_risk_map?.risco_enrolacao) > 60 ? 'text-red-400' :
+                                                    (resultJson.premium_report?.full_risk_map?.risco_enrolacao || resultJson.premium?.full_risk_map?.risco_enrolacao) > 40 ? 'text-yellow-400' : 'text-emerald-400'
+                                                  }`}>
+                                                    {resultJson.premium_report?.full_risk_map?.risco_enrolacao || resultJson.premium?.full_risk_map?.risco_enrolacao}%
+                                                  </span>
+                                                </div>
+                                                <div className="w-full bg-gray-700 rounded-full h-2">
+                                                  <div
+                                                    className={`h-full rounded-full transition-all ${
+                                                      (resultJson.premium_report?.full_risk_map?.risco_enrolacao || resultJson.premium?.full_risk_map?.risco_enrolacao) > 60 ? 'bg-red-500' :
+                                                      (resultJson.premium_report?.full_risk_map?.risco_enrolacao || resultJson.premium?.full_risk_map?.risco_enrolacao) > 40 ? 'bg-yellow-500' : 'bg-emerald-500'
+                                                    }`}
+                                                    style={{ width: `${resultJson.premium_report?.full_risk_map?.risco_enrolacao || resultJson.premium?.full_risk_map?.risco_enrolacao}%` }}
+                                                  />
+                                                </div>
+                                              </div>
+                                            )}
+
+                                            {/* Explicações */}
+                                            {(resultJson.premium_report?.full_risk_map?.explanations || resultJson.premium?.full_risk_map?.explanations) && (
+                                              <div className="mt-2 pt-2 border-t border-gray-700">
+                                                <ul className="space-y-1">
+                                                  {(resultJson.premium_report?.full_risk_map?.explanations || resultJson.premium?.full_risk_map?.explanations)?.map((exp: string, idx: number) => (
+                                                    <li key={idx} className="flex items-start gap-2 text-gray-400 text-xs">
+                                                      <span>→</span>
+                                                      <span>{exp}</span>
+                                                    </li>
+                                                  ))}
+                                                </ul>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Compatibilidade */}
+                                      {(resultJson.premium_report?.compatibility_explained || resultJson.premium?.compatibility_explained) && (
+                                        <div className={`rounded-lg p-3 border ${
+                                          (resultJson.premium_report?.compatibility_explained?.alignment || resultJson.premium?.compatibility_explained?.alignment) === 'ALINHADO'
+                                            ? 'bg-emerald-900/30 border-emerald-500/30'
+                                            : (resultJson.premium_report?.compatibility_explained?.alignment || resultJson.premium?.compatibility_explained?.alignment) === 'PARCIAL'
+                                              ? 'bg-yellow-900/30 border-yellow-500/30'
+                                              : 'bg-red-900/30 border-red-500/30'
+                                        }`}>
+                                          <h4 className={`font-semibold text-sm mb-2 flex items-center gap-2 ${
+                                            (resultJson.premium_report?.compatibility_explained?.alignment || resultJson.premium?.compatibility_explained?.alignment) === 'ALINHADO' ? 'text-emerald-400' :
+                                            (resultJson.premium_report?.compatibility_explained?.alignment || resultJson.premium?.compatibility_explained?.alignment) === 'PARCIAL' ? 'text-yellow-400' : 'text-red-400'
+                                          }`}>
+                                            {(resultJson.premium_report?.compatibility_explained?.alignment || resultJson.premium?.compatibility_explained?.alignment) === 'ALINHADO' ? '💚' :
+                                             (resultJson.premium_report?.compatibility_explained?.alignment || resultJson.premium?.compatibility_explained?.alignment) === 'PARCIAL' ? '⚠️' : '🚨'} Compatibilidade
+                                          </h4>
+                                          <div className="flex items-center gap-3 mb-2">
+                                            <span className={`text-2xl font-bold ${
+                                              (resultJson.premium_report?.compatibility_explained?.alignment || resultJson.premium?.compatibility_explained?.alignment) === 'ALINHADO' ? 'text-emerald-400' :
+                                              (resultJson.premium_report?.compatibility_explained?.alignment || resultJson.premium?.compatibility_explained?.alignment) === 'PARCIAL' ? 'text-yellow-400' : 'text-red-400'
+                                            }`}>
+                                              {resultJson.premium_report?.compatibility_explained?.score || resultJson.premium?.compatibility_explained?.score}%
+                                            </span>
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                                              (resultJson.premium_report?.compatibility_explained?.alignment || resultJson.premium?.compatibility_explained?.alignment) === 'ALINHADO'
+                                                ? 'bg-emerald-500/20 text-emerald-300'
+                                                : (resultJson.premium_report?.compatibility_explained?.alignment || resultJson.premium?.compatibility_explained?.alignment) === 'PARCIAL'
+                                                  ? 'bg-yellow-500/20 text-yellow-300'
+                                                  : 'bg-red-500/20 text-red-300'
+                                            }`}>
+                                              {(resultJson.premium_report?.compatibility_explained?.alignment || resultJson.premium?.compatibility_explained?.alignment) === 'ALINHADO' ? 'Compatível' :
+                                               (resultJson.premium_report?.compatibility_explained?.alignment || resultJson.premium?.compatibility_explained?.alignment) === 'PARCIAL' ? 'Parcial' : 'Incompatível'}
+                                            </span>
+                                          </div>
+                                          <p className="text-gray-300 text-xs leading-relaxed">
+                                            {resultJson.premium_report?.compatibility_explained?.explanation || resultJson.premium?.compatibility_explained?.explanation}
                                           </p>
                                         </div>
                                       )}
-                                      {resultJson.free_teaser?.red_flag && (
-                                        <div className="mb-2">
-                                          <p className="text-red-400 font-medium">🚩 Red Flag:</p>
-                                          <p className="text-gray-300">{resultJson.free_teaser.red_flag}</p>
+
+                                      {/* Checklist de Validação */}
+                                      {(resultJson.premium_report?.validation_checklist || resultJson.premium?.validation_checklist) && (
+                                        <div className="bg-gray-800/80 rounded-lg p-3 border border-blue-500/30">
+                                          <h4 className="text-blue-400 font-semibold text-sm mb-2 flex items-center gap-2">
+                                            ✅ Checklist de Validação
+                                          </h4>
+                                          <ul className="space-y-1.5">
+                                            {(resultJson.premium_report?.validation_checklist || resultJson.premium?.validation_checklist)?.slice(0, 8).map((item: string, idx: number) => (
+                                              <li key={idx} className="flex items-start gap-2 text-gray-300 text-xs">
+                                                <span className="text-blue-400 mt-0.5">□</span>
+                                                <span>{item}</span>
+                                              </li>
+                                            ))}
+                                            {(resultJson.premium_report?.validation_checklist || resultJson.premium?.validation_checklist)?.length > 8 && (
+                                              <li className="text-blue-400 text-xs italic">
+                                                +{(resultJson.premium_report?.validation_checklist || resultJson.premium?.validation_checklist).length - 8} itens adicionais
+                                              </li>
+                                            )}
+                                          </ul>
                                         </div>
                                       )}
-                                      {resultJson.free_teaser?.green_flag && (
-                                        <div className="mb-2">
-                                          <p className="text-green-400 font-medium">✅ Green Flag:</p>
-                                          <p className="text-gray-300">{resultJson.free_teaser.green_flag}</p>
+
+                                      {/* Plano por Estágio */}
+                                      {(resultJson.premium_report?.stage_plan || resultJson.premium?.stage_plan) && (
+                                        <div className="bg-gray-800/80 rounded-lg p-3 border border-purple-500/30">
+                                          <h4 className="text-purple-400 font-semibold text-sm mb-2 flex items-center gap-2">
+                                            📍 Plano para o Estágio
+                                          </h4>
+                                          {(resultJson.premium_report?.stage_plan || resultJson.premium?.stage_plan)?.map((plan: any, idx: number) => {
+                                            const stageLabels: Record<string, string> = {
+                                              'FIRST_CHAT': 'Primeira Conversa',
+                                              'TALKING': 'Conversando',
+                                              'POST_DATE': 'Após Encontro'
+                                            }
+                                            return (
+                                              <div key={idx} className="space-y-2">
+                                                <div className="inline-block px-2 py-1 bg-purple-500/20 rounded text-purple-300 text-xs font-medium">
+                                                  {stageLabels[plan.stage] || plan.stage}
+                                                </div>
+                                                
+                                                {plan.actions && plan.actions.length > 0 && (
+                                                  <div>
+                                                    <p className="text-gray-400 text-xs font-medium mb-1">🎯 Ações:</p>
+                                                    <ul className="space-y-1 pl-3">
+                                                      {plan.actions.map((action: string, aIdx: number) => (
+                                                        <li key={aIdx} className="text-gray-300 text-xs">
+                                                          {aIdx + 1}. {action}
+                                                        </li>
+                                                      ))}
+                                                    </ul>
+                                                  </div>
+                                                )}
+                                                
+                                                {plan.metrics && plan.metrics.length > 0 && (
+                                                  <div>
+                                                    <p className="text-gray-400 text-xs font-medium mb-1">📊 Observar:</p>
+                                                    <ul className="space-y-1 pl-3">
+                                                      {plan.metrics.map((metric: string, mIdx: number) => (
+                                                        <li key={mIdx} className="text-gray-300 text-xs">
+                                                          • {metric}
+                                                        </li>
+                                                      ))}
+                                                    </ul>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      )}
+
+                                      {/* Hipóteses Detalhadas */}
+                                      {[resultJson.premium_report?.hypothesis_1 || resultJson.premium?.hypothesis_1,
+                                        resultJson.premium_report?.hypothesis_2 || resultJson.premium?.hypothesis_2,
+                                        resultJson.premium_report?.hypothesis_3 || resultJson.premium?.hypothesis_3].filter(Boolean).length > 0 && (
+                                        <div className="bg-gray-800/80 rounded-lg p-3 border border-gray-500/30">
+                                          <h4 className="text-gray-300 font-semibold text-sm mb-3 flex items-center gap-2">
+                                            🔍 Hipóteses Detalhadas
+                                          </h4>
+                                          <div className="space-y-3">
+                                            {[resultJson.premium_report?.hypothesis_1 || resultJson.premium?.hypothesis_1,
+                                              resultJson.premium_report?.hypothesis_2 || resultJson.premium?.hypothesis_2,
+                                              resultJson.premium_report?.hypothesis_3 || resultJson.premium?.hypothesis_3]
+                                              .filter(Boolean)
+                                              .map((hypothesis: any, idx: number) => (
+                                                <div key={idx} className="bg-gray-700/50 rounded p-2 border border-gray-600">
+                                                  <div className="flex items-center gap-2 mb-1.5">
+                                                    <span className="text-gray-400 font-bold text-xs">#{idx + 1}</span>
+                                                    <span className="text-gray-200 font-medium text-xs">
+                                                      {hypothesis.title || `Hipótese ${idx + 1}`}
+                                                    </span>
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ml-auto ${
+                                                      hypothesis.confidence === 'HIGH'
+                                                        ? 'bg-emerald-500/20 text-emerald-300'
+                                                        : hypothesis.confidence === 'MEDIUM'
+                                                          ? 'bg-yellow-500/20 text-yellow-300'
+                                                          : 'bg-gray-500/20 text-gray-300'
+                                                    }`}>
+                                                      {hypothesis.confidence === 'HIGH' ? 'Alta' : hypothesis.confidence === 'MEDIUM' ? 'Média' : 'Baixa'}
+                                                    </span>
+                                                  </div>
+                                                  
+                                                  {hypothesis.description && (
+                                                    <p className="text-gray-300 text-xs mb-2 leading-relaxed">{hypothesis.description}</p>
+                                                  )}
+                                                  
+                                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                                    {hypothesis.observe_to_confirm && hypothesis.observe_to_confirm.length > 0 && (
+                                                      <div className="bg-gray-800/50 rounded p-1.5">
+                                                        <p className="text-emerald-400 font-medium mb-1">✓ Confirmar:</p>
+                                                        <ul className="space-y-0.5 text-gray-400">
+                                                          {hypothesis.observe_to_confirm.slice(0, 2).map((obs: string, oIdx: number) => (
+                                                            <li key={oIdx}>• {obs}</li>
+                                                          ))}
+                                                        </ul>
+                                                      </div>
+                                                    )}
+                                                    {hypothesis.observe_to_refute && hypothesis.observe_to_refute.length > 0 && (
+                                                      <div className="bg-gray-800/50 rounded p-1.5">
+                                                        <p className="text-red-400 font-medium mb-1">✗ Descartar:</p>
+                                                        <ul className="space-y-0.5 text-gray-400">
+                                                          {hypothesis.observe_to_refute.slice(0, 2).map((obs: string, oIdx: number) => (
+                                                            <li key={oIdx}>• {obs}</li>
+                                                          ))}
+                                                        </ul>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              ))}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Free Teaser (caso não haja dados premium) */}
+                                      {!resultJson.premium_report && !resultJson.premium && resultJson.free_teaser && (
+                                        <div className="bg-gray-800/80 rounded-lg p-3 border border-amber-500/30">
+                                          <h4 className="text-amber-400 font-semibold text-sm mb-2">📋 Resumo (Free)</h4>
+                                          <div className="space-y-2">
+                                            {resultJson.free_teaser.headline && (
+                                              <div>
+                                                <p className="text-purple-400 font-medium text-xs">Headline:</p>
+                                                <p className="text-gray-300 text-xs">{resultJson.free_teaser.headline}</p>
+                                              </div>
+                                            )}
+                                            {resultJson.scores && (
+                                              <div>
+                                                <p className="text-purple-400 font-medium text-xs">Score:</p>
+                                                <p className="text-gray-300 text-xs">
+                                                  Compatibilidade: {resultJson.scores.compat_objetivo || '-'}%
+                                                </p>
+                                              </div>
+                                            )}
+                                            {resultJson.free_teaser.red_flag && (
+                                              <div>
+                                                <p className="text-red-400 font-medium text-xs">🚩 Red Flag:</p>
+                                                <p className="text-gray-300 text-xs">{resultJson.free_teaser.red_flag}</p>
+                                              </div>
+                                            )}
+                                            {resultJson.free_teaser.green_flag && (
+                                              <div>
+                                                <p className="text-green-400 font-medium text-xs">✅ Green Flag:</p>
+                                                <p className="text-gray-300 text-xs">{resultJson.free_teaser.green_flag}</p>
+                                              </div>
+                                            )}
+                                          </div>
                                         </div>
                                       )}
                                     </div>
-                                  </div>
+                                  )}
                                 </div>
                               )}
                             </div>

@@ -108,6 +108,7 @@ export async function GET() {
       email: dbUser.email,
       name: dbUser.name,
       phone: dbUser.phone,
+      signo: dbUser.signo,
       instagram: dbUser.instagram,
       facebook: dbUser.facebook,
       hasSeenOnboarding: hasSeenOnboarding, // Sempre retorna boolean (false ou true)

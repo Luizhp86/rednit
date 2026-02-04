@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
     const allAnalyses = await prisma.analysis.findMany({
       where: { 
         userId: dbUser.id,
+        deleted: false, // Filtrar análises deletadas
       },
       orderBy: { createdAt: 'desc' },
       select: {
