@@ -1,179 +1,167 @@
-# Radar Match 🎯
+# Rednit (Radar Match)
 
-Plataforma de análise comportamental para relacionamentos em apps de namoro, usando IA para identificar padrões e sinais de alerta.
+Motor de análise comportamental para relacionamentos que começaram em app de namoro. Você descreve o que está acontecendo; o motor devolve scores, hipóteses, red flags, green flags e um plano do que observar.
 
-## 🚀 Status do Projeto
-
-**Versão:** 0.8  
-**Status:** Pronto para deploy em produção
-
-## 📋 Sobre o Projeto
-
-Radar Match é uma aplicação Next.js que utiliza IA (Google Gemini) para analisar comportamentos em relacionamentos iniciados em apps de namoro. A plataforma:
-
-- ✅ Analisa padrões de comportamento com base em 14+ critérios
-- ✅ Identifica sinais de alerta (red flags) e pontos positivos (green flags)
-- ✅ Gera análises de compatibilidade personalizadas
-- ✅ Oferece análise de evolução comportamental (PRO)
-- ✅ Sistema de créditos e assinaturas via Stripe
-- ✅ Painel admin completo
-
-## 🛠️ Tecnologias
-
-- **Framework:** Next.js 16 (App Router)
-- **Linguagem:** TypeScript
-- **Banco de Dados:** PostgreSQL (Supabase)
-- **ORM:** Prisma
-- **Autenticação:** Supabase Auth
-- **Pagamentos:** Stripe (produção)
-- **IA:** Google Gemini API
-- **Hospedagem:** Vercel
-- **UI:** TailwindCSS + shadcn/ui + Framer Motion
-
-## 📦 Estrutura do Projeto
-
-```
-radar-match/
-├── app/                    # Next.js App Router
-│   ├── api/               # API Routes
-│   ├── dashboard/         # Dashboard do usuário
-│   ├── admin/             # Painel administrativo
-│   └── login/             # Autenticação
-├── components/            # Componentes React
-├── lib/                   # Bibliotecas e utils
-│   ├── ai/               # Integração com Gemini
-│   ├── rules/            # Motor de análise
-│   └── supabase/         # Cliente Supabase
-├── prisma/               # Schema e migrations
-└── docs/                 # Documentação
-```
-
-## 🚀 Deploy em Produção
-
-### Guias Disponíveis
-
-1. **[PROXIMOS_PASSOS.md](./PROXIMOS_PASSOS.md)** - Guia rápido de ações manuais
-2. **[CHECKLIST_DEPLOY.md](./CHECKLIST_DEPLOY.md)** - Checklist interativo completo
-3. **[DEPLOY_PRODUCAO.md](./DEPLOY_PRODUCAO.md)** - Guia detalhado com troubleshooting
-4. **[README.VERCEL.md](./README.VERCEL.md)** - Referência rápida Vercel
-
-### Requisitos
-
-- Conta Vercel
-- Projeto Supabase (PostgreSQL)
-- Conta Stripe (modo produção)
-- API Key do Google Gemini
-
-### Deploy Rápido
-
-```bash
-# 1. Clone o repositório
-git clone https://github.com/Luizhp86/rednit.git
-cd rednit
-
-# 2. Configure as variáveis de ambiente na Vercel
-# Ver PROXIMOS_PASSOS.md para valores
-
-# 3. Deploy
-# Conecte o repositório na Vercel e faça deploy
-```
-
-## 🔧 Desenvolvimento Local
-
-### Pré-requisitos
-
-- Node.js 18+
-- PostgreSQL (ou conta Supabase)
-- Chaves de API (Gemini, Stripe, Supabase)
-
-### Instalação
-
-```bash
-# 1. Instalar dependências
-npm install
-
-# 2. Configurar variáveis de ambiente
-cp .env.example .env
-# Edite .env com suas chaves
-
-# 3. Setup do banco de dados
-npx prisma generate
-npx prisma db push
-
-# 4. Rodar em desenvolvimento
-npm run dev
-```
-
-Acesse: `http://localhost:3000`
-
-## 📊 Features
-
-### Para Usuários
-
-- 📝 **Formulário de Análise:** 14 perguntas sobre o comportamento do match
-- 🎯 **Análise Gratuita:** Teaser com principais insights
-- 💎 **Análise Premium:** Relatório completo desbloqueável
-- 📈 **Análise de Comportamento:** Evolução ao longo do tempo (PRO)
-- 💳 **Compra de Créditos:** Pacotes avulsos
-- ⭐ **Assinatura PRO:** Análises ilimitadas
-
-### Para Administradores
-
-- 📊 **Dashboard:** Estatísticas de usuários, análises e receita
-- 👥 **Gestão de Usuários:** Visualizar, editar planos e créditos
-- ⚙️ **Configurações:** Preços dinâmicos, limites, feature flags
-- 📝 **Logs:** Audit trail de alterações do sistema
-- 📈 **Atividade:** Tracking de eventos de usuários
-- 🔑 **API Keys:** Visualização do status das chaves
-
-## 💳 Sistema de Pagamentos
-
-### Planos
-
-- **FREE:** 10 análises gratuitas por dia (teaser)
-- **PRO:** Análises ilimitadas + Análise de Comportamento
-
-### Preços (configuráveis)
-
-- PRO: R$ 29,90/mês | R$ 79,90/trimestre | R$ 299,00/ano
-- Créditos: R$ 7,99 (1x) | R$ 24,90 (3x) | R$ 39,90 (5x)
-
-## 🔐 Segurança
-
-- ✅ Autenticação via Supabase
-- ✅ Row Level Security (RLS) no banco
-- ✅ Validação de inputs (Zod)
-- ✅ Rate limiting
-- ✅ Webhooks verificados (Stripe)
-- ✅ Variáveis de ambiente seguras
-
-## 📈 Roadmap
-
-- [ ] Integração com Asaas (PIX)
-- [ ] Sistema de emails transacionais (Resend)
-- [ ] Analytics avançado
-- [ ] Modo escuro
-- [ ] PWA (Progressive Web App)
-- [ ] API pública
-
-## 📄 Licença
-
-Proprietário - Todos os direitos reservados
-
-## 👨‍💻 Autor
-
-Luiz Henrique Pinotti  
-GitHub: [@Luizhp86](https://github.com/Luizhp86)
-
-## 🆘 Suporte
-
-Para dúvidas sobre deploy ou desenvolvimento:
-1. Consulte os guias em `docs/`
-2. Verifique `DEPLOY_PRODUCAO.md` para troubleshooting
-3. Abra uma issue no repositório
+Demo: [rednit-nu.vercel.app](https://rednit-nu.vercel.app)  
+Repositório: [github.com/Luizhp86/rednit](https://github.com/Luizhp86/rednit)
 
 ---
 
-**🚀 Pronto para colocar em produção!**
+## Para que serve
 
-Siga o guia `PROXIMOS_PASSOS.md` para fazer deploy na Vercel em menos de 1 hora.
+Conversas de app são ambíguas. A pessoa some, promete e não marca, só aparece de madrugada, ou parece perfeita até o primeiro “não”. O Rednit organiza isso em um relatório, em vez de deixar tudo no feeling.
+
+É útil para:
+
+- **quem está saindo com alguém** e quer um segundo olhar, com linguagem clara
+- **terapeutas, coaches e criadores** que queiram um motor de sinais (não um horóscopo)
+- **devs** que queiram reusar o motor de regras (`lib/rules`) em outro produto — app, bot, pesquisa, onboarding
+
+Não é oráculo e não substitui julgamento. É um motor determinístico: mesmas respostas, mesma análise. A IA (Gemini) entra depois, para redigir o texto com mais naturalidade — o veredito numérico vem das regras.
+
+---
+
+## Como o motor funciona
+
+O cérebro está em dois arquivos, independentes da interface:
+
+```
+lib/rules/
+  engine.ts      # analyze(input) → scores, hipóteses, flags, relatório
+  ruleset.json   # pesos, sinais, red/green flags, hipóteses
+```
+
+Você passa um formulário (iniciativa, frequência, respeito a limites, encontro, etc.). O motor:
+
+1. **Dispara sinais** — cada resposta vira um código (`INICIATIVA_VOCE_SEMPRE`, `RESPEITO_INSISTE`…)
+2. **Calcula 9 scores** (0–100, na prática 10–90):
+   - reciprocidade, constância, ação no mundo real
+   - respeito, coerência, disponibilidade
+   - risco de ghosting, risco de enrolação, compatibilidade com o seu objetivo
+3. **Cruza com o estágio** — primeiro chat, conversando, ou pós-encontro (o mesmo atraso pesa mais depois do date)
+4. **Monta hipóteses** — explorando opções, busca sério, validação, rebote, evitativo, interesse superficial
+5. **Marca flags** — desprezo a limites, future faking, cancelou sem remarcar, reciprocidade equilibrada, etc.
+6. **Devolve dois cortes:**
+   - *teaser grátis* — headline, 1 risco, 1 flag, o que olhar em 48h
+   - *relatório premium* — top 3 hipóteses, mapa de risco, checklist, plano por estágio
+
+A base teórica do `ruleset.json` é explícita: apego, investimento (Rusbult), Gottman (desprezo como preditor), interdependência. Os pesos estão no JSON — dá para calibrar sem reescrever o TypeScript.
+
+### Usar só o motor (sem o site)
+
+```ts
+import { analyze } from "./lib/rules/engine";
+
+const result = analyze({
+  genero_match: "ELE",
+  objetivo_usuario: "NAMORO",
+  estagio: "TALKING",
+  iniciativa: "VOCE",
+  frequencia_contato: "SOME",
+  tempo_resposta: "DIAS",
+  respeito_limites: "RESPEITA",
+  sinais_alerta: [],
+  inegociaveis: [],
+  nome_match: "Alex",
+});
+
+console.log(result.scores);
+console.log(result.hypotheses_top3);
+console.log(result.free_teaser.headline);
+```
+
+Isso é o produto. O restante do repo é o produto em volta: login, créditos, Stripe, painel admin, Gemini para o texto.
+
+---
+
+## Como usar o produto (usuário)
+
+1. Crie conta (Supabase Auth)
+2. Preencha o formulário sobre o match (há formulários temáticos além do padrão)
+3. Veja o teaser grátis
+4. Desbloqueie o relatório completo com crédito ou plano PRO
+
+Planos típicos (valores configuráveis no admin):
+
+- **FREE** — teasers com limite diário
+- **PRO** — relatórios ilimitados + evolução ao longo do tempo
+- **Créditos avulsos** — 1, 3 ou 5 análises
+
+---
+
+## Como rodar localmente
+
+### O que você precisa
+
+- Node.js 18+
+- Projeto [Supabase](https://supabase.com) (Auth + Postgres)
+- [Gemini API key](https://aistudio.google.com/apikey)
+- (opcional) Stripe, para pagamentos
+
+### Passo a passo
+
+```bash
+git clone https://github.com/Luizhp86/rednit.git
+cd rednit
+npm install
+cp .env.example .env
+```
+
+Preencha no `.env`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+DATABASE_URL=postgresql://...?
+GEMINI_API_KEY=
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+Banco e app:
+
+```bash
+npx prisma generate
+npx prisma db push
+npm run dev
+```
+
+Abra `http://localhost:3000`.
+
+Guias extras de deploy (Vercel + Stripe): `PROXIMOS_PASSOS.md`, `CHECKLIST_DEPLOY.md`, `DEPLOY_PRODUCAO.md`.
+
+---
+
+## Stack
+
+| Camada | Tecnologia |
+|--------|------------|
+| App | Next.js 16, TypeScript, Tailwind, shadcn/ui |
+| Motor | TypeScript puro + `ruleset.json` |
+| Texto / IA | Google Gemini |
+| Auth + DB | Supabase + Prisma + PostgreSQL |
+| Pagamento | Stripe |
+| Host | Vercel |
+
+---
+
+## Estrutura
+
+```
+app/                 rotas (dashboard, admin, login, API)
+components/          UI
+lib/
+  rules/             motor de análise ← comece aqui
+  ai/                Gemini (redação)
+  supabase/          auth
+  stripe.ts          cobrança
+prisma/              schema e migrations
+docs/                notas de produto e deploy
+```
+
+---
+
+## Licença
+
+MIT. Pode clonar, estudar o `ruleset`, recalibrar pesos e embutir o `analyze()` em outro projeto.
+
+Isso não é aconselhamento psicológico nem diagnóstico. É um modelo de sinais, aberto para crítica e melhoria.
