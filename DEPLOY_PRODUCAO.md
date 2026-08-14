@@ -4,7 +4,7 @@ Este guia contém todos os passos para colocar o Radar Match em produção na Ve
 
 ## ⚠️ IMPORTANTE - Segurança
 
-As chaves do Stripe de produção foram compartilhadas no chat. Considere regenerá-las após o deploy se houver risco de exposição.
+Nunca commite chaves reais. Configure Stripe, Gemini e o banco apenas nas variáveis de ambiente da Vercel (ou outro provedor).
 
 ---
 
@@ -26,15 +26,15 @@ Na tela de configuração do projeto (antes do deploy), ou em **Settings** → *
 ### 🔵 Supabase (Database)
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://nvdqvoofbsymynafnucu.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 ```
 
 ```
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_1oyBO8c9R_yq8hnDr8M2Aw_6A6Ywa9O
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 ```
-DATABASE_URL=postgresql://postgres.nvdqvoofbsymynafnucu:u8N8W4k773319827@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require&pgbouncer=true
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/postgres?sslmode=require&pgbouncer=true
 ```
 
 **Importante:** Adicione `?sslmode=require&pgbouncer=true` no final da DATABASE_URL para compatibilidade com Vercel.
@@ -42,11 +42,11 @@ DATABASE_URL=postgresql://postgres.nvdqvoofbsymynafnucu:u8N8W4k773319827@aws-0-u
 ### 💳 Stripe (Produção - LIVE)
 
 ```
-STRIPE_SECRET_KEY=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
+STRIPE_SECRET_KEY=sk_live_YOUR_STRIPE_SECRET_KEY
 ```
 
 ```
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_51SrjR0E4S15Fj12SL5JKSUC3skYdrZOLhK6ZcAaOLV0VP1wtkinojNEhdbaI0reRCeqrBrzk3QyaaLtQs05SBsIo000VxQxU9j
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_YOUR_STRIPE_PUBLISHABLE_KEY
 ```
 
 ```
@@ -58,7 +58,7 @@ STRIPE_WEBHOOK_SECRET=whsec_SERA_GERADO_NO_PASSO_4
 ### 🤖 Gemini AI
 
 ```
-GEMINI_API_KEY=AIzaSyAOR_wiI0dbZsRS9A_yvaKcVpNmwzx53_8
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
 ### 🌐 App URL (temporário)
@@ -134,7 +134,7 @@ Se o banco de produção ainda não tem as tabelas criadas:
 
 ```bash
 # Apontar para o banco de produção
-export DATABASE_URL="postgresql://postgres.nvdqvoofbsymynafnucu:u8N8W4k773319827@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require"
+export DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/postgres?sslmode=require"
 
 # Aplicar migrations
 npx prisma db push

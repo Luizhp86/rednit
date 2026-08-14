@@ -39,17 +39,17 @@ Você precisa adicionar 8 variáveis na Vercel:
 # Copie e cole cada uma na Vercel:
 
 # Supabase (3 variáveis)
-NEXT_PUBLIC_SUPABASE_URL=https://nvdqvoofbsymynafnucu.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_1oyBO8c9R_yq8hnDr8M2Aw_6A6Ywa9O
-DATABASE_URL=postgresql://postgres.nvdqvoofbsymynafnucu:u8N8W4k773319827@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require&pgbouncer=true
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/postgres?sslmode=require&pgbouncer=true
 
 # Stripe LIVE (3 variáveis)
-STRIPE_SECRET_KEY=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
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_51SrjR0E4S15Fj12SL5JKSUC3skYdrZOLhK6ZcAaOLV0VP1wtkinojNEhdbaI0reRCeqrBrzk3QyaaLtQs05SBsIo000VxQxU9j
-STRIPE_WEBHOOK_SECRET=whsec_placeholder
+STRIPE_SECRET_KEY=sk_live_YOUR_STRIPE_SECRET_KEY
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_YOUR_STRIPE_PUBLISHABLE_KEY
+STRIPE_WEBHOOK_SECRET=whsec_YOUR_WEBHOOK_SECRET
 
 # Gemini (1 variável)
-GEMINI_API_KEY=AIzaSyAOR_wiI0dbZsRS9A_yvaKcVpNmwzx53_8
+GEMINI_API_KEY=your_gemini_api_key
 
 # App URL (1 variável)
 NEXT_PUBLIC_APP_URL=https://radar-match.vercel.app

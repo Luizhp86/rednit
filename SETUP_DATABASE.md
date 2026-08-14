@@ -8,7 +8,7 @@ O `DATABASE_URL` está usando o formato `prisma+postgres://` que aponta para um 
 
 ### Passo 1: Obter a URL de Conexão do Supabase
 
-1. Acesse: https://supabase.com/dashboard/project/nvdqvoofbsymynafnucu/settings/database
+1. Acesse: https://supabase.com/dashboard/project/YOUR_PROJECT_REF/settings/database
 2. Role até a seção **"Connection string"**
 3. Selecione a aba **"URI"** (não "Connection pooling")
 4. Copie a URL completa. Ela deve ter o formato:
